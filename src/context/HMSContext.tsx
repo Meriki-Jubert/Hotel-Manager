@@ -11,9 +11,13 @@ import {
   NightAuditReport,
   RoomStatus,
   PaymentMethod,
-  UserRole
+  UserRole,
+  HotelConfig,
+  DeploymentRecord
 } from '../types/hms';
 import {
+  DEFAULT_HOTEL_CONFIG,
+  INITIAL_DEPLOYMENTS,
   INITIAL_ROOM_TYPES,
   INITIAL_ROOMS,
   INITIAL_GUESTS,
@@ -34,7 +38,8 @@ export type NavTab =
   | 'maintenance'
   | 'audit'
   | 'analytics'
-  | 'guests';
+  | 'guests'
+  | 'settings';
 
 interface CheckInPayload {
   guestName: string;
@@ -54,6 +59,8 @@ interface CheckInPayload {
 }
 
 interface HMSContextType {
+  hotelConfig: HotelConfig;
+  deployments: DeploymentRecord[];
   roomTypes: RoomType[];
   rooms: Room[];
   guests: Guest[];
@@ -62,24 +69,43 @@ interface HMSContextType {
   maintenanceTickets: MaintenanceTicket[];
   posItems: PosItem[];
   nightAuditReports: NightAuditReport[];
-  currentUser: StaffUser;
+  currentUser: StaffUser | null;
   currency: 'FCFA' | 'USD';
   businessDate: string;
   activeTab: NavTab;
   selectedRoom: Room | null;
   selectedReservation: Reservation | null;
   notification: { message: string; type: 'success' | 'info' | 'warning' } | null;
-  
-  // Setters
-  setCurrentUser: (user: StaffUser) => void;
+
+  // Role Scopes & Permissions
+  allowedTabs: NavTab[];
+  canEditRates: boolean;
+  canVoidTransactions: boolean;
+  canRunAudit: boolean;
+  canCheckIn: boolean;
+  canCheckOut: boolean;
+  isReadOnly: boolean;
+
+  // Auth Setters
+  login: (username: string, password?: string) => boolean;
+  fastLogin: (role: UserRole) => void;
+  logout: () => void;
+
+  // Config & Deployment Setters
+  updateHotelConfig: (newConfig: Partial<HotelConfig>) => void;
+  switchDeployment: (deploymentId: string) => void;
+  addDeployment: (record: DeploymentRecord) => void;
+  updateRoomTypePricing: (roomTypeId: string, newBasePrice: number) => void;
+
+  // General Setters
   setCurrency: (c: 'FCFA' | 'USD') => void;
   setActiveTab: (tab: NavTab) => void;
   setSelectedRoom: (room: Room | null) => void;
   setSelectedReservation: (res: Reservation | null) => void;
   showNotification: (message: string, type?: 'success' | 'info' | 'warning') => void;
   clearNotification: () => void;
-  
-  // Currency Formatter
+
+  // Helpers & Formatter
   formatMoney: (amountInFcfa: number) => string;
 
   // Actions
@@ -88,6 +114,7 @@ interface HMSContextType {
   updateRoomStatus: (roomId: string, status: RoomStatus, note?: string) => void;
   addFolioCharge: (charge: Omit<FolioTransaction, 'id' | 'timestamp'>) => void;
   recordFolioPayment: (payment: Omit<FolioTransaction, 'id' | 'timestamp' | 'type'>) => void;
+  voidTransaction: (txId: string, reason: string) => boolean;
   createMaintenanceTicket: (ticket: Omit<MaintenanceTicket, 'id' | 'ticketNumber' | 'reportedAt'>) => void;
   updateMaintenanceStatus: (ticketId: string, status: MaintenanceTicket['status'], cost?: number) => void;
   runNightAudit: (expectedCash: number, actualCash: number, notes: string) => NightAuditReport;
@@ -97,64 +124,153 @@ interface HMSContextType {
 
 const HMSContext = createContext<HMSContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'hms_state_v1';
+const STORAGE_PREFIX = 'hms_v2';
 
 export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load state from localStorage or initial mock
-  const [roomTypes] = useState<RoomType[]>(INITIAL_ROOM_TYPES);
+  // Deployments tracking
+  const [deployments, setDeployments] = useState<DeploymentRecord[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_deployments`);
+    return saved ? JSON.parse(saved) : INITIAL_DEPLOYMENTS;
+  });
+
+  // Active hotel config
+  const [hotelConfig, setHotelConfig] = useState<HotelConfig>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_config`);
+    return saved ? JSON.parse(saved) : DEFAULT_HOTEL_CONFIG;
+  });
+
+  const activeDeploymentKey = `${STORAGE_PREFIX}_${hotelConfig.deploymentId}`;
+
+  // Auth state (starts as null to force login page)
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
+    const saved = sessionStorage.getItem(`${STORAGE_PREFIX}_user`);
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // State
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>(() => {
+    const saved = localStorage.getItem(`${activeDeploymentKey}_room_types`);
+    return saved ? JSON.parse(saved) : INITIAL_ROOM_TYPES;
+  });
+
   const [rooms, setRooms] = useState<Room[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_rooms`);
+    const saved = localStorage.getItem(`${activeDeploymentKey}_rooms`);
     return saved ? JSON.parse(saved) : INITIAL_ROOMS;
   });
+
   const [guests, setGuests] = useState<Guest[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_guests`);
+    const saved = localStorage.getItem(`${activeDeploymentKey}_guests`);
     return saved ? JSON.parse(saved) : INITIAL_GUESTS;
   });
+
   const [reservations, setReservations] = useState<Reservation[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_reservations`);
+    const saved = localStorage.getItem(`${activeDeploymentKey}_reservations`);
     return saved ? JSON.parse(saved) : INITIAL_RESERVATIONS;
   });
+
   const [transactions, setTransactions] = useState<FolioTransaction[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_transactions`);
+    const saved = localStorage.getItem(`${activeDeploymentKey}_transactions`);
     return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
   });
+
   const [maintenanceTickets, setMaintenanceTickets] = useState<MaintenanceTicket[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_maintenance`);
+    const saved = localStorage.getItem(`${activeDeploymentKey}_maintenance`);
     return saved ? JSON.parse(saved) : INITIAL_MAINTENANCE_TICKETS;
   });
+
   const [posItems] = useState<PosItem[]>(INITIAL_POS_ITEMS);
+
   const [nightAuditReports, setNightAuditReports] = useState<NightAuditReport[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_audits`);
+    const saved = localStorage.getItem(`${activeDeploymentKey}_audits`);
     return saved ? JSON.parse(saved) : INITIAL_NIGHT_AUDIT_HISTORY;
   });
 
-  const [currentUser, setCurrentUser] = useState<StaffUser>(STAFF_USERS[0]);
-  const [currency, setCurrency] = useState<'FCFA' | 'USD'>('FCFA');
+  const [currency, setCurrency] = useState<'FCFA' | 'USD'>(hotelConfig.defaultCurrency);
   const [businessDate, setBusinessDate] = useState<string>('2026-10-14');
   const [activeTab, setActiveTab] = useState<NavTab>('matrix');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
 
-  // Sync to localStorage
+  // Sync to Storage
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_rooms`, JSON.stringify(rooms));
-  }, [rooms]);
+    localStorage.setItem(`${STORAGE_PREFIX}_deployments`, JSON.stringify(deployments));
+  }, [deployments]);
+
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_guests`, JSON.stringify(guests));
-  }, [guests]);
+    localStorage.setItem(`${STORAGE_PREFIX}_config`, JSON.stringify(hotelConfig));
+  }, [hotelConfig]);
+
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_reservations`, JSON.stringify(reservations));
-  }, [reservations]);
+    localStorage.setItem(`${activeDeploymentKey}_room_types`, JSON.stringify(roomTypes));
+  }, [roomTypes, activeDeploymentKey]);
+
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_transactions`, JSON.stringify(transactions));
-  }, [transactions]);
+    localStorage.setItem(`${activeDeploymentKey}_rooms`, JSON.stringify(rooms));
+  }, [rooms, activeDeploymentKey]);
+
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_maintenance`, JSON.stringify(maintenanceTickets));
-  }, [maintenanceTickets]);
+    localStorage.setItem(`${activeDeploymentKey}_guests`, JSON.stringify(guests));
+  }, [guests, activeDeploymentKey]);
+
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_audits`, JSON.stringify(nightAuditReports));
-  }, [nightAuditReports]);
+    localStorage.setItem(`${activeDeploymentKey}_reservations`, JSON.stringify(reservations));
+  }, [reservations, activeDeploymentKey]);
+
+  useEffect(() => {
+    localStorage.setItem(`${activeDeploymentKey}_transactions`, JSON.stringify(transactions));
+  }, [transactions, activeDeploymentKey]);
+
+  useEffect(() => {
+    localStorage.setItem(`${activeDeploymentKey}_maintenance`, JSON.stringify(maintenanceTickets));
+  }, [maintenanceTickets, activeDeploymentKey]);
+
+  useEffect(() => {
+    localStorage.setItem(`${activeDeploymentKey}_audits`, JSON.stringify(nightAuditReports));
+  }, [nightAuditReports, activeDeploymentKey]);
+
+  // Role Permissions
+  const role = currentUser?.role;
+
+  let allowedTabs: NavTab[] = [];
+  if (role === 'front_desk') {
+    allowedTabs = ['matrix', 'reservations', 'folios', 'pos', 'guests'];
+  } else if (role === 'housekeeping') {
+    allowedTabs = ['housekeeping', 'maintenance'];
+  } else if (role === 'manager') {
+    allowedTabs = [
+      'matrix',
+      'reservations',
+      'folios',
+      'pos',
+      'housekeeping',
+      'maintenance',
+      'audit',
+      'analytics',
+      'guests',
+      'settings'
+    ];
+  } else if (role === 'owner') {
+    allowedTabs = ['analytics', 'matrix'];
+  }
+
+  const canEditRates = role === 'manager';
+  const canVoidTransactions = role === 'manager';
+  const canRunAudit = role === 'manager';
+  const canCheckIn = role === 'front_desk' || role === 'manager';
+  const canCheckOut = role === 'front_desk' || role === 'manager';
+  const isReadOnly = role === 'owner';
+
+  // Ensure active tab is allowed when role changes
+  useEffect(() => {
+    if (currentUser) {
+      if (!allowedTabs.includes(activeTab)) {
+        if (role === 'housekeeping') setActiveTab('housekeeping');
+        else if (role === 'owner') setActiveTab('analytics');
+        else setActiveTab('matrix');
+      }
+    }
+  }, [currentUser, role]);
 
   const showNotification = (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
     setNotification({ message, type });
@@ -173,7 +289,109 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return `${Math.round(amountInFcfa).toLocaleString('fr-FR')} FCFA`;
   };
 
+  // Auth Actions
+  const login = (username: string, password?: string) => {
+    const user = STAFF_USERS.find(
+      (u) =>
+        u.username.toLowerCase() === username.trim().toLowerCase() ||
+        u.email.toLowerCase() === username.trim().toLowerCase()
+    );
+
+    if (user) {
+      setCurrentUser(user);
+      sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(user));
+
+      // Direct to initial landing tab based on role
+      if (user.role === 'housekeeping') setActiveTab('housekeeping');
+      else if (user.role === 'owner') setActiveTab('analytics');
+      else setActiveTab('matrix');
+
+      showNotification(`Welcome back, ${user.name} (${user.title})!`, 'success');
+      return true;
+    }
+    return false;
+  };
+
+  const fastLogin = (userRole: UserRole) => {
+    const user = STAFF_USERS.find((u) => u.role === userRole) || STAFF_USERS[0];
+    setCurrentUser(user);
+    sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(user));
+
+    if (user.role === 'housekeeping') setActiveTab('housekeeping');
+    else if (user.role === 'owner') setActiveTab('analytics');
+    else setActiveTab('matrix');
+
+    showNotification(`Signed in as ${user.name} (${user.title})`, 'success');
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    sessionStorage.removeItem(`${STORAGE_PREFIX}_user`);
+    showNotification('Logged out successfully.', 'info');
+  };
+
+  // Deployment and Property Config
+  const updateHotelConfig = (newConfig: Partial<HotelConfig>) => {
+    setHotelConfig((prev) => {
+      const updated = { ...prev, ...newConfig };
+      // Also update name in deployments list if matching
+      setDeployments((deps) =>
+        deps.map((d) =>
+          d.id === updated.deploymentId
+            ? { ...d, name: updated.name, location: updated.city }
+            : d
+        )
+      );
+      return updated;
+    });
+    showNotification('Property profile & branding updated successfully!', 'success');
+  };
+
+  const switchDeployment = (deploymentId: string) => {
+    const target = deployments.find((d) => d.id === deploymentId);
+    if (!target) return;
+
+    setHotelConfig((prev) => ({
+      ...prev,
+      deploymentId: target.id,
+      name: target.name,
+      city: target.location
+    }));
+
+    showNotification(`Switched deployment instance to: ${target.name}`, 'info');
+  };
+
+  const addDeployment = (record: DeploymentRecord) => {
+    setDeployments((prev) => [...prev, record]);
+    showNotification(`Registered new deployment instance: ${record.name}`, 'success');
+  };
+
+  const updateRoomTypePricing = (roomTypeId: string, newBasePrice: number) => {
+    if (!canEditRates) {
+      showNotification('Permission denied: Only Manager/Accountant can alter base room rates.', 'warning');
+      return;
+    }
+    setRoomTypes((prev) =>
+      prev.map((rt) => (rt.id === roomTypeId ? { ...rt, basePrice: newBasePrice } : rt))
+    );
+    // Also update any available room pricing
+    setRooms((prev) =>
+      prev.map((r) =>
+        r.roomTypeId === roomTypeId && r.status === 'available'
+          ? { ...r, pricePerNight: newBasePrice }
+          : r
+      )
+    );
+    showNotification('Base room type pricing updated across inventory.', 'success');
+  };
+
+  // HMS Operational Mutations
   const updateRoomStatus = (roomId: string, status: RoomStatus, note?: string) => {
+    if (isReadOnly) {
+      showNotification('Owner account has read-only access.', 'warning');
+      return;
+    }
+
     setRooms((prev) =>
       prev.map((r) => {
         if (r.id !== roomId) return r;
@@ -181,7 +399,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...r,
           status,
           maintenanceNote: note !== undefined ? note : r.maintenanceNote,
-          lastCleaned: status === 'available' ? `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : r.lastCleaned
+          lastCleaned:
+            status === 'available'
+              ? `${businessDate} ${new Date().toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}`
+              : r.lastCleaned
         };
       })
     );
@@ -189,14 +413,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const checkInGuest = (payload: CheckInPayload) => {
+    if (!canCheckIn) {
+      return { success: false, error: 'Unauthorized: Your role does not have check-in permissions.' };
+    }
+
     const room = rooms.find((r) => r.id === payload.roomId);
     if (!room) return { success: false, error: 'Target room not found' };
     if (room.status === 'occupied') return { success: false, error: 'Room is already occupied!' };
     if (room.status === 'maintenance') return { success: false, error: 'Room is blocked for maintenance!' };
 
-    // Find or create guest
     let guest = guests.find(
-      (g) => g.phone === payload.phone || (payload.email && g.email === payload.email) || g.idCardNumber === payload.idCardNumber
+      (g) =>
+        g.phone === payload.phone ||
+        (payload.email && g.email === payload.email) ||
+        g.idCardNumber === payload.idCardNumber
     );
 
     if (!guest) {
@@ -215,7 +445,6 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       setGuests((prev) => [guest!, ...prev]);
     } else {
-      // update visit count
       setGuests((prev) =>
         prev.map((g) =>
           g.id === guest!.id
@@ -256,24 +485,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       keyReturned: false,
       createdAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
       checkedInAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-      checkedInBy: currentUser.name
+      checkedInBy: currentUser?.name || 'Staff'
     };
 
-    // Add initial room charge transaction
     const roomChargeTx: FolioTransaction = {
       id: `tx-${Date.now()}-1`,
       reservationId: resId,
       guestId: guest.id,
       roomNumber: room.roomNumber,
       category: 'room_charge',
-      description: `${nights} Night(s) Stay Accommodation (${room.roomNumber})`,
+      description: `${nights} Night(s) Accommodation (Room ${room.roomNumber})`,
       amount: totalAmount,
       type: 'charge',
       timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-      recordedBy: currentUser.name
+      recordedBy: currentUser?.name || 'Front Desk'
     };
 
-    // Add deposit/payment transaction if paid > 0
     const paymentTxs: FolioTransaction[] = [roomChargeTx];
     if (payload.amountPaid > 0) {
       paymentTxs.push({
@@ -282,20 +509,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         guestId: guest.id,
         roomNumber: room.roomNumber,
         category: 'deposit',
-        description: `Check-in Payment (${payload.paymentMethod.toUpperCase()})`,
+        description: `Check-in Deposit (${payload.paymentMethod.toUpperCase()})`,
         amount: payload.amountPaid,
         type: 'payment',
         paymentMethod: payload.paymentMethod,
         reference: `${payload.paymentMethod.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`,
         timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-        recordedBy: currentUser.name
+        recordedBy: currentUser?.name || 'Front Desk'
       });
     }
 
     setReservations((prev) => [newReservation, ...prev]);
     setTransactions((prev) => [...paymentTxs, ...prev]);
 
-    // Update Room status to occupied
     setRooms((prev) =>
       prev.map((r) =>
         r.id === room.id
@@ -304,15 +530,18 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
-    showNotification(`Guest ${guest.fullName} checked into Room ${room.roomNumber} successfully!`, 'success');
+    showNotification(`Guest ${guest.fullName} checked into Room ${room.roomNumber}!`, 'success');
     return { success: true, reservationId: resId };
   };
 
   const checkOutGuest = (reservationId: string, paymentMethod?: PaymentMethod, settlementAmount?: number) => {
+    if (!canCheckOut) {
+      return { success: false, error: 'Unauthorized: Your role does not have check-out permissions.' };
+    }
+
     const res = reservations.find((r) => r.id === reservationId);
     if (!res) return { success: false, error: 'Reservation not found' };
 
-    // Record settlement payment if any balance remaining
     if (settlementAmount && settlementAmount > 0 && paymentMethod) {
       const settlementTx: FolioTransaction = {
         id: `tx-${Date.now()}-stl`,
@@ -320,18 +549,17 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         guestId: res.guestId,
         roomNumber: res.roomNumber,
         category: 'payment',
-        description: `Check-Out Balance Settlement (${paymentMethod.toUpperCase()})`,
+        description: `Check-Out Settlement (${paymentMethod.toUpperCase()})`,
         amount: settlementAmount,
         type: 'payment',
         paymentMethod,
         reference: `STL-${Math.floor(100000 + Math.random() * 900000)}`,
         timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-        recordedBy: currentUser.name
+        recordedBy: currentUser?.name || 'Front Desk'
       };
       setTransactions((prev) => [settlementTx, ...prev]);
     }
 
-    // Mark reservation as checked out
     setReservations((prev) =>
       prev.map((r) =>
         r.id === reservationId
@@ -347,7 +575,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
-    // Update room status to dirty (cleaning needed after check-out!)
+    // Turnover room to dirty for Housekeeping
     setRooms((prev) =>
       prev.map((room) =>
         room.id === res.roomId
@@ -355,17 +583,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...room,
               status: 'dirty',
               currentReservationId: undefined,
-              maintenanceNote: 'Requires full turnover cleaning and fresh linens.'
+              maintenanceNote: 'Turnover cleaning required after guest checkout.'
             }
           : room
       )
     );
 
-    showNotification(`Room ${res.roomNumber} checked out! Room status is now marked DIRTY for Housekeeping turnover.`, 'success');
+    showNotification(`Room ${res.roomNumber} checked out! Status flipped to DIRTY for Housekeeping turnover.`, 'success');
     return { success: true };
   };
 
   const addFolioCharge = (charge: Omit<FolioTransaction, 'id' | 'timestamp'>) => {
+    if (isReadOnly) {
+      showNotification('Owner account cannot add charges.', 'warning');
+      return;
+    }
+
     const tx: FolioTransaction = {
       ...charge,
       id: `tx-${Date.now()}`,
@@ -374,7 +607,6 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setTransactions((prev) => [tx, ...prev]);
 
-    // Update reservation totalAmount if charge
     setReservations((prev) =>
       prev.map((res) => {
         if (res.id !== charge.reservationId) return res;
@@ -391,6 +623,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const recordFolioPayment = (payment: Omit<FolioTransaction, 'id' | 'timestamp' | 'type'>) => {
+    if (isReadOnly) {
+      showNotification('Owner account cannot record payments.', 'warning');
+      return;
+    }
+
     const tx: FolioTransaction = {
       ...payment,
       id: `tx-${Date.now()}`,
@@ -412,7 +649,52 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    showNotification(`Payment recorded: ${formatMoney(payment.amount)} via ${payment.paymentMethod?.toUpperCase()}`, 'success');
+    showNotification(`Payment of ${formatMoney(payment.amount)} recorded via ${payment.paymentMethod?.toUpperCase()}`, 'success');
+  };
+
+  const voidTransaction = (txId: string, reason: string): boolean => {
+    if (!canVoidTransactions) {
+      showNotification('Permission denied: Only Manager/Accountant can void transactions.', 'warning');
+      return false;
+    }
+
+    const tx = transactions.find((t) => t.id === txId);
+    if (!tx || tx.voided) return false;
+
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.id === txId
+          ? {
+              ...t,
+              voided: true,
+              voidedBy: currentUser?.name || 'Manager',
+              voidReason: reason
+            }
+          : t
+      )
+    );
+
+    // Re-adjust reservation balance
+    if (tx.type === 'charge') {
+      setReservations((prev) =>
+        prev.map((res) =>
+          res.id === tx.reservationId
+            ? { ...res, totalAmount: Math.max(0, res.totalAmount - tx.amount) }
+            : res
+        )
+      );
+    } else if (tx.type === 'payment') {
+      setReservations((prev) =>
+        prev.map((res) =>
+          res.id === tx.reservationId
+            ? { ...res, amountPaid: Math.max(0, res.amountPaid - tx.amount) }
+            : res
+        )
+      );
+    }
+
+    showNotification(`Transaction voided by Manager approval: ${reason}`, 'info');
+    return true;
   };
 
   const createMaintenanceTicket = (ticket: Omit<MaintenanceTicket, 'id' | 'ticketNumber' | 'reportedAt'>) => {
@@ -436,7 +718,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     }
 
-    showNotification(`Ticket ${ticketNumber} logged. ${ticket.blocksRoom ? 'Room blocked for maintenance.' : ''}`, 'warning');
+    showNotification(`Maintenance alert ${ticketNumber} logged. ${ticket.blocksRoom ? 'Room blocked.' : ''}`, 'warning');
   };
 
   const updateMaintenanceStatus = (ticketId: string, status: MaintenanceTicket['status'], cost?: number) => {
@@ -447,15 +729,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...t,
           status,
           repairCost: cost !== undefined ? cost : t.repairCost,
-          resolvedAt: status === 'Resolved' ? `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : t.resolvedAt
+          resolvedAt:
+            status === 'Resolved'
+              ? `${businessDate} ${new Date().toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}`
+              : t.resolvedAt
         };
 
-        // If resolved and had blocked room, unblock to dirty or available
         if (status === 'Resolved' && t.blocksRoom) {
           setRooms((roomsList) =>
             roomsList.map((r) =>
               r.id === t.roomId && r.status === 'maintenance'
-                ? { ...r, status: 'dirty', maintenanceNote: 'Repairs completed. Turnover clean required.' }
+                ? { ...r, status: 'dirty', maintenanceNote: 'Repairs completed. Turnover cleaning required.' }
                 : r
             )
           );
@@ -465,21 +752,24 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    showNotification(`Maintenance ticket marked as ${status}`, 'info');
+    showNotification(`Work order updated to ${status}`, 'info');
   };
 
   const runNightAudit = (expectedCash: number, actualCash: number, notes: string) => {
+    if (!canRunAudit) {
+      throw new Error('Unauthorized: Only Manager / Lead Accountant can execute Night Audit.');
+    }
+
     const occupied = rooms.filter((r) => r.status === 'occupied').length;
     const totalRooms = rooms.length;
     const occupancyRate = (occupied / totalRooms) * 100;
 
-    // Calculate room revenue and POS revenue
     const roomRevenue = reservations
       .filter((r) => r.bookingStatus === 'checked_in')
       .reduce((sum, r) => sum + r.nightlyRate, 0);
 
     const posRevenue = transactions
-      .filter((t) => t.category === 'restaurant' || t.category === 'beverage' || t.category === 'laundry')
+      .filter((t) => !t.voided && (t.category === 'restaurant' || t.category === 'beverage' || t.category === 'laundry'))
       .reduce((sum, t) => sum + t.amount, 0);
 
     const totalGrossRevenue = roomRevenue + posRevenue;
@@ -487,19 +777,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const revPar = totalRooms > 0 ? roomRevenue / totalRooms : 0;
 
     const cashCollected = transactions
-      .filter((t) => t.type === 'payment' && t.paymentMethod === 'cash')
+      .filter((t) => !t.voided && t.type === 'payment' && t.paymentMethod === 'cash')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const momoCollected = transactions
-      .filter((t) => t.type === 'payment' && t.paymentMethod === 'momo')
+      .filter((t) => !t.voided && t.type === 'payment' && t.paymentMethod === 'momo')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const orangeMoneyCollected = transactions
-      .filter((t) => t.type === 'payment' && t.paymentMethod === 'orange_money')
+      .filter((t) => !t.voided && t.type === 'payment' && t.paymentMethod === 'orange_money')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const cardCollected = transactions
-      .filter((t) => t.type === 'payment' && (t.paymentMethod === 'card' || t.paymentMethod === 'bank_transfer'))
+      .filter((t) => !t.voided && t.type === 'payment' && (t.paymentMethod === 'card' || t.paymentMethod === 'bank_transfer'))
       .reduce((sum, t) => sum + t.amount, 0);
 
     const discrepancy = actualCash - expectedCash;
@@ -522,20 +812,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       expectedCashFloat: expectedCash,
       actualCashFloat: actualCash,
       discrepancy,
-      notes: notes || 'Daily night audit completed. All ledgers reconciled.',
-      auditedBy: currentUser.name,
+      notes: notes || 'Night audit reconciled by management.',
+      auditedBy: currentUser?.name || 'General Manager',
       timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
     setNightAuditReports((prev) => [report, ...prev]);
 
-    // Roll over date by +1 day
     const currentDate = new Date(businessDate);
     currentDate.setDate(currentDate.getDate() + 1);
     const nextDate = currentDate.toISOString().split('T')[0];
     setBusinessDate(nextDate);
 
-    showNotification(`Night Audit completed! Business date rolled over to ${nextDate}`, 'success');
+    showNotification(`Night Audit closed! Rolled over business date to ${nextDate}`, 'success');
     return report;
   };
 
@@ -553,13 +842,15 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToDemoData = () => {
-    localStorage.removeItem(`${STORAGE_KEY}_rooms`);
-    localStorage.removeItem(`${STORAGE_KEY}_guests`);
-    localStorage.removeItem(`${STORAGE_KEY}_reservations`);
-    localStorage.removeItem(`${STORAGE_KEY}_transactions`);
-    localStorage.removeItem(`${STORAGE_KEY}_maintenance`);
-    localStorage.removeItem(`${STORAGE_KEY}_audits`);
+    localStorage.removeItem(`${activeDeploymentKey}_room_types`);
+    localStorage.removeItem(`${activeDeploymentKey}_rooms`);
+    localStorage.removeItem(`${activeDeploymentKey}_guests`);
+    localStorage.removeItem(`${activeDeploymentKey}_reservations`);
+    localStorage.removeItem(`${activeDeploymentKey}_transactions`);
+    localStorage.removeItem(`${activeDeploymentKey}_maintenance`);
+    localStorage.removeItem(`${activeDeploymentKey}_audits`);
 
+    setRoomTypes(INITIAL_ROOM_TYPES);
     setRooms(INITIAL_ROOMS);
     setGuests(INITIAL_GUESTS);
     setReservations(INITIAL_RESERVATIONS);
@@ -569,12 +860,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBusinessDate('2026-10-14');
     setSelectedRoom(null);
     setSelectedReservation(null);
-    showNotification('System reset to initial sample demo data!', 'info');
+    showNotification('System reset to clean sample demo data for this property!', 'info');
   };
 
   return (
     <HMSContext.Provider
       value={{
+        hotelConfig,
+        deployments,
         roomTypes,
         rooms,
         guests,
@@ -590,7 +883,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedRoom,
         selectedReservation,
         notification,
-        setCurrentUser,
+        allowedTabs,
+        canEditRates,
+        canVoidTransactions,
+        canRunAudit,
+        canCheckIn,
+        canCheckOut,
+        isReadOnly,
+        login,
+        fastLogin,
+        logout,
+        updateHotelConfig,
+        switchDeployment,
+        addDeployment,
+        updateRoomTypePricing,
         setCurrency,
         setActiveTab,
         setSelectedRoom,
@@ -603,6 +909,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateRoomStatus,
         addFolioCharge,
         recordFolioPayment,
+        voidTransaction,
         createMaintenanceTicket,
         updateMaintenanceStatus,
         runNightAudit,

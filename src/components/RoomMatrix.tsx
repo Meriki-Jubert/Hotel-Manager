@@ -15,7 +15,8 @@ import {
   LogOut,
   Receipt,
   Wrench,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Eye
 } from 'lucide-react';
 
 interface RoomMatrixProps {
@@ -31,7 +32,17 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
   onOpenCheckOutForRes,
   onOpenFolioForRes
 }) => {
-  const { rooms, roomTypes, reservations, transactions, updateRoomStatus, formatMoney } = useHMS();
+  const {
+    rooms,
+    roomTypes,
+    reservations,
+    transactions,
+    updateRoomStatus,
+    formatMoney,
+    canCheckIn,
+    canCheckOut,
+    isReadOnly
+  } = useHMS();
 
   const [selectedFloor, setSelectedFloor] = useState<number | 'all'>('all');
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus | 'all'>('all');
@@ -92,7 +103,6 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     }
   };
 
-  // Filtered rooms
   const filteredRooms = rooms.filter((room) => {
     if (selectedFloor !== 'all' && room.floor !== selectedFloor) return false;
     if (selectedStatus !== 'all' && room.status !== selectedStatus) return false;
@@ -108,7 +118,6 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     return true;
   });
 
-  // Calculate counts for legend
   const counts = rooms.reduce((acc, r) => {
     acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
@@ -119,7 +128,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Filter and Search Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-4">
+      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
           {/* Search Input */}
@@ -190,7 +199,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                 onClick={() => setSelectedStatus(st)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium transition-all ${
                   isSelected
-                    ? `${cfg.bg} text-white shadow-sm`
+                    ? `${cfg.bg} text-white shadow-xs`
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -210,14 +219,13 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
           const currentRes = reservations.find((r) => r.id === room.currentReservationId);
           const cfg = statusConfig[room.status];
 
-          // Calculate running balance for occupied room
           let folioBalance = 0;
           if (currentRes) {
             const charges = transactions
-              .filter((t) => t.reservationId === currentRes.id && t.type === 'charge')
+              .filter((t) => !t.voided && t.reservationId === currentRes.id && t.type === 'charge')
               .reduce((s, t) => s + t.amount, 0);
             const payments = transactions
-              .filter((t) => t.reservationId === currentRes.id && t.type === 'payment')
+              .filter((t) => !t.voided && t.reservationId === currentRes.id && t.type === 'payment')
               .reduce((s, t) => s + t.amount, 0);
             folioBalance = charges - payments;
           }
@@ -225,7 +233,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
           return (
             <div
               key={room.id}
-              className={`bg-white rounded-xl border-2 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between overflow-hidden group cursor-pointer ${cfg.border}`}
+              className={`bg-white rounded-xl border-2 transition-all duration-200 shadow-xs hover:shadow-md flex flex-col justify-between overflow-hidden group cursor-pointer ${cfg.border}`}
               onClick={() => onSelectRoom(room)}
             >
               {/* Card Header */}
@@ -238,7 +246,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     <span className="text-[10px] text-slate-500 font-medium">Floor {room.floor}</span>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold text-white shadow-xs ${cfg.bg}`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold text-white shadow-2xs ${cfg.bg}`}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                     {cfg.label}
@@ -266,7 +274,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                       <span className="font-mono text-slate-700">{currentRes.totalNights} nts</span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200 font-medium">
-                      <span className="text-slate-500">Folio Balance:</span>
+                      <span className="text-slate-500">Balance:</span>
                       <span
                         className={`font-semibold font-mono ${
                           folioBalance > 0 ? 'text-rose-600 font-bold' : 'text-emerald-600'
@@ -287,9 +295,6 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     <div className="text-[11px] text-blue-700">
                       Check-in: <strong className="font-mono">{currentRes.checkInDate}</strong>
                     </div>
-                    <div className="text-[10px] text-blue-600">
-                      Paid: {formatMoney(currentRes.amountPaid)} ({currentRes.paymentStatus})
-                    </div>
                   </div>
                 )}
 
@@ -297,16 +302,11 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-100 space-y-1">
                     <div className="font-semibold text-amber-900 flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      Turnover Cleaning Required
+                      Turnover Needed
                     </div>
                     <div className="text-[11px] text-amber-700 truncate">
-                      Housekeeper: {room.assignedHousekeeper || 'Unassigned'}
+                      Assigned: {room.assignedHousekeeper || 'Housekeeping Crew'}
                     </div>
-                    {room.maintenanceNote && (
-                      <div className="text-[10px] text-amber-600 italic line-clamp-1">
-                        {room.maintenanceNote}
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -317,7 +317,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                       Cleaning In Progress
                     </div>
                     <div className="text-[11px] text-purple-700 truncate">
-                      By {room.assignedHousekeeper || 'Housekeeping Crew'}
+                      {room.assignedHousekeeper || 'Housekeeping Crew'}
                     </div>
                   </div>
                 )}
@@ -326,10 +326,10 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   <div className="bg-slate-100 p-2.5 rounded-lg border border-slate-200 space-y-1">
                     <div className="font-semibold text-slate-800 flex items-center gap-1">
                       <Wrench className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                      Under Maintenance
+                      Maintenance Hold
                     </div>
                     <div className="text-[11px] text-slate-600 line-clamp-2">
-                      {room.maintenanceNote || 'Facility repair ticket in progress.'}
+                      {room.maintenanceNote || 'Facility repair ticket logged.'}
                     </div>
                   </div>
                 )}
@@ -352,75 +352,89 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                 className="px-3.5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-1.5"
                 onClick={(e) => e.stopPropagation()}
               >
-                {room.status === 'available' && (
-                  <button
-                    onClick={() => onOpenCheckInForRoom(room)}
-                    className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>Check In</span>
-                  </button>
-                )}
-
-                {room.status === 'occupied' && currentRes && (
-                  <div className="flex items-center gap-1.5 w-full">
-                    <button
-                      onClick={() => onOpenFolioForRes(currentRes.id)}
-                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold rounded-lg text-xs transition-colors"
-                      title="Open Guest Folio & Charges"
-                    >
-                      <Receipt className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Folio</span>
-                    </button>
-                    <button
-                      onClick={() => onOpenCheckOutForRes(currentRes.id)}
-                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
-                      title="Initiate Check-Out"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Out</span>
-                    </button>
-                  </div>
-                )}
-
-                {room.status === 'reserved' && currentRes && (
-                  <button
-                    onClick={() => onOpenCheckInForRoom(room)}
-                    className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>Check In Guest</span>
-                  </button>
-                )}
-
-                {room.status === 'dirty' && (
-                  <button
-                    onClick={() => updateRoomStatus(room.id, 'cleaning')}
-                    className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Start Cleaning</span>
-                  </button>
-                )}
-
-                {room.status === 'cleaning' && (
-                  <button
-                    onClick={() => updateRoomStatus(room.id, 'available')}
-                    className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Inspect & Release</span>
-                  </button>
-                )}
-
-                {room.status === 'maintenance' && (
+                {isReadOnly ? (
                   <button
                     onClick={() => onSelectRoom(room)}
-                    className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
+                    className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors"
                   >
-                    <Wrench className="w-3.5 h-3.5 text-amber-400" />
-                    <span>View Ticket</span>
+                    <Eye className="w-3.5 h-3.5 text-slate-500" />
+                    <span>View Overview</span>
                   </button>
+                ) : (
+                  <>
+                    {room.status === 'available' && canCheckIn && (
+                      <button
+                        onClick={() => onOpenCheckInForRoom(room)}
+                        className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
+                      >
+                        <LogIn className="w-3.5 h-3.5" />
+                        <span>Check In</span>
+                      </button>
+                    )}
+
+                    {room.status === 'occupied' && currentRes && (
+                      <div className="flex items-center gap-1.5 w-full">
+                        <button
+                          onClick={() => onOpenFolioForRes(currentRes.id)}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold rounded-lg text-xs transition-colors"
+                          title="Open Guest Folio & Charges"
+                        >
+                          <Receipt className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Folio</span>
+                        </button>
+                        {canCheckOut && (
+                          <button
+                            onClick={() => onOpenCheckOutForRes(currentRes.id)}
+                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
+                            title="Initiate Check-Out"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                            <span>Out</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {room.status === 'reserved' && currentRes && canCheckIn && (
+                      <button
+                        onClick={() => onOpenCheckInForRoom(room)}
+                        className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
+                      >
+                        <LogIn className="w-3.5 h-3.5" />
+                        <span>Check In Guest</span>
+                      </button>
+                    )}
+
+                    {room.status === 'dirty' && (
+                      <button
+                        onClick={() => updateRoomStatus(room.id, 'cleaning')}
+                        className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Start Cleaning</span>
+                      </button>
+                    )}
+
+                    {room.status === 'cleaning' && (
+                      <button
+                        onClick={() => updateRoomStatus(room.id, 'available')}
+                        className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Inspect & Release</span>
+                      </button>
+                    )}
+
+                    {room.status === 'maintenance' && (
+                      <button
+                        onClick={() => onSelectRoom(room)}
+                        className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
+                      >
+                        <Wrench className="w-3.5 h-3.5 text-amber-400" />
+                        <span>View Ticket</span>
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>

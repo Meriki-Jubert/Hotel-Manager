@@ -1,4 +1,58 @@
-import { RoomType, Room, Guest, Reservation, FolioTransaction, MaintenanceTicket, PosItem, StaffUser, NightAuditReport } from '../types/hms';
+import {
+  RoomType,
+  Room,
+  Guest,
+  Reservation,
+  FolioTransaction,
+  MaintenanceTicket,
+  PosItem,
+  StaffUser,
+  NightAuditReport,
+  HotelConfig,
+  DeploymentRecord
+} from '../types/hms';
+
+export const DEFAULT_HOTEL_CONFIG: HotelConfig = {
+  deploymentId: 'DEP-BUEA-001',
+  name: 'Grand Mountain Resort & Suites',
+  tagline: 'Luxury, Comfort & Mountain Views in Mount Fako Foothills',
+  city: 'Buea, South West Region',
+  address: 'Molyko Boulevard, P.O. Box 412, Buea',
+  phone: '+237 670 123 456',
+  email: 'reception@grandmountainresort.com',
+  taxId: 'M0982736192801A',
+  registryNumber: 'RC/BUE/2020/B/452',
+  defaultCurrency: 'FCFA',
+  checkInTime: '14:00',
+  checkOutTime: '11:00'
+};
+
+export const INITIAL_DEPLOYMENTS: DeploymentRecord[] = [
+  {
+    id: 'DEP-BUEA-001',
+    name: 'Grand Mountain Resort & Suites',
+    location: 'Molyko, Buea',
+    roomsCount: 19,
+    deployedAt: '2026-01-15',
+    status: 'active'
+  },
+  {
+    id: 'DEP-LIMBE-002',
+    name: 'Atlantic Beach & Suites',
+    location: 'Down Beach, Limbe',
+    roomsCount: 24,
+    deployedAt: '2026-03-20',
+    status: 'active'
+  },
+  {
+    id: 'DEP-DLA-003',
+    name: 'Bonanjo Executive Plaza',
+    location: 'Bonanjo, Douala',
+    roomsCount: 32,
+    deployedAt: '2026-07-01',
+    status: 'staging'
+  }
+];
 
 export const INITIAL_ROOM_TYPES: RoomType[] = [
   {
@@ -166,7 +220,7 @@ export const INITIAL_RESERVATIONS: Reservation[] = [
     keyReturned: false,
     createdAt: '2026-10-13 14:20',
     checkedInAt: '2026-10-13 14:35',
-    checkedInBy: 'Front Desk - Nadine'
+    checkedInBy: 'Nadine Ashu (Front Desk)'
   },
   {
     id: 'res-104',
@@ -191,7 +245,7 @@ export const INITIAL_RESERVATIONS: Reservation[] = [
     keyReturned: false,
     createdAt: '2026-10-10 11:15',
     checkedInAt: '2026-10-12 15:00',
-    checkedInBy: 'Front Desk - Nadine'
+    checkedInBy: 'Nadine Ashu (Front Desk)'
   },
   {
     id: 'res-106',
@@ -239,7 +293,7 @@ export const INITIAL_RESERVATIONS: Reservation[] = [
     keyReturned: false,
     createdAt: '2026-10-11 16:30',
     checkedInAt: '2026-10-13 13:10',
-    checkedInBy: 'Front Desk - Jude'
+    checkedInBy: 'Nadine Ashu (Front Desk)'
   },
   {
     id: 'res-204',
@@ -264,7 +318,7 @@ export const INITIAL_RESERVATIONS: Reservation[] = [
     keyReturned: false,
     createdAt: '2026-10-14 10:15',
     checkedInAt: '2026-10-14 10:20',
-    checkedInBy: 'Duty Manager - Patrick'
+    checkedInBy: 'Patrick Mengot (Manager)'
   },
   {
     id: 'res-301',
@@ -289,7 +343,7 @@ export const INITIAL_RESERVATIONS: Reservation[] = [
     keyReturned: false,
     createdAt: '2026-10-08 10:00',
     checkedInAt: '2026-10-12 16:45',
-    checkedInBy: 'Duty Manager - Patrick'
+    checkedInBy: 'Patrick Mengot (Manager)'
   },
   {
     id: 'res-303',
@@ -337,7 +391,7 @@ export const INITIAL_RESERVATIONS: Reservation[] = [
     keyReturned: false,
     createdAt: '2026-10-12 08:30',
     checkedInAt: '2026-10-13 15:45',
-    checkedInBy: 'Front Desk - Jude'
+    checkedInBy: 'Nadine Ashu (Front Desk)'
   },
   {
     id: 'res-401',
@@ -362,34 +416,34 @@ export const INITIAL_RESERVATIONS: Reservation[] = [
     keyReturned: false,
     createdAt: '2026-10-14 08:00',
     checkedInAt: '2026-10-14 09:30',
-    checkedInBy: 'General Manager'
+    checkedInBy: 'Patrick Mengot (Manager)'
   }
 ];
 
 export const INITIAL_TRANSACTIONS: FolioTransaction[] = [
   // Res 101
-  { id: 'tx-1', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'room_charge', description: 'Night 1 Room Charge (Standard)', amount: 25000, type: 'charge', timestamp: '2026-10-13 14:35', recordedBy: 'Front Desk - Nadine' },
+  { id: 'tx-1', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'room_charge', description: 'Night 1 Room Charge (Standard)', amount: 25000, type: 'charge', timestamp: '2026-10-13 14:35', recordedBy: 'Nadine Ashu' },
   { id: 'tx-2', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'room_charge', description: 'Night 2 Room Charge (Standard)', amount: 25000, type: 'charge', timestamp: '2026-10-14 03:00', recordedBy: 'Night Audit System' },
-  { id: 'tx-3', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'deposit', description: 'Initial Check-in Deposit (MTN MoMo)', amount: 25000, type: 'payment', paymentMethod: 'momo', reference: 'MOMO-7849102', timestamp: '2026-10-13 14:35', recordedBy: 'Front Desk - Nadine' },
+  { id: 'tx-3', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'deposit', description: 'Initial Check-in Deposit (MTN MoMo)', amount: 25000, type: 'payment', paymentMethod: 'momo', reference: 'MOMO-7849102', timestamp: '2026-10-13 14:35', recordedBy: 'Nadine Ashu' },
   { id: 'tx-4', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'restaurant', description: 'Room Service: Poisson Braisé + Plantain', amount: 6500, type: 'charge', timestamp: '2026-10-13 20:15', recordedBy: 'Restaurant POS' },
-  { id: 'tx-5', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'beverage', description: 'Minibar: 2x Guinness Foreign Extra', amount: 3000, type: 'charge', timestamp: '2026-10-13 21:00', recordedBy: 'Housekeeping - Therese' },
+  { id: 'tx-5', reservationId: 'res-101', guestId: 'gst-5', roomNumber: '101', category: 'beverage', description: 'Minibar: 2x Guinness Foreign Extra', amount: 3000, type: 'charge', timestamp: '2026-10-13 21:00', recordedBy: 'Therese Mbi' },
 
   // Res 201
-  { id: 'tx-6', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'room_charge', description: 'Night 1 Room Charge (Deluxe)', amount: 45000, type: 'charge', timestamp: '2026-10-13 13:10', recordedBy: 'Front Desk - Jude' },
+  { id: 'tx-6', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'room_charge', description: 'Night 1 Room Charge (Deluxe)', amount: 45000, type: 'charge', timestamp: '2026-10-13 13:10', recordedBy: 'Nadine Ashu' },
   { id: 'tx-7', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'room_charge', description: 'Night 2 Room Charge (Deluxe)', amount: 45000, type: 'charge', timestamp: '2026-10-14 03:00', recordedBy: 'Night Audit System' },
-  { id: 'tx-8', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'payment', description: 'Advance Payment via MTN MoMo', amount: 100000, type: 'payment', paymentMethod: 'momo', reference: 'MOMO-9912044', timestamp: '2026-10-13 13:10', recordedBy: 'Front Desk - Jude' },
+  { id: 'tx-8', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'payment', description: 'Advance Payment via MTN MoMo', amount: 100000, type: 'payment', paymentMethod: 'momo', reference: 'MOMO-9912044', timestamp: '2026-10-13 13:10', recordedBy: 'Nadine Ashu' },
   { id: 'tx-9', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'restaurant', description: 'Restaurant Dinner: Ndolé Royal + Rice', amount: 7500, type: 'charge', timestamp: '2026-10-13 19:40', recordedBy: 'Restaurant POS' },
-  { id: 'tx-10', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'laundry', description: 'Executive Suit Steam Laundry (2 pieces)', amount: 5000, type: 'charge', timestamp: '2026-10-14 09:30', recordedBy: 'Housekeeping - Francisca' },
+  { id: 'tx-10', reservationId: 'res-201', guestId: 'gst-2', roomNumber: '201', category: 'laundry', description: 'Executive Suit Steam Laundry (2 pieces)', amount: 5000, type: 'charge', timestamp: '2026-10-14 09:30', recordedBy: 'Francisca Ngwa' },
 
   // Res 301
-  { id: 'tx-11', reservationId: 'res-301', guestId: 'gst-3', roomNumber: '301', category: 'room_charge', description: 'Night 1 Mountain Suite Charge', amount: 75000, type: 'charge', timestamp: '2026-10-12 16:45', recordedBy: 'Duty Manager - Patrick' },
+  { id: 'tx-11', reservationId: 'res-301', guestId: 'gst-3', roomNumber: '301', category: 'room_charge', description: 'Night 1 Mountain Suite Charge', amount: 75000, type: 'charge', timestamp: '2026-10-12 16:45', recordedBy: 'Patrick Mengot' },
   { id: 'tx-12', reservationId: 'res-301', guestId: 'gst-3', roomNumber: '301', category: 'room_charge', description: 'Night 2 Mountain Suite Charge', amount: 75000, type: 'charge', timestamp: '2026-10-13 03:00', recordedBy: 'Night Audit System' },
-  { id: 'tx-13', reservationId: 'res-301', guestId: 'gst-3', roomNumber: '301', category: 'payment', description: 'Corporate Bank Transfer (EcoBank CM)', amount: 300000, type: 'payment', paymentMethod: 'bank_transfer', reference: 'ECO-92817290', timestamp: '2026-10-12 16:45', recordedBy: 'Duty Manager - Patrick' },
+  { id: 'tx-13', reservationId: 'res-301', guestId: 'gst-3', roomNumber: '301', category: 'payment', description: 'Corporate Bank Transfer (EcoBank CM)', amount: 300000, type: 'payment', paymentMethod: 'bank_transfer', reference: 'ECO-92817290', timestamp: '2026-10-12 16:45', recordedBy: 'Patrick Mengot' },
   { id: 'tx-14', reservationId: 'res-301', guestId: 'gst-3', roomNumber: '301', category: 'restaurant', description: 'VIP Terrace Catering & Cocktails', amount: 32000, type: 'charge', timestamp: '2026-10-13 21:30', recordedBy: 'Restaurant POS' },
 
   // Res 401
-  { id: 'tx-15', reservationId: 'res-401', guestId: 'gst-3', roomNumber: '401', category: 'room_charge', description: 'Night 1 Presidential Penthouse Charge', amount: 150000, type: 'charge', timestamp: '2026-10-14 09:30', recordedBy: 'General Manager' },
-  { id: 'tx-16', reservationId: 'res-401', guestId: 'gst-3', roomNumber: '401', category: 'payment', description: 'Full Stay Cash Settlement (FCFA)', amount: 450000, type: 'payment', paymentMethod: 'cash', reference: 'CASH-REC-1049', timestamp: '2026-10-14 09:30', recordedBy: 'General Manager' }
+  { id: 'tx-15', reservationId: 'res-401', guestId: 'gst-3', roomNumber: '401', category: 'room_charge', description: 'Night 1 Presidential Penthouse Charge', amount: 150000, type: 'charge', timestamp: '2026-10-14 09:30', recordedBy: 'Patrick Mengot' },
+  { id: 'tx-16', reservationId: 'res-401', guestId: 'gst-3', roomNumber: '401', category: 'payment', description: 'Full Stay Cash Settlement (FCFA)', amount: 450000, type: 'payment', paymentMethod: 'cash', reference: 'CASH-REC-1049', timestamp: '2026-10-14 09:30', recordedBy: 'Patrick Mengot' }
 ];
 
 export const INITIAL_MAINTENANCE_TICKETS: MaintenanceTicket[] = [
@@ -430,7 +484,7 @@ export const INITIAL_MAINTENANCE_TICKETS: MaintenanceTicket[] = [
     description: 'Bedside reading lamp bulb burnt out. Replaced with warm-white 9W LED bulb.',
     blocksRoom: false,
     status: 'Resolved',
-    reportedBy: 'Patrick (Front Desk)',
+    reportedBy: 'Nadine Ashu (Front Desk)',
     assignedTechnician: 'Brice Ngale (HVAC Lead)',
     reportedAt: '2026-10-12 14:10',
     resolvedAt: '2026-10-12 15:30',
@@ -457,34 +511,50 @@ export const STAFF_USERS: StaffUser[] = [
   {
     id: 'usr-1',
     name: 'Nadine Ashu',
+    username: 'frontdesk',
+    password: 'password123',
     role: 'front_desk',
-    title: 'Senior Receptionist',
+    title: 'Front Desk Lead / Clerk',
     email: 'nadine@grandmountainresort.com',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+    phone: '+237 677 112 233',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    description: 'Front Desk Clerk: Handles guest check-ins, reservations, deposits, key issuance, room matrix, and folios.'
   },
   {
     id: 'usr-2',
     name: 'Therese Mbi',
-    role: 'housekeeper',
+    username: 'housekeeping',
+    password: 'password123',
+    role: 'housekeeping',
     title: 'Head of Housekeeping',
     email: 'therese@grandmountainresort.com',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80'
+    phone: '+237 675 443 322',
+    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    description: 'Housekeeping Staff: Simplified mobile interface for room cleaning turnarounds, status flip, and maintenance alerts.'
   },
   {
     id: 'usr-3',
     name: 'Patrick Mengot',
+    username: 'manager',
+    password: 'password123',
     role: 'manager',
-    title: 'Duty Hotel Manager',
+    title: 'General Manager / Lead Accountant',
     email: 'patrick@grandmountainresort.com',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+    phone: '+237 699 887 766',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    description: 'Manager / Accountant: Full operational & financial access, Night Audit, folio voids, room pricing, and hotel config.'
   },
   {
     id: 'usr-4',
     name: 'Dr. Martin Agbor',
+    username: 'owner',
+    password: 'password123',
     role: 'owner',
-    title: 'Resort Managing Director',
+    title: 'Property Owner / Investor',
     email: 'm.agbor@grandmountainresort.com',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'
+    phone: '+237 677 990 011',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    description: 'Owner (Read-Only Analytics): Remote monitoring of hotel KPIs (RevPAR, ADR, Occupancy %, Cash Flow) across properties.'
   }
 ];
 

@@ -1,10 +1,34 @@
 export type RoomStatus = 'available' | 'occupied' | 'reserved' | 'dirty' | 'cleaning' | 'maintenance';
 
-export type UserRole = 'front_desk' | 'housekeeper' | 'manager' | 'owner';
+export type UserRole = 'front_desk' | 'housekeeping' | 'manager' | 'owner';
 
 export type PaymentMethod = 'cash' | 'momo' | 'orange_money' | 'card' | 'bank_transfer';
 
 export type BookingStatus = 'reserved' | 'checked_in' | 'checked_out' | 'cancelled';
+
+export interface HotelConfig {
+  deploymentId: string;
+  name: string;
+  tagline: string;
+  city: string;
+  address: string;
+  phone: string;
+  email: string;
+  taxId: string; // NIU in Cameroon / Central Africa
+  registryNumber: string;
+  defaultCurrency: 'FCFA' | 'USD';
+  checkInTime: string;
+  checkOutTime: string;
+}
+
+export interface DeploymentRecord {
+  id: string;
+  name: string;
+  location: string;
+  roomsCount: number;
+  deployedAt: string;
+  status: 'active' | 'staging' | 'maintenance';
+}
 
 export interface RoomType {
   id: string;
@@ -86,6 +110,9 @@ export interface FolioTransaction {
   reference?: string;
   timestamp: string;
   recordedBy: string;
+  voided?: boolean;
+  voidedBy?: string;
+  voidReason?: string;
 }
 
 export interface HousekeepingTask {
@@ -129,10 +156,14 @@ export interface PosItem {
 export interface StaffUser {
   id: string;
   name: string;
+  username: string;
+  password?: string;
   role: UserRole;
   title: string;
   email: string;
   avatar: string;
+  description: string;
+  phone: string;
 }
 
 export interface NightAuditReport {

@@ -37,7 +37,7 @@ export const NewMaintenanceModal: React.FC<NewMaintenanceModalProps> = ({
       description: description.trim(),
       blocksRoom,
       status: 'Reported',
-      reportedBy: `${currentUser.name} (${currentUser.title})`,
+      reportedBy: currentUser ? `${currentUser.name} (${currentUser.title})` : 'Staff Member',
       assignedTechnician
     });
 

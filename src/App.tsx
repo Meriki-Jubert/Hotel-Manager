@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HMSProvider, useHMS } from './context/HMSContext';
+import { LoginPage } from './components/LoginPage';
 import { Navbar } from './components/Navbar';
 import { NavigationTabs } from './components/NavigationTabs';
 import { RoomMatrix } from './components/RoomMatrix';
@@ -10,6 +11,7 @@ import { HousekeepingView } from './components/HousekeepingView';
 import { MaintenanceView } from './components/MaintenanceView';
 import { OwnerAnalytics } from './components/OwnerAnalytics';
 import { GuestsCRM } from './components/GuestsCRM';
+import { HotelSettingsView } from './components/HotelSettingsView';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { GuestFolioModal } from './components/GuestFolioModal';
@@ -19,7 +21,12 @@ import { NewMaintenanceModal } from './components/NewMaintenanceModal';
 import { Room, Reservation } from './types/hms';
 
 const HMSMainApp: React.FC = () => {
-  const { activeTab, setActiveTab, rooms, reservations } = useHMS();
+  const { currentUser, activeTab, hotelConfig, canRunAudit, reservations } = useHMS();
+
+  // If user is not logged in, render the Login Screen as the entry point!
+  if (!currentUser) {
+    return <LoginPage />;
+  }
 
   // Modals state
   const [showCheckInModal, setShowCheckInModal] = useState(false);
@@ -68,11 +75,11 @@ const HMSMainApp: React.FC = () => {
         onOpenNightAudit={() => setShowNightAuditModal(true)}
       />
 
-      {/* Module Tabs Navigation */}
+      {/* Module Tabs Navigation (Role Isolated) */}
       <NavigationTabs />
 
       {/* Main View Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
         {activeTab === 'matrix' && (
           <RoomMatrix
             onSelectRoom={(room) => setInspectRoom(room)}
@@ -112,19 +119,21 @@ const HMSMainApp: React.FC = () => {
 
         {activeTab === 'audit' && (
           <div className="space-y-6">
-            <div className="bg-slate-900 text-white p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+            <div className="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
               <div className="space-y-1">
-                <h3 className="text-xl font-bold">End-of-Day Night Audit Hub</h3>
+                <h3 className="text-lg sm:text-xl font-bold">End-of-Day Night Audit Hub</h3>
                 <p className="text-xs text-slate-400">
                   Execute batch folio room charges, balance shift cash drawers, and roll over business date.
                 </p>
               </div>
-              <button
-                onClick={() => setShowNightAuditModal(true)}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap"
-              >
-                Launch Night Audit Wizard
-              </button>
+              {canRunAudit && (
+                <button
+                  onClick={() => setShowNightAuditModal(true)}
+                  className="w-full md:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap"
+                >
+                  Launch Night Audit Wizard
+                </button>
+              )}
             </div>
             <OwnerAnalytics />
           </div>
@@ -133,13 +142,17 @@ const HMSMainApp: React.FC = () => {
         {activeTab === 'analytics' && <OwnerAnalytics />}
 
         {activeTab === 'guests' && <GuestsCRM />}
+
+        {activeTab === 'settings' && <HotelSettingsView />}
       </main>
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 no-print">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Grand Mountain Resort & Suites • Cloud-Native Hotel Management System (HMS)</span>
-          <span className="font-mono text-[11px] text-slate-400">Online-First Architecture • Buea, Cameroon</span>
+          <span>{hotelConfig.name} • Single-Tenant Hotel Management System (HMS)</span>
+          <span className="font-mono text-[11px] text-slate-400">
+            {hotelConfig.city} • Deployment ID: {hotelConfig.deploymentId}
+          </span>
         </div>
       </footer>
 
@@ -166,9 +179,7 @@ const HMSMainApp: React.FC = () => {
         <CheckOutModal
           reservation={checkoutReservation}
           onClose={() => setCheckoutReservation(null)}
-          onSuccess={() => {
-            setCheckoutReservation(null);
-          }}
+          onSuccess={() => setCheckoutReservation(null)}
           onOpenFolio={() => {
             const current = checkoutReservation;
             setCheckoutReservation(null);
@@ -191,8 +202,14 @@ const HMSMainApp: React.FC = () => {
           room={inspectRoom}
           onClose={() => setInspectRoom(null)}
           onCheckIn={handleOpenCheckInForRoom}
-          onCheckOut={handleOpenCheckOutForRes}
-          onOpenFolio={handleOpenFolioForRes}
+          onCheckOut={(resId) => {
+            setInspectRoom(null);
+            handleOpenCheckOutForRes(resId);
+          }}
+          onOpenFolio={(resId) => {
+            setInspectRoom(null);
+            handleOpenFolioForRes(resId);
+          }}
           onReportMaintenance={handleOpenReportMaintenance}
         />
       )}
