@@ -1,0 +1,275 @@
+import React from 'react';
+import { useHMS } from '../context/HMSContext';
+import { Room } from '../types/hms';
+import {
+  X,
+  Bed,
+  User,
+  Calendar,
+  Sparkles,
+  Wrench,
+  Receipt,
+  LogOut,
+  LogIn,
+  CheckCircle2,
+  Clock,
+  ShieldAlert,
+  Layers,
+  Tag
+} from 'lucide-react';
+
+interface RoomDetailModalProps {
+  room: Room;
+  onClose: () => void;
+  onCheckIn: (room: Room) => void;
+  onCheckOut: (resId: string) => void;
+  onOpenFolio: (resId: string) => void;
+  onReportMaintenance: (room: Room) => void;
+}
+
+export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
+  room,
+  onClose,
+  onCheckIn,
+  onCheckOut,
+  onOpenFolio,
+  onReportMaintenance
+}) => {
+  const { roomTypes, reservations, updateRoomStatus, formatMoney, maintenanceTickets } = useHMS();
+
+  const type = roomTypes.find((t) => t.id === room.roomTypeId);
+  const currentRes = reservations.find((r) => r.id === room.currentReservationId);
+  const activeTicket = maintenanceTickets.find(
+    (t) => t.roomId === room.id && t.status !== 'Resolved'
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95">
+        
+        {/* Header */}
+        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-slate-800 text-emerald-400 border border-slate-700">
+              <Bed className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black font-mono">Room #{room.roomNumber}</h2>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                  Floor {room.floor}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">{type?.name || 'Standard'}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Status & Pricing Banner */}
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                Current State
+              </span>
+              <span className="text-sm font-bold capitalize text-slate-900 mt-0.5 inline-flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    room.status === 'available'
+                      ? 'bg-emerald-500'
+                      : room.status === 'occupied'
+                      ? 'bg-rose-500'
+                      : room.status === 'reserved'
+                      ? 'bg-blue-500'
+                      : room.status === 'dirty'
+                      ? 'bg-amber-500'
+                      : room.status === 'cleaning'
+                      ? 'bg-purple-500'
+                      : 'bg-slate-600'
+                  }`}
+                />
+                {room.status.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                Nightly Base Rate
+              </span>
+              <span className="text-base font-bold font-mono text-emerald-700 mt-0.5 block">
+                {formatMoney(room.pricePerNight)}
+              </span>
+            </div>
+          </div>
+
+          {/* Occupancy Info if Occupied or Reserved */}
+          {currentRes && (
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-slate-400" /> Guest Stay Record
+                </span>
+                <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700">
+                  {currentRes.bookingCode}
+                </span>
+              </div>
+              <div className="text-sm font-bold text-slate-900">{currentRes.guestName}</div>
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div>
+                  Phone: <strong className="font-mono text-slate-800">{currentRes.guestPhone}</strong>
+                </div>
+                <div>
+                  Source: <strong className="text-slate-800">{currentRes.source}</strong>
+                </div>
+                <div>
+                  Check-in: <strong className="font-mono text-slate-800">{currentRes.checkInDate}</strong>
+                </div>
+                <div>
+                  Check-out: <strong className="font-mono text-slate-800">{currentRes.checkOutDate}</strong>
+                </div>
+              </div>
+              {currentRes.specialRequests && (
+                <div className="text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 italic">
+                  Note: "{currentRes.specialRequests}"
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Active Maintenance Ticket if any */}
+          {activeTicket && (
+            <div className="bg-rose-50 p-3.5 rounded-xl border border-rose-200 space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold text-rose-900">
+                <span className="flex items-center gap-1.5">
+                  <Wrench className="w-4 h-4 text-rose-600" /> Maintenance Incident
+                </span>
+                <span className="font-mono text-[11px]">{activeTicket.ticketNumber}</span>
+              </div>
+              <div className="text-xs text-rose-700">{activeTicket.description}</div>
+              <div className="text-[10px] text-rose-500">
+                Severity: {activeTicket.severity} • Technician: {activeTicket.assignedTechnician || 'Unassigned'}
+              </div>
+            </div>
+          )}
+
+          {/* Amenities & Features */}
+          {type && (
+            <div className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                Room Amenities & Configuration
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium">
+                  Bed: {type.bedType}
+                </span>
+                <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium">
+                  Max Capacity: {type.maxCapacity} Guests
+                </span>
+                {type.amenities.map((amenity, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium"
+                  >
+                    {amenity}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Direct Status Override Buttons */}
+          <div className="space-y-2 pt-2 border-t border-slate-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+              Quick Housekeeping / Front Desk Actions
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button
+                onClick={() => updateRoomStatus(room.id, 'available')}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-center gap-1"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Mark Available</span>
+              </button>
+              <button
+                onClick={() => updateRoomStatus(room.id, 'dirty')}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 flex items-center justify-center gap-1"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Mark Dirty</span>
+              </button>
+              <button
+                onClick={() => updateRoomStatus(room.id, 'cleaning')}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 flex items-center justify-center gap-1"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>In Cleaning</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Main Action Bar */}
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200">
+            <button
+              onClick={() => {
+                onClose();
+                onReportMaintenance(room);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors"
+            >
+              <Wrench className="w-3.5 h-3.5 text-slate-500" />
+              <span>Report Issue</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              {room.status === 'available' && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onCheckIn(room);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Check In Guest</span>
+                </button>
+              )}
+
+              {room.status === 'occupied' && currentRes && (
+                <>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenFolio(currentRes.id);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-xs"
+                  >
+                    <Receipt className="w-4 h-4 text-emerald-600" />
+                    <span>Folio</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onCheckOut(currentRes.id);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Check Out</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  );
+};

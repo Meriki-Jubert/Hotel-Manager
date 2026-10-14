@@ -1,0 +1,8 @@
+{
+  "name": "Cloud-Native Hotel Management System (HMS)",
+  "description": "Enterprise-grade Hotel Management System featuring an interactive room matrix, front desk check-in/out engine, guest folio billing & printable invoices, restaurant & room service POS, housekeeping dispatch, maintenance ticketing, night audit, and owner analytics.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
