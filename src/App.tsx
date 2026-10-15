@@ -65,7 +65,15 @@ const HMSMainApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col text-slate-900">
+    <div 
+      className="min-h-screen flex flex-col text-slate-900"
+      style={{ 
+        backgroundImage: `linear-gradient(rgba(241, 245, 249, 0.75), rgba(241, 245, 249, 0.9)), url('https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=Beautiful%20luxury%20hotel%20resort%2C%20stunning%20interior%20design%2C%20bright%20sunny%20day%2C%204k%20photography%2C%20highly%20detailed&image_size=landscape_16_9')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       {/* Top Navbar */}
       <Navbar
         onOpenCheckIn={() => {

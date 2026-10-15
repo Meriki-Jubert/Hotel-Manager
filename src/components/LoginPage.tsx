@@ -67,7 +67,15 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-8">
+    <div 
+      className="min-h-screen text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-8"
+      style={{ 
+        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.85)), url('https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=Luxury%20modern%20hotel%20reception%20desk%2C%20elegant%20lobby%2C%204k%20high%20resolution%20architecture%20photography%2C%20cinematic%20lighting&image_size=landscape_16_9')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       {/* Top Brand Bar */}
       <div className="max-w-6xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
