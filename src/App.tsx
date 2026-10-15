@@ -20,15 +20,10 @@ import { NightAuditModal } from './components/NightAuditModal';
 import { NewMaintenanceModal } from './components/NewMaintenanceModal';
 import { Room, Reservation } from './types/hms';
 
-const HMSMainApp: React.FC = () => {
-  const { currentUser, activeTab, hotelConfig, canRunAudit, reservations } = useHMS();
+const AuthenticatedDashboard: React.FC = () => {
+  const { activeTab, hotelConfig, canRunAudit, reservations } = useHMS();
 
-  // If user is not logged in, render the Login Screen as the entry point!
-  if (!currentUser) {
-    return <LoginPage />;
-  }
-
-  // Modals state
+  // Modals state - always executed in stable order
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [checkInInitialRoom, setCheckInInitialRoom] = useState<Room | null>(null);
 
@@ -39,7 +34,7 @@ const HMSMainApp: React.FC = () => {
   const [maintenanceInitialRoom, setMaintenanceInitialRoom] = useState<Room | null>(null);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
 
-  // Handlers
+  // Modal Handlers
   const handleOpenCheckInForRoom = (room: Room) => {
     setCheckInInitialRoom(room);
     setShowCheckInModal(true);
@@ -231,10 +226,22 @@ const HMSMainApp: React.FC = () => {
   );
 };
 
+const AppContent: React.FC = () => {
+  const { currentUser } = useHMS();
+
+  // If user is not logged in, render the Login Screen as the entry point!
+  if (!currentUser) {
+    return <LoginPage />;
+  }
+
+  // Render dashboard when authenticated
+  return <AuthenticatedDashboard />;
+};
+
 export function App() {
   return (
     <HMSProvider>
-      <HMSMainApp />
+      <AppContent />
     </HMSProvider>
   );
 }

@@ -63,7 +63,8 @@ export const INITIAL_ROOM_TYPES: RoomType[] = [
     maxCapacity: 2,
     bedType: 'Queen Bed',
     amenities: ['Ceiling Fan', 'Free Wi-Fi', 'En-suite Shower', 'Smart TV', 'Desk'],
-    description: 'Comfortable, well-ventilated room ideal for solo travelers and short corporate visits in Buea.'
+    description: 'Comfortable, well-ventilated room ideal for solo travelers and short corporate visits in Buea.',
+    image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=1200&auto=format&fit=crop&q=80'
   },
   {
     id: 'rt-2',
@@ -73,7 +74,8 @@ export const INITIAL_ROOM_TYPES: RoomType[] = [
     maxCapacity: 2,
     bedType: 'King Bed',
     amenities: ['Inverter AC', 'High-Speed Wi-Fi', 'Mini Refrigerator', 'Balcony', 'Hot Shower', 'Work Desk'],
-    description: 'Spacious executive room with private balcony overlooking the lush Mount Cameroon foothills.'
+    description: 'Spacious executive room with private balcony overlooking the lush Mount Cameroon foothills.',
+    image: 'https://images.unsplash.com/photo-1591088398332-8a7791972843?w=1200&auto=format&fit=crop&q=80'
   },
   {
     id: 'rt-3',
@@ -83,7 +85,8 @@ export const INITIAL_ROOM_TYPES: RoomType[] = [
     maxCapacity: 3,
     bedType: 'California King',
     amenities: ['Panoramic Mt. Fako View', 'Living Lounge', 'Bathtub & Rain Shower', 'Complimentary Breakfast', 'Espresso Machine', 'Safe'],
-    description: 'Premier suite offering scenic mountain vistas, separated living lounge, and complimentary VIP breakfast.'
+    description: 'Premier suite offering scenic mountain vistas, separated living lounge, and complimentary VIP breakfast.',
+    image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&auto=format&fit=crop&q=80'
   },
   {
     id: 'rt-4',
@@ -93,7 +96,8 @@ export const INITIAL_ROOM_TYPES: RoomType[] = [
     maxCapacity: 4,
     bedType: '2x King Beds',
     amenities: ['Top Floor Terrace', 'Dining Suite', 'Jacuzzi', 'Butler Service', 'Kitchenette', 'Private Bar'],
-    description: 'Ultimate luxury penthouse on the highest floor with private jacuzzi and full butler concierge service.'
+    description: 'Ultimate luxury penthouse on the highest floor with private jacuzzi and full butler concierge service.',
+    image: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=1200&auto=format&fit=crop&q=80'
   }
 ];
 
@@ -493,18 +497,18 @@ export const INITIAL_MAINTENANCE_TICKETS: MaintenanceTicket[] = [
 ];
 
 export const INITIAL_POS_ITEMS: PosItem[] = [
-  { id: 'pos-1', name: 'Poisson Braisé (Grilled Mackerel & Plantains)', category: 'Meals', price: 6500, available: true },
-  { id: 'pos-2', name: 'Ndolé Royal with Smoked Fish & Prawns', category: 'Meals', price: 7500, available: true },
-  { id: 'pos-3', name: 'Club Sandwich & French Fries', category: 'Meals', price: 4500, available: true },
-  { id: 'pos-4', name: 'Peppered Beef Soya Skewers (5 pcs)', category: 'Snacks', price: 3500, available: true },
-  { id: 'pos-5', name: 'Continental Buffet Breakfast', category: 'Breakfast', price: 5000, available: true },
-  { id: 'pos-6', name: 'Fresh Oku Mountain Arabica Coffee', category: 'Beverages', price: 2000, available: true },
-  { id: 'pos-7', name: 'Fresh Passion Fruit & Orange Juice (500ml)', category: 'Beverages', price: 2500, available: true },
-  { id: 'pos-8', name: 'Guinness Foreign Extra Stout (65cl)', category: 'Beverages', price: 1500, available: true },
-  { id: 'pos-9', name: 'Castel Beer / Beaufort Light (65cl)', category: 'Beverages', price: 1200, available: true },
-  { id: 'pos-10', name: 'Mineral Water Supermont (1.5L)', category: 'Beverages', price: 1000, available: true },
-  { id: 'pos-11', name: 'Executive Laundry & Pressing (Per Item)', category: 'Laundry', price: 2500, available: true },
-  { id: 'pos-12', name: 'Airport Shuttle Buea ⇄ Douala Int. (One Way)', category: 'Room Amenities', price: 35000, available: true }
+  { id: 'pos-1', name: 'Poisson Braisé (Grilled Mackerel & Plantains)', category: 'Meals', price: 6500, available: true, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-2', name: 'Ndolé Royal with Smoked Fish & Prawns', category: 'Meals', price: 7500, available: true, image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-3', name: 'Club Sandwich & French Fries', category: 'Meals', price: 4500, available: true, image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-4', name: 'Peppered Beef Soya Skewers (5 pcs)', category: 'Snacks', price: 3500, available: true, image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-5', name: 'Continental Buffet Breakfast', category: 'Breakfast', price: 5000, available: true, image: 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-6', name: 'Fresh Oku Mountain Arabica Coffee', category: 'Beverages', price: 2000, available: true, image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-7', name: 'Fresh Passion Fruit & Orange Juice (500ml)', category: 'Beverages', price: 2500, available: true, image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-8', name: 'Guinness Foreign Extra Stout (65cl)', category: 'Beverages', price: 1500, available: true, image: 'https://images.unsplash.com/photo-1608270120063-22e838613725?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-9', name: 'Castel Beer / Beaufort Light (65cl)', category: 'Beverages', price: 1200, available: true, image: 'https://images.unsplash.com/photo-1535958636474-b021ee887b13?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-10', name: 'Mineral Water Supermont (1.5L)', category: 'Beverages', price: 1000, available: true, image: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-11', name: 'Executive Laundry & Pressing (Per Item)', category: 'Laundry', price: 2500, available: true, image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=800&auto=format&fit=crop&q=80' },
+  { id: 'pos-12', name: 'Airport Shuttle Buea ⇄ Douala Int. (One Way)', category: 'Room Amenities', price: 35000, available: true, image: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&auto=format&fit=crop&q=80' }
 ];
 
 export const STAFF_USERS: StaffUser[] = [
