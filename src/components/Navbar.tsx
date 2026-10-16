@@ -110,22 +110,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm sm:text-base tracking-tight text-white truncate max-w-[160px] sm:max-w-xs md:max-w-sm">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="font-bold text-xs sm:text-base tracking-tight text-white truncate max-w-[120px] sm:max-w-xs md:max-w-sm">
                   {hotelConfig.name}
                 </span>
-                <span className="hidden sm:inline text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="hidden sm:inline text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-champagne-gold-500/20 text-champagne-gold-300 border border-champagne-gold-500/30">
                   {hotelConfig.deploymentId}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 flex items-center gap-1.5 truncate">
-                <span className="truncate">{hotelConfig.city}</span>
-                <span>•</span>
-                <span className="text-emerald-400 font-semibold shrink-0">
-                  {occupancyPercent}% Occ. ({occupiedCount}/{rooms.length} Rms)
+              <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 truncate">
+                <span className="truncate max-w-[90px] sm:max-w-none">{hotelConfig.city}</span>
+                <span className="hidden xs:inline">•</span>
+                <span className="text-champagne-gold-400 font-semibold shrink-0">
+                  {occupancyPercent}% Occ. ({occupiedCount}/{rooms.length})
                 </span>
                 {dirtyCount > 0 && (
-                  <span className="hidden lg:inline text-amber-400 font-medium">
+                  <span className="hidden md:inline text-amber-400 font-medium">
                     • {dirtyCount} Dirty
                   </span>
                 )}
