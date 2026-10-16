@@ -83,20 +83,20 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/85 backdrop-blur-xl p-4 rounded-2xl border border-champagne-gold-500/30 shadow-xl text-slate-100">
         <div>
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <CalendarCheck2 className="w-5 h-5 text-emerald-600" />
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <CalendarCheck2 className="w-5 h-5 text-champagne-gold-400" />
             Front Desk Reservation Roster
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-300 mt-0.5">
             Active in-house stays, expected arrivals, and historical guest records
           </p>
         </div>
 
         <button
           onClick={onOpenCheckIn}
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all"
+          className="flex items-center gap-1.5 px-4 py-2 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 rounded-xl text-xs font-bold shadow-md transition-all"
         >
           <PlusCircle className="w-4 h-4" />
           <span>New Walk-In / Booking</span>
@@ -104,7 +104,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+      <div className="bg-slate-900/85 backdrop-blur-xl p-4 rounded-2xl border border-champagne-gold-500/30 shadow-xl space-y-3 text-slate-100">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />

@@ -113,7 +113,7 @@ export const RestaurantPOS: React.FC = () => {
       {/* Menu Catalog (Left 2 cols) */}
       <div className="lg:col-span-2 space-y-4">
         {/* Search & Categories */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+        <div className="bg-slate-900/85 backdrop-blur-xl p-4 rounded-2xl border border-champagne-gold-500/30 shadow-xl space-y-3 text-slate-100">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input

@@ -128,7 +128,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Filter and Search Bar */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 space-y-4">
+      <div className="bg-slate-900/85 backdrop-blur-xl rounded-2xl shadow-xl border border-champagne-gold-500/30 p-4 space-y-4 text-slate-100">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
           {/* Search Input */}

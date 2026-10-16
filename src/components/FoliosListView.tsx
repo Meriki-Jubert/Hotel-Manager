@@ -59,20 +59,20 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/85 backdrop-blur-xl p-4 rounded-2xl border border-champagne-gold-500/30 shadow-xl text-slate-100">
         <div>
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-emerald-600" />
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-champagne-gold-400" />
             Guest Master Folios & Billing Center
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-300 mt-0.5">
             Single-ledger guest accounting, tax invoices, and real-time room charges
           </p>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+      <div className="bg-slate-900/85 backdrop-blur-xl p-4 rounded-2xl border border-champagne-gold-500/30 shadow-xl space-y-3 text-slate-100">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
