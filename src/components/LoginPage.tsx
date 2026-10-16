@@ -67,6 +67,7 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
+<<<<<<< HEAD
     <div 
       className="min-h-screen text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-8"
       style={{ 
@@ -76,6 +77,20 @@ export const LoginPage: React.FC = () => {
         backgroundAttachment: 'fixed'
       }}
     >
+=======
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden p-4 sm:p-6 lg:p-8">
+      {/* 4K Architectural Hotel Backdrop */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=2000&auto=format&fit=crop&q=85"
+          alt="Hotel Exterior"
+          className="w-full h-full object-cover opacity-25 filter brightness-75 scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900/95 to-slate-900/90" />
+      </div>
+
+      <div className="relative z-10 flex flex-col justify-between min-h-[calc(100vh-4rem)] w-full">
+>>>>>>> e4857dc86ef7e575cb43cf1a19c64b22bbe8b55e
       {/* Top Brand Bar */}
       <div className="max-w-6xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
@@ -199,14 +214,14 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="w-full py-3 px-4 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 font-bold rounded-xl text-sm shadow-lg shadow-champagne-gold-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               <span>Sign In to Terminal</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          <div className="pt-2 text-[11px] text-slate-400 text-center border-t border-slate-700/60">
+          <div className="pt-2 text-[11px] text-slate-400 text-center border-t border-slate-750">
             For rapid evaluation, click any of the 4 role profiles on the right.
           </div>
         </div>
@@ -215,10 +230,10 @@ export const LoginPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-3">
           <div className="flex items-center justify-between pb-1">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <KeyRound className="w-4 h-4 text-emerald-400" />
+              <KeyRound className="w-4 h-4 text-champagne-gold-400" />
               Instant Role Verification (One-Click)
             </span>
-            <span className="text-[11px] text-emerald-400">4 Enforced Security Levels</span>
+            <span className="text-[11px] text-champagne-gold-400 font-medium">4 Enforced Security Levels</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -230,24 +245,24 @@ export const LoginPage: React.FC = () => {
                 <div
                   key={user.id}
                   onClick={() => fastLogin(user.role)}
-                  className="bg-slate-800/90 hover:bg-slate-750 p-4 rounded-2xl border border-slate-700 hover:border-emerald-500/50 shadow-md transition-all duration-200 cursor-pointer group flex flex-col justify-between space-y-3 hover:translate-y-[-2px]"
+                  className="bg-slate-800/90 hover:bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:border-champagne-gold-500/70 shadow-md transition-all duration-200 cursor-pointer group flex flex-col justify-between space-y-3 hover:translate-y-[-2px]"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${meta.badgeColor}`}>
                         {user.role.replace('_', ' ')}
                       </span>
-                      <Icon className="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" />
+                      <Icon className="w-4 h-4 text-slate-400 group-hover:text-champagne-gold-400 transition-colors" />
                     </div>
 
                     <div className="flex items-center gap-3 pt-1">
                       <img
                         src={user.avatar}
                         alt={user.name}
-                        className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-700 group-hover:ring-emerald-500/60"
+                        className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-700 group-hover:ring-champagne-gold-500/60"
                       />
                       <div>
-                        <div className="font-bold text-sm text-white group-hover:text-emerald-300 transition-colors">
+                        <div className="font-bold text-sm text-white group-hover:text-champagne-gold-300 transition-colors">
                           {user.name}
                         </div>
                         <div className="text-[11px] text-slate-400">{user.title}</div>
@@ -259,7 +274,7 @@ export const LoginPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-750 flex items-center justify-between text-xs text-emerald-400 font-semibold group-hover:underline">
+                  <div className="pt-2 border-t border-slate-750 flex items-center justify-between text-xs text-champagne-gold-400 font-semibold group-hover:underline">
                     <span>Enter as {user.name.split(' ')[0]}</span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                   </div>
@@ -277,6 +292,7 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
+      </div>
       </div>
 
       {/* Footer */}

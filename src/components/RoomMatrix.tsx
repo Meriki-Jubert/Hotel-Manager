@@ -236,26 +236,34 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
               className={`bg-white rounded-xl border-2 transition-all duration-200 shadow-xs hover:shadow-md flex flex-col justify-between overflow-hidden group cursor-pointer ${cfg.border}`}
               onClick={() => onSelectRoom(room)}
             >
-              {/* Card Header */}
-              <div className={`p-3.5 border-b border-slate-100 ${cfg.lightBg}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl font-bold font-mono text-slate-900 group-hover:text-emerald-700 transition-colors">
-                      #{room.roomNumber}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-medium">Floor {room.floor}</span>
-                  </div>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold text-white shadow-2xs ${cfg.bg}`}
-                  >
+              {/* 4K Architectural Photo Thumbnail Banner */}
+              <div className="relative h-28 w-full overflow-hidden bg-slate-900">
+                <img
+                  src={type?.image || 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&auto=format&fit=crop&q=80'}
+                  alt={type?.name || 'Room'}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <div className="absolute top-2.5 left-2.5">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-md ${cfg.bg}`}>
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                     {cfg.label}
                   </span>
                 </div>
-                <div className="text-xs text-slate-600 font-medium truncate mt-1 flex items-center justify-between">
-                  <span>{type?.name || 'Standard'}</span>
-                  <span className="text-slate-900 font-semibold">{formatMoney(room.pricePerNight)}/nt</span>
+                <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-white">
+                  <span className="font-mono font-bold text-base drop-shadow-md">
+                    #{room.roomNumber}
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-200 drop-shadow-md">
+                    Floor {room.floor}
+                  </span>
                 </div>
+              </div>
+
+              {/* Card Meta Subheader */}
+              <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-800 truncate">{type?.name || 'Standard'}</span>
+                <span className="text-slate-900 font-bold font-mono">{formatMoney(room.pricePerNight)}/nt</span>
               </div>
 
               {/* Card Body Information */}

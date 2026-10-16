@@ -101,18 +101,18 @@ export const NavigationTabs: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all border ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-xs scale-[1.01]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-slate-900 border-champagne-gold-500/80 text-white shadow-md scale-[1.01]'
+                    : 'bg-transparent border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-500'}`} />
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-champagne-gold-400' : 'text-slate-500'}`} />
                 <span>{tab.label}</span>
                 {tab.badge !== undefined && (
                   <span
                     className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
-                      isActive ? 'bg-emerald-500 text-slate-900' : tab.badgeColor || 'bg-slate-200 text-slate-700'
+                      isActive ? 'bg-champagne-gold-500 text-slate-950 font-bold' : tab.badgeColor || 'bg-slate-200 text-slate-700'
                     }`}
                   >
                     {tab.badge}

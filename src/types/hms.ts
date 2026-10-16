@@ -39,6 +39,7 @@ export interface RoomType {
   bedType: string;
   amenities: string[];
   description: string;
+  image?: string;
 }
 
 export interface Room {
@@ -52,6 +53,7 @@ export interface Room {
   maintenanceNote?: string;
   lastCleaned?: string;
   pricePerNight: number;
+  image?: string;
 }
 
 export interface Guest {
@@ -151,6 +153,7 @@ export interface PosItem {
   category: 'Meals' | 'Beverages' | 'Breakfast' | 'Snacks' | 'Laundry' | 'Room Amenities';
   price: number;
   available: boolean;
+  image?: string;
 }
 
 export interface StaffUser {
