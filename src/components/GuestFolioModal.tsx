@@ -526,7 +526,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <p className="text-xs text-slate-500 mt-0.5">{hotelConfig.address}, {hotelConfig.city}</p>
                   <p className="text-xs text-slate-500">Tel: {hotelConfig.phone} • Email: {hotelConfig.email}</p>
                   <p className="text-[10px] font-mono text-slate-400 mt-1">
-                    Tax ID (NIU): {hotelConfig.taxId} • Registry: {hotelConfig.registryNumber} • Dep: {hotelConfig.deploymentId}
+                    Tax ID (NIU): {hotelConfig.taxId} • Registry: {hotelConfig.registryNumber}
                   </p>
                 </div>
 

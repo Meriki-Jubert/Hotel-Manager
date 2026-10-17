@@ -19,13 +19,12 @@ import {
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login, fastLogin, hotelConfig, deployments, switchDeployment } = useHMS();
+  const { login, fastLogin, hotelConfig } = useHMS();
 
   const [username, setUsername] = useState('frontdesk');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showDeploymentSelector, setShowDeploymentSelector] = useState(false);
 
   const handleStandardLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,54 +88,10 @@ export const LoginPage: React.FC = () => {
             <h1 className="font-bold text-base sm:text-lg text-white leading-tight">
               {hotelConfig.name}
             </h1>
-            <p className="text-xs text-slate-400 flex items-center gap-2">
+            <p className="text-xs text-slate-400">
               <span>{hotelConfig.city}</span>
-              <span>•</span>
-              <span className="font-mono text-emerald-400">{hotelConfig.deploymentId}</span>
             </p>
           </div>
-        </div>
-
-        {/* Deployment Switcher Button */}
-        <div className="relative">
-          <button
-            onClick={() => setShowDeploymentSelector(!showDeploymentSelector)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition-colors"
-          >
-            <Building className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Deployment:</span>
-            <span className="text-white font-mono">{hotelConfig.deploymentId}</span>
-          </button>
-
-          {showDeploymentSelector && (
-            <div className="absolute right-0 mt-2 w-72 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 p-2 z-50">
-              <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
-                Switch Property Instance
-              </div>
-              <div className="space-y-1 mt-1">
-                {deployments.map((dep) => (
-                  <button
-                    key={dep.id}
-                    onClick={() => {
-                      switchDeployment(dep.id);
-                      setShowDeploymentSelector(false);
-                    }}
-                    className={`w-full text-left p-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                      dep.id === hotelConfig.deploymentId
-                        ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30'
-                        : 'text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold">{dep.name}</div>
-                      <div className="text-[10px] text-slate-400">{dep.location} ({dep.roomsCount} Rooms)</div>
-                    </div>
-                    <span className="font-mono text-[10px] opacity-75">{dep.id}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

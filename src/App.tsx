@@ -154,7 +154,7 @@ const AuthenticatedDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>{hotelConfig.name} • Single-Tenant Hotel Management System (HMS)</span>
           <span className="font-mono text-[11px] text-slate-400">
-            {hotelConfig.city} • Deployment ID: {hotelConfig.deploymentId}
+            {hotelConfig.city} • Cloud HMS
           </span>
         </div>
       </footer>
