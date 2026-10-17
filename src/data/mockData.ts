@@ -8,51 +8,11 @@ import {
   PosItem,
   StaffUser,
   NightAuditReport,
-  HotelConfig,
-  DeploymentRecord
+  HotelConfig
 } from '../types/hms';
+import { appConfig } from '../config/appConfig';
 
-export const DEFAULT_HOTEL_CONFIG: HotelConfig = {
-  deploymentId: 'DEP-BUEA-001',
-  name: 'Grand Mountain Resort & Suites',
-  tagline: 'Luxury, Comfort & Mountain Views in Mount Fako Foothills',
-  city: 'Buea, South West Region',
-  address: 'Molyko Boulevard, P.O. Box 412, Buea',
-  phone: '+237 670 123 456',
-  email: 'reception@grandmountainresort.com',
-  taxId: 'M0982736192801A',
-  registryNumber: 'RC/BUE/2020/B/452',
-  defaultCurrency: 'FCFA',
-  checkInTime: '14:00',
-  checkOutTime: '11:00'
-};
-
-export const INITIAL_DEPLOYMENTS: DeploymentRecord[] = [
-  {
-    id: 'DEP-BUEA-001',
-    name: 'Grand Mountain Resort & Suites',
-    location: 'Molyko, Buea',
-    roomsCount: 19,
-    deployedAt: '2026-01-15',
-    status: 'active'
-  },
-  {
-    id: 'DEP-LIMBE-002',
-    name: 'Atlantic Beach & Suites',
-    location: 'Down Beach, Limbe',
-    roomsCount: 24,
-    deployedAt: '2026-03-20',
-    status: 'active'
-  },
-  {
-    id: 'DEP-DLA-003',
-    name: 'Bonanjo Executive Plaza',
-    location: 'Bonanjo, Douala',
-    roomsCount: 32,
-    deployedAt: '2026-07-01',
-    status: 'staging'
-  }
-];
+export const DEFAULT_HOTEL_CONFIG: HotelConfig = appConfig;
 
 export const INITIAL_ROOM_TYPES: RoomType[] = [
   {

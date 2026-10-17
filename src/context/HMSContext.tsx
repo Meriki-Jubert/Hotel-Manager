@@ -12,12 +12,10 @@ import {
   RoomStatus,
   PaymentMethod,
   UserRole,
-  HotelConfig,
-  DeploymentRecord
+  HotelConfig
 } from '../types/hms';
 import {
   DEFAULT_HOTEL_CONFIG,
-  INITIAL_DEPLOYMENTS,
   INITIAL_ROOM_TYPES,
   INITIAL_ROOMS,
   INITIAL_GUESTS,
@@ -28,6 +26,7 @@ import {
   STAFF_USERS,
   INITIAL_NIGHT_AUDIT_HISTORY
 } from '../data/mockData';
+import { isDemoMode } from '../config/appConfig';
 
 export type NavTab =
   | 'matrix'
@@ -60,7 +59,6 @@ interface CheckInPayload {
 
 interface HMSContextType {
   hotelConfig: HotelConfig;
-  deployments: DeploymentRecord[];
   roomTypes: RoomType[];
   rooms: Room[];
   guests: Guest[];
@@ -91,10 +89,8 @@ interface HMSContextType {
   fastLogin: (role: UserRole) => void;
   logout: () => void;
 
-  // Config & Deployment Setters
+  // Config Setters
   updateHotelConfig: (newConfig: Partial<HotelConfig>) => void;
-  switchDeployment: (deploymentId: string) => void;
-  addDeployment: (record: DeploymentRecord) => void;
   updateRoomTypePricing: (roomTypeId: string, newBasePrice: number) => void;
 
   // General Setters
@@ -127,19 +123,11 @@ const HMSContext = createContext<HMSContextType | undefined>(undefined);
 const STORAGE_PREFIX = 'hms_v2';
 
 export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Deployments tracking
-  const [deployments, setDeployments] = useState<DeploymentRecord[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}_deployments`);
-    return saved ? JSON.parse(saved) : INITIAL_DEPLOYMENTS;
-  });
-
   // Active hotel config
   const [hotelConfig, setHotelConfig] = useState<HotelConfig>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_config`);
     return saved ? JSON.parse(saved) : DEFAULT_HOTEL_CONFIG;
   });
-
-  const activeDeploymentKey = `${STORAGE_PREFIX}_${hotelConfig.deploymentId}`;
 
   // Auth state (starts as null to force login page)
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
@@ -149,85 +137,86 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // State
   const [roomTypes, setRoomTypes] = useState<RoomType[]>(() => {
-    const saved = localStorage.getItem(`${activeDeploymentKey}_room_types`);
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_room_types`);
     return saved ? JSON.parse(saved) : INITIAL_ROOM_TYPES;
   });
 
   const [rooms, setRooms] = useState<Room[]>(() => {
-    const saved = localStorage.getItem(`${activeDeploymentKey}_rooms`);
-    return saved ? JSON.parse(saved) : INITIAL_ROOMS;
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_rooms`);
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_ROOMS : []);
   });
 
   const [guests, setGuests] = useState<Guest[]>(() => {
-    const saved = localStorage.getItem(`${activeDeploymentKey}_guests`);
-    return saved ? JSON.parse(saved) : INITIAL_GUESTS;
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_guests`);
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_GUESTS : []);
   });
 
   const [reservations, setReservations] = useState<Reservation[]>(() => {
-    const saved = localStorage.getItem(`${activeDeploymentKey}_reservations`);
-    return saved ? JSON.parse(saved) : INITIAL_RESERVATIONS;
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_reservations`);
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_RESERVATIONS : []);
   });
 
   const [transactions, setTransactions] = useState<FolioTransaction[]>(() => {
-    const saved = localStorage.getItem(`${activeDeploymentKey}_transactions`);
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_transactions`);
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_TRANSACTIONS : []);
   });
 
   const [maintenanceTickets, setMaintenanceTickets] = useState<MaintenanceTicket[]>(() => {
-    const saved = localStorage.getItem(`${activeDeploymentKey}_maintenance`);
-    return saved ? JSON.parse(saved) : INITIAL_MAINTENANCE_TICKETS;
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_maintenance`);
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_MAINTENANCE_TICKETS : []);
   });
 
   const [posItems] = useState<PosItem[]>(INITIAL_POS_ITEMS);
 
   const [nightAuditReports, setNightAuditReports] = useState<NightAuditReport[]>(() => {
-    const saved = localStorage.getItem(`${activeDeploymentKey}_audits`);
-    return saved ? JSON.parse(saved) : INITIAL_NIGHT_AUDIT_HISTORY;
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_audits`);
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY : []);
   });
 
   const [currency, setCurrency] = useState<'FCFA' | 'USD'>(hotelConfig.defaultCurrency);
-  const [businessDate, setBusinessDate] = useState<string>('2026-10-14');
+  const [businessDate, setBusinessDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState<NavTab>('matrix');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
 
-  // Sync to Storage
+  // Document title sync
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}_deployments`, JSON.stringify(deployments));
-  }, [deployments]);
+    document.title = `${hotelConfig.name} — Hotel Management System`;
+  }, [hotelConfig.name]);
 
+  // Sync to Storage
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}_config`, JSON.stringify(hotelConfig));
   }, [hotelConfig]);
 
   useEffect(() => {
-    localStorage.setItem(`${activeDeploymentKey}_room_types`, JSON.stringify(roomTypes));
-  }, [roomTypes, activeDeploymentKey]);
+    localStorage.setItem(`${STORAGE_PREFIX}_room_types`, JSON.stringify(roomTypes));
+  }, [roomTypes]);
 
   useEffect(() => {
-    localStorage.setItem(`${activeDeploymentKey}_rooms`, JSON.stringify(rooms));
-  }, [rooms, activeDeploymentKey]);
+    localStorage.setItem(`${STORAGE_PREFIX}_rooms`, JSON.stringify(rooms));
+  }, [rooms]);
 
   useEffect(() => {
-    localStorage.setItem(`${activeDeploymentKey}_guests`, JSON.stringify(guests));
-  }, [guests, activeDeploymentKey]);
+    localStorage.setItem(`${STORAGE_PREFIX}_guests`, JSON.stringify(guests));
+  }, [guests]);
 
   useEffect(() => {
-    localStorage.setItem(`${activeDeploymentKey}_reservations`, JSON.stringify(reservations));
-  }, [reservations, activeDeploymentKey]);
+    localStorage.setItem(`${STORAGE_PREFIX}_reservations`, JSON.stringify(reservations));
+  }, [reservations]);
 
   useEffect(() => {
-    localStorage.setItem(`${activeDeploymentKey}_transactions`, JSON.stringify(transactions));
-  }, [transactions, activeDeploymentKey]);
+    localStorage.setItem(`${STORAGE_PREFIX}_transactions`, JSON.stringify(transactions));
+  }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem(`${activeDeploymentKey}_maintenance`, JSON.stringify(maintenanceTickets));
-  }, [maintenanceTickets, activeDeploymentKey]);
+    localStorage.setItem(`${STORAGE_PREFIX}_maintenance`, JSON.stringify(maintenanceTickets));
+  }, [maintenanceTickets]);
 
   useEffect(() => {
-    localStorage.setItem(`${activeDeploymentKey}_audits`, JSON.stringify(nightAuditReports));
-  }, [nightAuditReports, activeDeploymentKey]);
+    localStorage.setItem(`${STORAGE_PREFIX}_audits`, JSON.stringify(nightAuditReports));
+  }, [nightAuditReports]);
 
   // Role Permissions
   const role = currentUser?.role;
@@ -282,8 +271,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const clearNotification = () => setNotification(null);
 
   const formatMoney = (amountInFcfa: number) => {
+    const rate = hotelConfig.usdExchangeRate || 600;
     if (currency === 'USD') {
-      const usdAmount = amountInFcfa / 600;
+      const usdAmount = amountInFcfa / rate;
       return `$${usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     return `${Math.round(amountInFcfa).toLocaleString('fr-FR')} FCFA`;
@@ -330,40 +320,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showNotification('Logged out successfully.', 'info');
   };
 
-  // Deployment and Property Config
+  // Property Config
   const updateHotelConfig = (newConfig: Partial<HotelConfig>) => {
-    setHotelConfig((prev) => {
-      const updated = { ...prev, ...newConfig };
-      // Also update name in deployments list if matching
-      setDeployments((deps) =>
-        deps.map((d) =>
-          d.id === updated.deploymentId
-            ? { ...d, name: updated.name, location: updated.city }
-            : d
-        )
-      );
-      return updated;
-    });
+    setHotelConfig((prev) => ({ ...prev, ...newConfig }));
     showNotification('Property profile & branding updated successfully!', 'success');
-  };
-
-  const switchDeployment = (deploymentId: string) => {
-    const target = deployments.find((d) => d.id === deploymentId);
-    if (!target) return;
-
-    setHotelConfig((prev) => ({
-      ...prev,
-      deploymentId: target.id,
-      name: target.name,
-      city: target.location
-    }));
-
-    showNotification(`Switched deployment instance to: ${target.name}`, 'info');
-  };
-
-  const addDeployment = (record: DeploymentRecord) => {
-    setDeployments((prev) => [...prev, record]);
-    showNotification(`Registered new deployment instance: ${record.name}`, 'success');
   };
 
   const updateRoomTypePricing = (roomTypeId: string, newBasePrice: number) => {
@@ -842,13 +802,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToDemoData = () => {
-    localStorage.removeItem(`${activeDeploymentKey}_room_types`);
-    localStorage.removeItem(`${activeDeploymentKey}_rooms`);
-    localStorage.removeItem(`${activeDeploymentKey}_guests`);
-    localStorage.removeItem(`${activeDeploymentKey}_reservations`);
-    localStorage.removeItem(`${activeDeploymentKey}_transactions`);
-    localStorage.removeItem(`${activeDeploymentKey}_maintenance`);
-    localStorage.removeItem(`${activeDeploymentKey}_audits`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_room_types`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_rooms`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_guests`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_reservations`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_transactions`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_maintenance`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_audits`);
 
     setRoomTypes(INITIAL_ROOM_TYPES);
     setRooms(INITIAL_ROOMS);
@@ -857,17 +817,15 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTransactions(INITIAL_TRANSACTIONS);
     setMaintenanceTickets(INITIAL_MAINTENANCE_TICKETS);
     setNightAuditReports(INITIAL_NIGHT_AUDIT_HISTORY);
-    setBusinessDate('2026-10-14');
     setSelectedRoom(null);
     setSelectedReservation(null);
-    showNotification('System reset to clean sample demo data for this property!', 'info');
+    showNotification('System reset to clean sample demo data!', 'info');
   };
 
   return (
     <HMSContext.Provider
       value={{
         hotelConfig,
-        deployments,
         roomTypes,
         rooms,
         guests,
@@ -894,8 +852,6 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fastLogin,
         logout,
         updateHotelConfig,
-        switchDeployment,
-        addDeployment,
         updateRoomTypePricing,
         setCurrency,
         setActiveTab,

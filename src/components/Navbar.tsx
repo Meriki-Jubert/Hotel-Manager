@@ -114,9 +114,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="font-bold text-xs sm:text-base tracking-tight text-white truncate max-w-[120px] sm:max-w-xs md:max-w-sm">
                   {hotelConfig.name}
                 </span>
-                <span className="hidden sm:inline text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-champagne-gold-500/20 text-champagne-gold-300 border border-champagne-gold-500/30">
-                  {hotelConfig.deploymentId}
-                </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 truncate">
                 <span className="truncate max-w-[90px] sm:max-w-none">{hotelConfig.city}</span>
