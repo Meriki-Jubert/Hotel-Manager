@@ -40,10 +40,13 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
     showNotification(`Restocked 1 ${supplies[index].unit} of ${supplies[index].name}`, 'info');
   };
 
-  const dirtyRooms = rooms.filter((r) => r.status === 'dirty');
-  const cleaningRooms = rooms.filter((r) => r.status === 'cleaning');
-  const availableRooms = rooms.filter((r) => r.status === 'available');
-  const occupiedRooms = rooms.filter((r) => r.status === 'occupied');
+  const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+  const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
+
+  const dirtyRooms = activeRooms.filter((r) => r.status === 'dirty');
+  const cleaningRooms = activeRooms.filter((r) => r.status === 'cleaning');
+  const availableRooms = activeRooms.filter((r) => r.status === 'available');
+  const occupiedRooms = activeRooms.filter((r) => r.status === 'occupied');
 
   return (
     <div className="space-y-6">

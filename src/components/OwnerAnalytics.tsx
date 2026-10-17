@@ -28,8 +28,10 @@ export const OwnerAnalytics: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'metrics' | 'audits'>('metrics');
 
   // Calculate live KPIs
-  const totalRooms = rooms.length;
-  const occupiedRooms = rooms.filter((r) => r.status === 'occupied').length;
+  const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+  const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
+  const totalRooms = activeRooms.length;
+  const occupiedRooms = activeRooms.filter((r) => r.status === 'occupied').length;
   const occupancyRate = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
 
   const roomRevenueToday = reservations

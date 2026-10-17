@@ -26,10 +26,13 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { rooms, roomTypes, checkInGuest, businessDate, formatMoney, guests } = useHMS();
+  const { rooms, roomTypes, checkInGuest, businessDate, formatMoney, guests, currentUser, setActiveTab } = useHMS();
 
-  // Find all available rooms
-  const availableRooms = rooms.filter(
+  const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+  const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
+
+  // Find all available active rooms
+  const availableRooms = activeRooms.filter(
     (r) => r.status === 'available' || (initialRoom && r.id === initialRoom.id)
   );
 
@@ -163,8 +166,41 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Room Selection & Dates */}
+        {availableRooms.length === 0 ? (
+          <div className="p-8 sm:p-12 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center border border-amber-200">
+              <Building className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">No Rooms Available for Check-In</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                {activeRooms.length === 0
+                  ? 'There are currently no active rooms configured in the hotel inventory.'
+                  : 'All rooms in inventory are currently occupied, undergoing cleaning, or under maintenance.'}
+              </p>
+            </div>
+            <div className="pt-2">
+              {currentUser?.role === 'manager' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    setActiveTab('settings');
+                  }}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition-all hover:scale-[1.02]"
+                >
+                  Open Room & Inventory Setup
+                </button>
+              ) : (
+                <div className="p-3 bg-slate-100 rounded-xl text-xs text-slate-700 font-semibold inline-block border border-slate-200">
+                  Ask your manager to add rooms
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {/* Room Selection & Dates */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
@@ -493,6 +529,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
             </button>
           </div>
         </form>
+      )}
 
       </div>
     </div>

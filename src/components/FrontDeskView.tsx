@@ -30,10 +30,48 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
   onOpenFolio,
   onOpenCheckOut
 }) => {
-  const { reservations, formatMoney, businessDate } = useHMS();
+  const { reservations, formatMoney, businessDate, rooms, roomTypes, currentUser, setActiveTab } = useHMS();
+
+  const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+  const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
+  const hasRooms = activeRooms.length > 0;
 
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  if (!hasRooms) {
+    const isManager = currentUser?.role === 'manager';
+    return (
+      <div className="space-y-6">
+        <div className="bg-slate-900/60 backdrop-blur-2xl rounded-2xl shadow-2xl border border-champagne-gold-500/40 p-10 sm:p-14 text-center text-slate-100 max-w-xl mx-auto my-8 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-champagne-gold-500/20 text-champagne-gold-400 mx-auto flex items-center justify-center border border-champagne-gold-500/30">
+            <CalendarCheck2 className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold text-white">No Rooms Configured</h3>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+            {roomTypes.length === 0
+              ? 'Your property currently has no room categories or rooms configured to take reservations.'
+              : 'Add rooms to your inventory before creating reservations or checking guests in.'}
+          </p>
+
+          <div className="pt-2">
+            {isManager ? (
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="px-6 py-2.5 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-champagne-gold-500/20 transition-all hover:scale-[1.02]"
+              >
+                Configure Rooms in Settings
+              </button>
+            ) : (
+              <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-xs text-slate-300 font-semibold inline-block">
+                Ask your manager to add rooms
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const filtered = reservations.filter((r) => {
     if (statusFilter !== 'all' && r.bookingStatus !== statusFilter) return false;

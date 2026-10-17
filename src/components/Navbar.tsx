@@ -38,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     clearNotification,
     resetToDemoData,
     rooms,
+    roomTypes,
     hotelConfig,
     canCheckIn,
     canRunAudit,
@@ -51,9 +52,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const occupiedCount = rooms.filter((r) => r.status === 'occupied').length;
-  const occupancyPercent = Math.round((occupiedCount / rooms.length) * 100);
-  const dirtyCount = rooms.filter((r) => r.status === 'dirty').length;
+  const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+  const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
+  const occupiedCount = activeRooms.filter((r) => r.status === 'occupied').length;
+  const occupancyPercent = activeRooms.length > 0 ? Math.round((occupiedCount / activeRooms.length) * 100) : 0;
+  const dirtyCount = activeRooms.filter((r) => r.status === 'dirty').length;
 
   return (
     <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
@@ -119,7 +122,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="truncate max-w-[90px] sm:max-w-none">{hotelConfig.city}</span>
                 <span className="hidden xs:inline">•</span>
                 <span className="text-champagne-gold-400 font-semibold shrink-0">
-                  {occupancyPercent}% Occ. ({occupiedCount}/{rooms.length})
+                  {occupancyPercent}% Occ. ({occupiedCount}/{activeRooms.length})
                 </span>
                 {dirtyCount > 0 && (
                   <span className="hidden md:inline text-amber-400 font-medium">

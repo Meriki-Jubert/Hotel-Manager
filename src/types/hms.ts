@@ -31,6 +31,7 @@ export interface RoomType {
   amenities: string[];
   description: string;
   image?: string;
+  isActive?: boolean;
 }
 
 export interface Room {
@@ -45,6 +46,7 @@ export interface Room {
   lastCleaned?: string;
   pricePerNight: number;
   image?: string;
+  isActive?: boolean;
 }
 
 export interface Guest {

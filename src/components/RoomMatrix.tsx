@@ -41,7 +41,9 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     formatMoney,
     canCheckIn,
     canCheckOut,
-    isReadOnly
+    isReadOnly,
+    currentUser,
+    setActiveTab
   } = useHMS();
 
   const [selectedFloor, setSelectedFloor] = useState<number | 'all'>('all');
@@ -103,7 +105,45 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     }
   };
 
-  const filteredRooms = rooms.filter((room) => {
+  const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+  const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
+
+  // Friendly Empty State when no rooms or types exist
+  if (activeRooms.length === 0) {
+    const isManager = currentUser?.role === 'manager';
+    return (
+      <div className="space-y-6">
+        <div className="bg-slate-900/60 backdrop-blur-2xl rounded-2xl shadow-2xl border border-champagne-gold-500/40 p-10 sm:p-14 text-center text-slate-100 max-w-xl mx-auto my-8 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-champagne-gold-500/20 text-champagne-gold-400 mx-auto flex items-center justify-center border border-champagne-gold-500/30">
+            <Bed className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold text-white">No Hotel Rooms Found</h3>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+            {roomTypes.length === 0
+              ? 'Your property currently has no room categories or rooms configured.'
+              : 'There are no active rooms in the hotel inventory.'}
+          </p>
+
+          <div className="pt-2">
+            {isManager ? (
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="px-6 py-2.5 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-champagne-gold-500/20 transition-all hover:scale-[1.02]"
+              >
+                Open Room Setup
+              </button>
+            ) : (
+              <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-xs text-slate-300 font-semibold inline-block">
+                Ask your manager to add rooms
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredRooms = activeRooms.filter((room) => {
     if (selectedFloor !== 'all' && room.floor !== selectedFloor) return false;
     if (selectedStatus !== 'all' && room.status !== selectedStatus) return false;
     if (searchQuery.trim() !== '') {
@@ -118,12 +158,12 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     return true;
   });
 
-  const counts = rooms.reduce((acc, r) => {
+  const counts = activeRooms.reduce((acc, r) => {
     acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const floors = Array.from(new Set(rooms.map((r) => r.floor))).sort((a, b) => a - b);
+  const floors = Array.from(new Set(activeRooms.map((r) => r.floor))).sort((a, b) => a - b);
 
   return (
     <div className="space-y-6">
@@ -188,7 +228,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            All ({rooms.length})
+            All ({activeRooms.length})
           </button>
           {(Object.keys(statusConfig) as RoomStatus[]).map((st) => {
             const cfg = statusConfig[st];

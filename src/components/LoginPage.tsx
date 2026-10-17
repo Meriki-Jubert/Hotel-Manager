@@ -9,7 +9,6 @@ import {
   UserCheck,
   Sparkles,
   BarChart3,
-  Lock,
   ArrowRight,
   Building,
   CheckCircle2,
@@ -225,14 +224,6 @@ export const LoginPage: React.FC = () => {
               );
             })}
           </div>
-
-          {/* Security & RLS Architectural Note */}
-          <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
-            <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>
-              <strong>Architecture:</strong> Single-tenant deployment model. Tabs, routes, actions, and API operations are strictly isolated per role scope.
-            </span>
-          </div>
         </div>
 
       </div>
@@ -240,8 +231,10 @@ export const LoginPage: React.FC = () => {
 
       {/* Footer */}
       <div className="max-w-6xl w-full mx-auto pt-6 border-t border-slate-800 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <span>{hotelConfig.name} • {hotelConfig.tagline}</span>
-        <span className="font-mono text-[11px] text-slate-400">Buea • Limbe • Douala Cloud HMS</span>
+        <span>{hotelConfig.name}{hotelConfig.tagline ? ` • ${hotelConfig.tagline}` : ''}</span>
+        <span className="font-mono text-[11px] text-slate-400">
+          {hotelConfig.name}{hotelConfig.city ? ` • ${hotelConfig.city}` : ''}
+        </span>
       </div>
     </div>
   );

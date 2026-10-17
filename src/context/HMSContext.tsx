@@ -116,6 +116,18 @@ interface HMSContextType {
   runNightAudit: (expectedCash: number, actualCash: number, notes: string) => NightAuditReport;
   addGuest: (guest: Omit<Guest, 'id' | 'createdAt' | 'totalVisits' | 'totalSpent'>) => Guest;
   resetToDemoData: () => void;
+
+  // Room Type & Room Management (Manager Scope)
+  addRoomType: (roomType: Omit<RoomType, 'id'>) => { success: boolean; error?: string };
+  updateRoomType: (id: string, roomType: Partial<RoomType>) => { success: boolean; error?: string };
+  deleteRoomType: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
+  toggleRoomTypeActive: (id: string, active: boolean) => void;
+
+  addRoom: (room: { roomNumber: string; floor: number; roomTypeId: string; pricePerNight: number; image?: string }) => { success: boolean; error?: string };
+  bulkAddRooms: (params: { startNumber: number; endNumber: number; floor: number; roomTypeId: string; pricePerNight: number }) => { success: boolean; count: number; error?: string };
+  updateRoom: (id: string, room: Partial<Room>) => { success: boolean; error?: string };
+  deleteRoom: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
+  toggleRoomActive: (id: string, active: boolean) => void;
 }
 
 const HMSContext = createContext<HMSContextType | undefined>(undefined);
@@ -138,7 +150,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // State
   const [roomTypes, setRoomTypes] = useState<RoomType[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_room_types`);
-    return saved ? JSON.parse(saved) : INITIAL_ROOM_TYPES;
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_ROOM_TYPES : []);
   });
 
   const [rooms, setRooms] = useState<Room[]>(() => {
@@ -166,7 +178,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_MAINTENANCE_TICKETS : []);
   });
 
-  const [posItems] = useState<PosItem[]>(INITIAL_POS_ITEMS);
+  const [posItems, setPosItems] = useState<PosItem[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_pos_items`);
+    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_POS_ITEMS : []);
+  });
 
   const [nightAuditReports, setNightAuditReports] = useState<NightAuditReport[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_audits`);
@@ -174,7 +189,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [currency, setCurrency] = useState<'FCFA' | 'USD'>(hotelConfig.defaultCurrency);
-  const [businessDate, setBusinessDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [businessDate, setBusinessDate] = useState<string>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_business_date`);
+    return saved || new Date().toISOString().split('T')[0];
+  });
   const [activeTab, setActiveTab] = useState<NavTab>('matrix');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -184,6 +202,15 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     document.title = `${hotelConfig.name} — Hotel Management System`;
   }, [hotelConfig.name]);
+
+  // Sync to Storage
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}_business_date`, businessDate);
+  }, [businessDate]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}_pos_items`, JSON.stringify(posItems));
+  }, [posItems]);
 
   // Sync to Storage
   useEffect(() => {
@@ -720,9 +747,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('Unauthorized: Only Manager / Lead Accountant can execute Night Audit.');
     }
 
-    const occupied = rooms.filter((r) => r.status === 'occupied').length;
-    const totalRooms = rooms.length;
-    const occupancyRate = (occupied / totalRooms) * 100;
+    const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+    const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
+    const occupied = activeRooms.filter((r) => r.status === 'occupied').length;
+    const totalRooms = activeRooms.length;
+    const occupancyRate = totalRooms > 0 ? (occupied / totalRooms) * 100 : 0;
 
     const roomRevenue = reservations
       .filter((r) => r.bookingStatus === 'checked_in')
@@ -809,17 +838,253 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(`${STORAGE_PREFIX}_transactions`);
     localStorage.removeItem(`${STORAGE_PREFIX}_maintenance`);
     localStorage.removeItem(`${STORAGE_PREFIX}_audits`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_pos_items`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_business_date`);
 
-    setRoomTypes(INITIAL_ROOM_TYPES);
-    setRooms(INITIAL_ROOMS);
-    setGuests(INITIAL_GUESTS);
-    setReservations(INITIAL_RESERVATIONS);
-    setTransactions(INITIAL_TRANSACTIONS);
-    setMaintenanceTickets(INITIAL_MAINTENANCE_TICKETS);
-    setNightAuditReports(INITIAL_NIGHT_AUDIT_HISTORY);
+    const initialDate = new Date().toISOString().split('T')[0];
+    setBusinessDate(initialDate);
+    setRoomTypes(isDemoMode ? INITIAL_ROOM_TYPES : []);
+    setRooms(isDemoMode ? INITIAL_ROOMS : []);
+    setGuests(isDemoMode ? INITIAL_GUESTS : []);
+    setReservations(isDemoMode ? INITIAL_RESERVATIONS : []);
+    setTransactions(isDemoMode ? INITIAL_TRANSACTIONS : []);
+    setMaintenanceTickets(isDemoMode ? INITIAL_MAINTENANCE_TICKETS : []);
+    setPosItems(isDemoMode ? INITIAL_POS_ITEMS : []);
+    setNightAuditReports(isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY : []);
     setSelectedRoom(null);
     setSelectedReservation(null);
-    showNotification('System reset to clean sample demo data!', 'info');
+    showNotification(isDemoMode ? 'System reset to clean sample demo data!' : 'System cleared to fresh empty state.', 'info');
+  };
+
+  // Room Type & Room Management (Manager Scope)
+  const addRoomType = (newTypeData: Omit<RoomType, 'id'>) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can configure room types.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers can configure room types.' };
+    }
+    const name = newTypeData.name?.trim();
+    const code = newTypeData.code?.trim().toUpperCase();
+    if (!name) return { success: false, error: 'Room type name is required.' };
+    if (!code) return { success: false, error: 'Room type code (e.g. STD, DLX) is required.' };
+    if (!newTypeData.basePrice || newTypeData.basePrice <= 0) return { success: false, error: 'Base price must be greater than 0.' };
+    if (!newTypeData.maxCapacity || newTypeData.maxCapacity < 1) return { success: false, error: 'Maximum capacity must be at least 1 guest.' };
+    if (!newTypeData.bedType?.trim()) return { success: false, error: 'Bed type is required.' };
+    if (!newTypeData.description?.trim()) return { success: false, error: 'Room type description is required.' };
+
+    const newType: RoomType = {
+      ...newTypeData,
+      id: `rt-${Date.now()}`,
+      name,
+      code,
+      isActive: true,
+      amenities: newTypeData.amenities || []
+    };
+    setRoomTypes((prev) => [...prev, newType]);
+    showNotification(`Room type "${newType.name}" added successfully.`, 'success');
+    return { success: true };
+  };
+
+  const updateRoomType = (id: string, updatedData: Partial<RoomType>) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can edit room types.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers can edit room types.' };
+    }
+    if (updatedData.name !== undefined && !updatedData.name.trim()) {
+      return { success: false, error: 'Room type name cannot be empty.' };
+    }
+    if (updatedData.code !== undefined && !updatedData.code.trim()) {
+      return { success: false, error: 'Room type code cannot be empty.' };
+    }
+    if (updatedData.basePrice !== undefined && updatedData.basePrice <= 0) {
+      return { success: false, error: 'Base price must be greater than 0.' };
+    }
+    if (updatedData.maxCapacity !== undefined && updatedData.maxCapacity < 1) {
+      return { success: false, error: 'Maximum capacity must be at least 1.' };
+    }
+
+    setRoomTypes((prev) =>
+      prev.map((rt) => (rt.id === id ? { ...rt, ...updatedData } : rt))
+    );
+    showNotification('Room type updated successfully.', 'success');
+    return { success: true };
+  };
+
+  const deleteRoomType = (id: string) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can delete room types.', 'warning');
+      return { success: false, error: 'Unauthorized.' };
+    }
+    const hasRooms = rooms.some((r) => r.roomTypeId === id);
+    if (hasRooms) {
+      return {
+        success: false,
+        error: 'This room type is assigned to existing rooms and cannot be deleted. You can deactivate it instead.',
+        canDeactivateInstead: true
+      };
+    }
+    setRoomTypes((prev) => prev.filter((rt) => rt.id !== id));
+    showNotification('Room type deleted.', 'info');
+    return { success: true };
+  };
+
+  const toggleRoomTypeActive = (id: string, active: boolean) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can alter room type status.', 'warning');
+      return;
+    }
+    setRoomTypes((prev) =>
+      prev.map((rt) => (rt.id === id ? { ...rt, isActive: active } : rt))
+    );
+    showNotification(`Room type ${active ? 'activated' : 'deactivated'}.`, 'info');
+  };
+
+  const addRoom = (roomData: { roomNumber: string; floor: number; roomTypeId: string; pricePerNight: number; image?: string }) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can add rooms.', 'warning');
+      return { success: false, error: 'Unauthorized.' };
+    }
+    const num = roomData.roomNumber?.trim();
+    if (!num) return { success: false, error: 'Room number is required.' };
+    if (!roomData.roomTypeId) return { success: false, error: 'Please choose a valid room type.' };
+    if (isNaN(roomData.floor)) return { success: false, error: 'Floor must be a valid number.' };
+    if (roomData.pricePerNight <= 0) return { success: false, error: 'Nightly rate must be greater than 0.' };
+
+    const duplicate = rooms.some((r) => r.roomNumber.toLowerCase() === num.toLowerCase());
+    if (duplicate) {
+      return { success: false, error: `Room number "${num}" already exists in the property inventory.` };
+    }
+
+    const newRoom: Room = {
+      id: `rm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      roomNumber: num,
+      floor: roomData.floor,
+      roomTypeId: roomData.roomTypeId,
+      pricePerNight: roomData.pricePerNight,
+      status: 'available',
+      isActive: true,
+      image: roomData.image
+    };
+
+    setRooms((prev) => [...prev, newRoom]);
+    showNotification(`Room #${newRoom.roomNumber} created and ready in inventory.`, 'success');
+    return { success: true };
+  };
+
+  const bulkAddRooms = (params: {
+    startNumber: number;
+    endNumber: number;
+    floor: number;
+    roomTypeId: string;
+    pricePerNight: number;
+  }) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can bulk-add rooms.', 'warning');
+      return { success: false, count: 0, error: 'Unauthorized.' };
+    }
+    const { startNumber, endNumber, floor, roomTypeId, pricePerNight } = params;
+    if (isNaN(startNumber) || isNaN(endNumber)) return { success: false, count: 0, error: 'Start and end numbers must be valid numbers.' };
+    if (startNumber > endNumber) return { success: false, count: 0, error: 'Start room number cannot exceed end room number.' };
+    if (endNumber - startNumber > 100) return { success: false, count: 0, error: 'Maximum batch addition is 100 rooms at a time.' };
+    if (pricePerNight <= 0) return { success: false, count: 0, error: 'Price per night must be greater than 0.' };
+    if (!roomTypeId) return { success: false, count: 0, error: 'Please select a room type.' };
+
+    const existingSet = new Set(rooms.map((r) => r.roomNumber.toLowerCase()));
+    const conflicts: string[] = [];
+    for (let n = startNumber; n <= endNumber; n++) {
+      if (existingSet.has(String(n).toLowerCase())) {
+        conflicts.push(String(n));
+      }
+    }
+
+    if (conflicts.length > 0) {
+      return {
+        success: false,
+        count: 0,
+        error: `Cannot create rooms: Room number(s) ${conflicts.slice(0, 6).join(', ')}${conflicts.length > 6 ? '...' : ''} already exist.`
+      };
+    }
+
+    const created: Room[] = [];
+    for (let n = startNumber; n <= endNumber; n++) {
+      created.push({
+        id: `rm-${Date.now()}-${n}`,
+        roomNumber: String(n),
+        floor,
+        roomTypeId,
+        pricePerNight,
+        status: 'available',
+        isActive: true
+      });
+    }
+
+    setRooms((prev) => [...prev, ...created]);
+    showNotification(`Added ${created.length} rooms (${startNumber} to ${endNumber}) on Floor ${floor}!`, 'success');
+    return { success: true, count: created.length };
+  };
+
+  const updateRoom = (id: string, updatedData: Partial<Room>) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can edit rooms.', 'warning');
+      return { success: false, error: 'Unauthorized.' };
+    }
+    if (updatedData.roomNumber !== undefined) {
+      const num = updatedData.roomNumber.trim();
+      if (!num) return { success: false, error: 'Room number cannot be empty.' };
+      const duplicate = rooms.some((r) => r.id !== id && r.roomNumber.toLowerCase() === num.toLowerCase());
+      if (duplicate) return { success: false, error: `Room number "${num}" is already in use by another room.` };
+    }
+    if (updatedData.pricePerNight !== undefined && updatedData.pricePerNight <= 0) {
+      return { success: false, error: 'Price per night must be greater than 0.' };
+    }
+
+    setRooms((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updatedData } : r))
+    );
+    showNotification('Room updated successfully.', 'success');
+    return { success: true };
+  };
+
+  const deleteRoom = (id: string) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can delete rooms.', 'warning');
+      return { success: false, error: 'Unauthorized.' };
+    }
+    const targetRoom = rooms.find((r) => r.id === id);
+    if (!targetRoom) return { success: false, error: 'Room not found.' };
+
+    if (targetRoom.status === 'occupied' || targetRoom.currentReservationId) {
+      return {
+        success: false,
+        error: `Room #${targetRoom.roomNumber} has an active checked-in guest and cannot be deleted. Deactivate it instead.`,
+        canDeactivateInstead: true
+      };
+    }
+
+    const hasResHistory = reservations.some(
+      (res) => res.roomId === id || res.roomNumber === targetRoom.roomNumber
+    );
+    if (hasResHistory) {
+      return {
+        success: false,
+        error: `Room #${targetRoom.roomNumber} has reservation history and cannot be deleted. Deactivate it instead.`,
+        canDeactivateInstead: true
+      };
+    }
+
+    setRooms((prev) => prev.filter((r) => r.id !== id));
+    showNotification(`Room #${targetRoom.roomNumber} removed from inventory.`, 'info');
+    return { success: true };
+  };
+
+  const toggleRoomActive = (id: string, active: boolean) => {
+    if (currentUser?.role !== 'manager') {
+      showNotification('Unauthorized: Only managers can alter room status.', 'warning');
+      return;
+    }
+    setRooms((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, isActive: active } : r))
+    );
+    showNotification(`Room ${active ? 'activated' : 'deactivated'}.`, 'info');
   };
 
   return (
@@ -870,7 +1135,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateMaintenanceStatus,
         runNightAudit,
         addGuest,
-        resetToDemoData
+        resetToDemoData,
+        addRoomType,
+        updateRoomType,
+        deleteRoomType,
+        toggleRoomTypeActive,
+        addRoom,
+        bulkAddRooms,
+        updateRoom,
+        deleteRoom,
+        toggleRoomActive
       }}
     >
       {children}

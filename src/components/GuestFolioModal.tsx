@@ -523,11 +523,24 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
                     {hotelConfig.name}
                   </h1>
-                  <p className="text-xs text-slate-500 mt-0.5">{hotelConfig.address}, {hotelConfig.city}</p>
-                  <p className="text-xs text-slate-500">Tel: {hotelConfig.phone} • Email: {hotelConfig.email}</p>
-                  <p className="text-[10px] font-mono text-slate-400 mt-1">
-                    Tax ID (NIU): {hotelConfig.taxId} • Registry: {hotelConfig.registryNumber}
-                  </p>
+                  {hotelConfig.tagline && (
+                    <p className="text-xs italic text-slate-600 mt-0.5">{hotelConfig.tagline}</p>
+                  )}
+                  {(hotelConfig.address || hotelConfig.city) && (
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {[hotelConfig.address, hotelConfig.city].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                  {(hotelConfig.phone || hotelConfig.email) && (
+                    <p className="text-xs text-slate-500">
+                      {[hotelConfig.phone ? `Tel: ${hotelConfig.phone}` : '', hotelConfig.email ? `Email: ${hotelConfig.email}` : ''].filter(Boolean).join(' • ')}
+                    </p>
+                  )}
+                  {(hotelConfig.taxId || hotelConfig.registryNumber) && (
+                    <p className="text-[10px] font-mono text-slate-400 mt-1">
+                      {[hotelConfig.taxId ? `Tax ID (NIU): ${hotelConfig.taxId}` : '', hotelConfig.registryNumber ? `Registry: ${hotelConfig.registryNumber}` : ''].filter(Boolean).join(' • ')}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-right">

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export const RestaurantPOS: React.FC = () => {
-  const { posItems, rooms, reservations, addFolioCharge, formatMoney, businessDate, showNotification } = useHMS();
+  const { posItems, rooms, roomTypes, reservations, addFolioCharge, formatMoney, businessDate, showNotification } = useHMS();
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,8 +28,11 @@ export const RestaurantPOS: React.FC = () => {
   const [selectedRoomId, setSelectedRoomId] = useState<string>('');
   const [directPaymentMethod, setDirectPaymentMethod] = useState<PaymentMethod>('momo');
 
-  // Occupied rooms available to receive room charge
-  const occupiedRooms = rooms.filter((r) => r.status === 'occupied' && r.currentReservationId);
+  // Occupied rooms available to receive room charge (only active rooms whose category is active)
+  const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
+  const occupiedRooms = rooms.filter(
+    (r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId) && r.status === 'occupied' && r.currentReservationId
+  );
   const activeSelectedRoomId = selectedRoomId || (occupiedRooms.length > 0 ? occupiedRooms[0].id : '');
 
   const categories = ['All', 'Meals', 'Beverages', 'Breakfast', 'Snacks', 'Laundry', 'Room Amenities'];
