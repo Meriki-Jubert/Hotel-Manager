@@ -1282,8 +1282,7 @@ export const HotelSettingsView: React.FC = () => {
                 <select
                   value={bulkTypeId}
                   onChange={(e) => handleBulkTypeSelectionChange(e.target.value)}
-                  className="w-full p-2 bg-[#31455a] border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  style={{ backgroundColor: '#31455a' }}
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 >
                   {roomTypes.map((rt) => (
@@ -1301,8 +1300,7 @@ export const HotelSettingsView: React.FC = () => {
                     type="number"
                     value={bulkFloor}
                     onChange={(e) => setBulkFloor(Number(e.target.value))}
-                    className="w-full p-2 bg-[#31455a] border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    style={{ backgroundColor: '#31455a' }}
+                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
@@ -1313,8 +1311,7 @@ export const HotelSettingsView: React.FC = () => {
                     type="number"
                     value={bulkStartNum}
                     onChange={(e) => setBulkStartNum(Number(e.target.value))}
-                    className="w-full p-2 bg-[#31455a] border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    style={{ backgroundColor: '#31455a' }}
+                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="101"
                     required
                   />
@@ -1326,8 +1323,7 @@ export const HotelSettingsView: React.FC = () => {
                     type="number"
                     value={bulkEndNum}
                     onChange={(e) => setBulkEndNum(Number(e.target.value))}
-                    className="w-full p-2 bg-[#31455a] border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    style={{ backgroundColor: '#31455a' }}
+                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="110"
                     required
                   />
@@ -1342,8 +1338,7 @@ export const HotelSettingsView: React.FC = () => {
                   min="1"
                   value={bulkPrice}
                   onChange={(e) => setBulkPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full p-2 bg-[#31455a] border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  style={{ backgroundColor: '#31455a' }}
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 />
               </div>
