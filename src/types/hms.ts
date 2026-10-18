@@ -167,13 +167,24 @@ export interface StaffUser {
   branchId?: string;
   name: string;
   username: string;
-  password?: string;
   role: UserRole;
   title: string;
   email: string;
-  avatar: string;
-  description: string;
   phone: string;
+  isActive: boolean;
+  passwordHash?: string;
+  passwordSalt?: string;
+  avatar?: string;
+  description?: string;
+}
+
+export interface StaffActivityLog {
+  id: string;
+  timestamp: string;
+  actorId: string;
+  actorName: string;
+  action: string;
+  details: string;
 }
 
 export interface NightAuditReport {

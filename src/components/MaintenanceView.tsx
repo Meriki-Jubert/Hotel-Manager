@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Room, MaintenanceTicket } from '../types/hms';
+import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   Wrench,
   AlertTriangle,
@@ -20,7 +21,11 @@ interface MaintenanceViewProps {
 }
 
 export const MaintenanceView: React.FC<MaintenanceViewProps> = ({ onOpenNewTicket }) => {
-  const { maintenanceTickets, updateMaintenanceStatus, formatMoney } = useHMS();
+  const { maintenanceTickets, updateMaintenanceStatus, formatMoney, activeBranchId } = useHMS();
+
+  if (activeBranchId === 'all') {
+    return <SelectBranchNotice screenName="Maintenance & Engineering" />;
+  }
 
   const [statusFilter, setStatusFilter] = useState<'All' | 'Reported' | 'In Progress' | 'Resolved'>('All');
   const [searchQuery, setSearchQuery] = useState('');

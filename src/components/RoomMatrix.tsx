@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Room, RoomStatus } from '../types/hms';
+import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   Bed,
   User,
@@ -43,8 +44,13 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     canCheckOut,
     isReadOnly,
     currentUser,
-    setActiveTab
+    setActiveTab,
+    activeBranchId
   } = useHMS();
+
+  if (activeBranchId === 'all') {
+    return <SelectBranchNotice screenName="Room Matrix" />;
+  }
 
   const [selectedFloor, setSelectedFloor] = useState<number | 'all'>('all');
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus | 'all'>('all');

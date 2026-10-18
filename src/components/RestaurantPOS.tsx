@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { PosItem, PaymentMethod } from '../types/hms';
+import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   UtensilsCrossed,
   Coffee,
@@ -17,7 +18,11 @@ import {
 } from 'lucide-react';
 
 export const RestaurantPOS: React.FC = () => {
-  const { posItems, rooms, roomTypes, reservations, addFolioCharge, formatMoney, businessDate, showNotification } = useHMS();
+  const { posItems, rooms, roomTypes, reservations, addFolioCharge, formatMoney, businessDate, showNotification, activeBranchId } = useHMS();
+
+  if (activeBranchId === 'all') {
+    return <SelectBranchNotice screenName="Restaurant & POS" />;
+  }
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');

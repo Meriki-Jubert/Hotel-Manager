@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, BookingStatus } from '../types/hms';
+import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   CalendarCheck2,
   Search,
@@ -30,7 +31,11 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
   onOpenFolio,
   onOpenCheckOut
 }) => {
-  const { reservations, formatMoney, businessDate, rooms, roomTypes, currentUser, setActiveTab } = useHMS();
+  const { reservations, formatMoney, businessDate, rooms, roomTypes, currentUser, setActiveTab, activeBranchId } = useHMS();
+
+  if (activeBranchId === 'all') {
+    return <SelectBranchNotice screenName="Reservations & Front Desk" />;
+  }
 
   const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
   const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));

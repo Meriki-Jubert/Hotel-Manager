@@ -18,10 +18,11 @@ import { GuestFolioModal } from './components/GuestFolioModal';
 import { RoomDetailModal } from './components/RoomDetailModal';
 import { NightAuditModal } from './components/NightAuditModal';
 import { NewMaintenanceModal } from './components/NewMaintenanceModal';
+import { SelectBranchNotice } from './components/SelectBranchNotice';
 import { Room, Reservation } from './types/hms';
 
 const AuthenticatedDashboard: React.FC = () => {
-  const { activeTab, hotelConfig, canRunAudit, reservations } = useHMS();
+  const { activeTab, hotelConfig, canRunAudit, reservations, activeBranchId } = useHMS();
 
   // Modals state - always executed in stable order
   const [showCheckInModal, setShowCheckInModal] = useState(false);
@@ -121,25 +122,29 @@ const AuthenticatedDashboard: React.FC = () => {
         )}
 
         {activeTab === 'audit' && (
-          <div className="space-y-6">
-            <div className="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
-              <div className="space-y-1">
-                <h3 className="text-lg sm:text-xl font-bold">End-of-Day Night Audit Hub</h3>
-                <p className="text-xs text-slate-400">
-                  Execute batch folio room charges, balance shift cash drawers, and roll over business date.
-                </p>
+          activeBranchId === 'all' ? (
+            <SelectBranchNotice screenName="Night Audit" />
+          ) : (
+            <div className="space-y-6">
+              <div className="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+                <div className="space-y-1">
+                  <h3 className="text-lg sm:text-xl font-bold">End-of-Day Night Audit Hub</h3>
+                  <p className="text-xs text-slate-400">
+                    Execute batch folio room charges, balance shift cash drawers, and roll over business date.
+                  </p>
+                </div>
+                {canRunAudit && (
+                  <button
+                    onClick={() => setShowNightAuditModal(true)}
+                    className="w-full md:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap"
+                  >
+                    Launch Night Audit Wizard
+                  </button>
+                )}
               </div>
-              {canRunAudit && (
-                <button
-                  onClick={() => setShowNightAuditModal(true)}
-                  className="w-full md:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap"
-                >
-                  Launch Night Audit Wizard
-                </button>
-              )}
+              <OwnerAnalytics />
             </div>
-            <OwnerAnalytics />
-          </div>
+          )
         )}
 
         {activeTab === 'analytics' && <OwnerAnalytics />}

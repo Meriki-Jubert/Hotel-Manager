@@ -14,9 +14,14 @@ import {
   Menu,
   X,
   Eye,
+  EyeOff,
   ShieldCheck,
-  Building
+  Building,
+  KeyRound,
+  Lock,
+  AlertCircle
 } from 'lucide-react';
+import { isDemoMode } from '../config/appConfig';
 
 interface NavbarProps {
   onOpenCheckIn: () => void;
@@ -51,11 +56,21 @@ export const Navbar: React.FC<NavbarProps> = ({
     activeBranchId,
     activeBranch,
     hasMultipleActiveBranches,
-    setActiveBranchId
+    setActiveBranchId,
+    changeMyPassword
   } = useHMS();
 
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Change Password Modal State
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [showPasswordText, setShowPasswordText] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
   const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
@@ -262,36 +277,55 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <div className="text-[11px] text-emerald-400 capitalize">{currentUser.title}</div>
                     </div>
 
-                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Switch Role Terminal:
-                    </div>
-
-                    {STAFF_USERS.map((user) => (
-                      <button
-                        key={user.id}
-                        onClick={() => {
-                          fastLogin(user.role);
-                          setRoleDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-slate-700/80 transition-colors ${
-                          currentUser.id === user.id ? 'bg-slate-700 text-emerald-400' : 'text-slate-200'
-                        }`}
-                      >
-                        <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full object-cover" />
-                        <div className="text-xs">
-                          <div className="font-semibold">{user.name}</div>
-                          <div className="text-[10px] text-slate-400 capitalize">{user.role.replace('_', ' ')}</div>
+                    {isDemoMode && (
+                      <>
+                        <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Demo Role Switcher:
                         </div>
-                      </button>
-                    ))}
 
-                    <div className="border-t border-slate-700 mt-1 pt-1">
+                        {STAFF_USERS.map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => {
+                              fastLogin(user.role);
+                              setRoleDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-slate-700/80 transition-colors ${
+                              currentUser.id === user.id ? 'bg-slate-700 text-emerald-400' : 'text-slate-200'
+                            }`}
+                          >
+                            <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full object-cover" />
+                            <div className="text-xs">
+                              <div className="font-semibold">{user.name}</div>
+                              <div className="text-[10px] text-slate-400 capitalize">{user.role.replace('_', ' ')}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    )}
+
+                    <div className="border-t border-slate-700 mt-1 pt-1 space-y-0.5">
+                      <button
+                        onClick={() => {
+                          setRoleDropdownOpen(false);
+                          setPasswordChangeError(null);
+                          setCurrentPasswordInput('');
+                          setNewPasswordInput('');
+                          setConfirmPasswordInput('');
+                          setShowChangePasswordModal(true);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700/80 flex items-center gap-2 transition-colors font-medium cursor-pointer"
+                      >
+                        <KeyRound className="w-3.5 h-3.5 text-champagne-gold-400" />
+                        <span>Change My Password</span>
+                      </button>
+
                       <button
                         onClick={() => {
                           setRoleDropdownOpen(false);
                           logout();
                         }}
-                        className="w-full text-left px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors font-semibold"
+                        className="w-full text-left px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors font-semibold cursor-pointer"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         <span>Log Out & Exit Terminal</span>
@@ -380,10 +414,158 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
             <span>Date: {businessDate}</span>
-            <button onClick={logout} className="text-rose-400 font-bold flex items-center gap-1">
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Sign Out</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setPasswordChangeError(null);
+                  setCurrentPasswordInput('');
+                  setNewPasswordInput('');
+                  setConfirmPasswordInput('');
+                  setShowChangePasswordModal(true);
+                }}
+                className="text-slate-300 hover:text-white flex items-center gap-1 font-medium"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-champagne-gold-400" />
+                <span>Password</span>
+              </button>
+              <button onClick={logout} className="text-rose-400 font-bold flex items-center gap-1">
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal (Available to every authenticated user) */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 text-white rounded-2xl max-w-md w-full border border-slate-700 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="px-6 py-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-champagne-gold-500/20 text-champagne-gold-400 flex items-center justify-center">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white">Change My Password</h3>
+                  <p className="text-[11px] text-slate-400">Account: {currentUser?.name} ({currentUser?.username})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowChangePasswordModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setPasswordChangeError(null);
+                if (newPasswordInput.length < 8) {
+                  setPasswordChangeError('New password must be at least 8 characters long.');
+                  return;
+                }
+                if (newPasswordInput !== confirmPasswordInput) {
+                  setPasswordChangeError('New passwords do not match. Please verify.');
+                  return;
+                }
+                setIsChangingPassword(true);
+                try {
+                  const res = await changeMyPassword(currentPasswordInput, newPasswordInput);
+                  if (res.success) {
+                    setShowChangePasswordModal(false);
+                    setCurrentPasswordInput('');
+                    setNewPasswordInput('');
+                    setConfirmPasswordInput('');
+                  } else {
+                    setPasswordChangeError(res.error || 'Failed to update password.');
+                  }
+                } finally {
+                  setIsChangingPassword(false);
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              {passwordChangeError && (
+                <div className="p-3 bg-rose-500/20 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{passwordChangeError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Current Password <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswordText ? 'text' : 'password'}
+                    value={currentPasswordInput}
+                    onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                    placeholder="Enter current password"
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordText(!showPasswordText)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  >
+                    {showPasswordText ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  New Password <span className="text-rose-400">* (minimum 8 characters)</span>
+                </label>
+                <input
+                  type={showPasswordText ? 'text' : 'password'}
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  placeholder="At least 8 characters"
+                  minLength={8}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Confirm New Password <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type={showPasswordText ? 'text' : 'password'}
+                  value={confirmPasswordInput}
+                  onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                  placeholder="Re-enter new password"
+                  minLength={8}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
+                  required
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isChangingPassword}
+                  className="px-5 py-2 text-xs font-bold bg-champagne-gold-500 hover:bg-champagne-gold-400 text-slate-950 rounded-lg shadow-md transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isChangingPassword ? 'Updating Password...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

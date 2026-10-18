@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Room } from '../types/hms';
+import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   Sparkles,
   CheckCircle2,
@@ -20,7 +21,11 @@ interface HousekeepingViewProps {
 }
 
 export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMaintenance }) => {
-  const { rooms, updateRoomStatus, roomTypes, showNotification } = useHMS();
+  const { rooms, updateRoomStatus, roomTypes, showNotification, activeBranchId } = useHMS();
+
+  if (activeBranchId === 'all') {
+    return <SelectBranchNotice screenName="Housekeeping" />;
+  }
 
   // Housekeeping supply stock counter (in-memory demo)
   const [supplies, setSupplies] = useState([

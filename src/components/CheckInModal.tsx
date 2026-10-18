@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Room, PaymentMethod } from '../types/hms';
+import { getNextLocalDateString } from '../utils/dateUtils';
 import {
   X,
   UserCheck,
@@ -48,9 +49,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   const [checkInDate, setCheckInDate] = useState(businessDate);
   
   // Default check-out tomorrow
-  const tomorrow = new Date(businessDate);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const [checkOutDate, setCheckOutDate] = useState(tomorrow.toISOString().split('T')[0]);
+  const [checkOutDate, setCheckOutDate] = useState(getNextLocalDateString(businessDate));
 
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);

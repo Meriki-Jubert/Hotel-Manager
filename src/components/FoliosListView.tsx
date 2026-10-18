@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation } from '../types/hms';
+import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   Receipt,
   Search,
@@ -20,7 +21,11 @@ interface FoliosListViewProps {
 }
 
 export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onOpenCheckOut }) => {
-  const { reservations, transactions, formatMoney } = useHMS();
+  const { reservations, transactions, formatMoney, activeBranchId } = useHMS();
+
+  if (activeBranchId === 'all') {
+    return <SelectBranchNotice screenName="Guest Folios & Invoicing" />;
+  }
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBalance, setFilterBalance] = useState<'all' | 'unsettled' | 'settled'>('all');

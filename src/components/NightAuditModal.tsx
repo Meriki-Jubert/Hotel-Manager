@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { NightAuditReport } from '../types/hms';
+import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   X,
   Moon,
@@ -32,6 +33,22 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
     activeBranch,
     activeBranchId
   } = useHMS();
+
+  if (activeBranchId === 'all') {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden relative p-4">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 z-10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <SelectBranchNotice screenName="Night Audit Routine" />
+        </div>
+      </div>
+    );
+  }
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [actualCashFloat, setActualCashFloat] = useState<number>(175000);

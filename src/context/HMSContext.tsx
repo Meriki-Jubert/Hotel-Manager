@@ -13,7 +13,8 @@ import {
   PaymentMethod,
   UserRole,
   HotelConfig,
-  Branch
+  Branch,
+  StaffActivityLog
 } from '../types/hms';
 import {
   DEFAULT_HOTEL_CONFIG,
@@ -29,6 +30,8 @@ import {
   INITIAL_NIGHT_AUDIT_HISTORY
 } from '../data/mockData';
 import { isDemoMode } from '../config/appConfig';
+import { getLocalDateString, getNextLocalDateString } from '../utils/dateUtils';
+import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
 
 export type NavTab =
   | 'matrix'
@@ -86,10 +89,19 @@ interface HMSContextType {
   canCheckOut: boolean;
   isReadOnly: boolean;
 
-  // Auth Setters
-  login: (username: string, password?: string) => boolean;
+  // Auth & Staff Management
+  staffUsers: StaffUser[];
+  staffActivityLogs: StaffActivityLog[];
+  failedLoginLockoutUntil: number;
+  createInitialOwner: (payload: { fullName: string; username: string; password: string; email?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   fastLogin: (role: UserRole) => void;
   logout: () => void;
+  addStaff: (data: { name: string; username: string; password: string; role: UserRole; branchId?: string; title?: string; email?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
+  updateStaff: (id: string, data: Partial<Omit<StaffUser, 'id' | 'passwordHash' | 'passwordSalt'>>) => { success: boolean; error?: string };
+  toggleStaffActive: (id: string, active: boolean) => { success: boolean; error?: string };
+  resetStaffPassword: (id: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  changeMyPassword: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
 
   // Config Setters
   updateHotelConfig: (newConfig: Partial<HotelConfig>) => void;
@@ -198,7 +210,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [branchBusinessDates, setBranchBusinessDates] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_branch_business_dates`);
     const oldSavedDate = localStorage.getItem(`${STORAGE_PREFIX}_business_date`);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const initialDate = oldSavedDate || today;
     const initialObj: Record<string, string> = {};
     branches.forEach((b) => {
@@ -217,12 +229,51 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return initialObj;
   });
 
+  // Staff Users State (persisted in localStorage)
+  // Demo staff (STAFF_USERS) load ONLY when VITE_DEMO_MODE=true. Otherwise start empty.
+  const [staffUsers, setStaffUsers] = useState<StaffUser[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_staff_users`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        // fallback
+      }
+    }
+    return isDemoMode ? STAFF_USERS : [];
+  });
+
+  // Staff Activity Log State (persisted in localStorage)
+  const [staffActivityLogs, setStaffActivityLogs] = useState<StaffActivityLog[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_staff_activity_log`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        // fallback
+      }
+    }
+    return [];
+  });
+
+  // Failed login tracking: lock sign-in for 30s after 5 failed attempts
+  const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  const [failedLoginLockoutUntil, setFailedLoginLockoutUntil] = useState<number>(() => {
+    const saved = sessionStorage.getItem(`${STORAGE_PREFIX}_lockout_until`);
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
   // Auth state
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
     const saved = sessionStorage.getItem(`${STORAGE_PREFIX}_user`);
     if (saved) {
       try {
         const parsed: StaffUser = JSON.parse(saved);
+        if (parsed.role === 'owner') {
+          return { ...parsed, branchId: undefined };
+        }
         return parsed.branchId ? parsed : { ...parsed, branchId: defaultBranchId };
       } catch (e) {
         return null;
@@ -299,9 +350,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const hasMultipleActiveBranches = activeBranches.length > 1;
   const activeBranch = branches.find((b) => b.id === activeBranchId) || null;
 
-  // Active Business Date (Per-branch)
-  const currentBranchId = activeBranchId === 'all' ? (branches[0]?.id || 'branch-1') : activeBranchId;
-  const businessDate = branchBusinessDates[currentBranchId] || new Date().toISOString().split('T')[0];
+  // Active Business Date (Per-branch) - Never fall back to branches[0] for another branch's operations
+  const businessDate = (activeBranchId !== 'all' && branchBusinessDates[activeBranchId])
+    ? branchBusinessDates[activeBranchId]
+    : getLocalDateString();
 
   // Scoped views for active branch (matrix, reservations, folios, POS, housekeeping, maintenance, audit)
   const rooms = activeBranchId === 'all'
@@ -377,6 +429,27 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}_audits`, JSON.stringify(allNightAuditReports));
   }, [allNightAuditReports]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}_staff_users`, JSON.stringify(staffUsers));
+  }, [staffUsers]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}_staff_activity_log`, JSON.stringify(staffActivityLogs));
+  }, [staffActivityLogs]);
+
+  const logStaffActivity = (action: string, details: string, actor?: { id: string; name: string }) => {
+    const currentActor = actor || (currentUser ? { id: currentUser.id, name: currentUser.name } : { id: 'system', name: 'System' });
+    const newLog: StaffActivityLog = {
+      id: `act-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: `${getLocalDateString()} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
+      actorId: currentActor.id,
+      actorName: currentActor.name,
+      action,
+      details
+    };
+    setStaffActivityLogs((prev) => [newLog, ...prev.slice(0, 199)]);
+  };
 
   // Role Permissions
   const role = currentUser?.role;
@@ -476,39 +549,136 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(`${STORAGE_PREFIX}_active_branch`, id);
   };
 
-  // Auth Actions
-  const login = (username: string, password?: string) => {
-    const user = STAFF_USERS.find(
-      (u) =>
-        u.username.toLowerCase() === username.trim().toLowerCase() ||
-        u.email.toLowerCase() === username.trim().toLowerCase()
+  // Auth & Staff Management Actions
+  const createInitialOwner = async (payload: { fullName: string; username: string; password: string; email?: string; phone?: string }): Promise<{ success: boolean; error?: string }> => {
+    if (staffUsers.some((u) => u.role === 'owner')) {
+      return { success: false, error: 'An owner account already exists.' };
+    }
+    const name = payload.fullName.trim();
+    const uname = payload.username.trim().toLowerCase();
+    const pw = payload.password;
+    if (!name) return { success: false, error: 'Full name is required.' };
+    if (!uname || uname.length < 3) return { success: false, error: 'Username must be at least 3 characters.' };
+    if (!pw || pw.length < 8) return { success: false, error: 'Password must be at least 8 characters long.' };
+
+    const salt = generateSalt();
+    const hash = await hashPassword(pw, salt);
+
+    const ownerUser: StaffUser = {
+      id: `usr-owner-${Date.now()}`,
+      name,
+      username: uname,
+      role: 'owner',
+      branchId: undefined, // Owners have none
+      title: 'Property Owner / Principal',
+      email: payload.email?.trim() || `${uname}@${hotelConfig.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'hotel'}.com`,
+      phone: payload.phone?.trim() || hotelConfig.phone || '',
+      isActive: true,
+      passwordSalt: salt,
+      passwordHash: hash,
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      description: 'Property Owner: Full executive analytics, staff access, and hotel management.'
+    };
+
+    setStaffUsers([ownerUser]);
+    setCurrentUser(ownerUser);
+    sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(ownerUser));
+    setActiveTab('analytics');
+
+    logStaffActivity('Create Owner Account', `Initial owner account created: ${name} (${uname})`, { id: ownerUser.id, name: ownerUser.name });
+    showNotification(`Owner account "${name}" created successfully. Welcome to your HMS!`, 'success');
+    return { success: true };
+  };
+
+  const login = async (username: string, password = ''): Promise<{ success: boolean; error?: string }> => {
+    const now = Date.now();
+    if (failedLoginLockoutUntil > now) {
+      const remainingSecs = Math.ceil((failedLoginLockoutUntil - now) / 1000);
+      const msg = `Sign-in is locked due to 5 consecutive failed attempts. Please wait ${remainingSecs} second${remainingSecs === 1 ? '' : 's'}.`;
+      showNotification(msg, 'warning');
+      return { success: false, error: msg };
+    }
+
+    const trimmedUser = username.trim().toLowerCase();
+    const user = staffUsers.find(
+      (u) => u.username.toLowerCase() === trimmedUser || u.email.toLowerCase() === trimmedUser
     );
 
-    if (user) {
-      const resolvedUser: StaffUser = user.branchId ? user : { ...user, branchId: defaultBranchId };
-      setCurrentUser(resolvedUser);
-      sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(resolvedUser));
-
-      if (resolvedUser.role === 'front_desk' || resolvedUser.role === 'housekeeping') {
-        const staffBranch = resolvedUser.branchId || defaultBranchId;
-        setActiveBranchIdState(staffBranch);
-        localStorage.setItem(`${STORAGE_PREFIX}_active_branch`, staffBranch);
+    if (!user) {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      if (newAttempts >= 5) {
+        const lockoutTime = Date.now() + 30000;
+        setFailedLoginLockoutUntil(lockoutTime);
+        sessionStorage.setItem(`${STORAGE_PREFIX}_lockout_until`, lockoutTime.toString());
+        logStaffActivity('Security Alert', `Sign-in locked for 30 seconds after 5 failed attempts for username: "${username}"`);
+        const msg = 'Too many failed login attempts. Sign-in is locked for 30 seconds.';
+        showNotification(msg, 'warning');
+        return { success: false, error: msg };
       }
-
-      // Direct to initial landing tab based on role
-      if (resolvedUser.role === 'housekeeping') setActiveTab('housekeeping');
-      else if (resolvedUser.role === 'owner') setActiveTab('analytics');
-      else setActiveTab('matrix');
-
-      showNotification(`Welcome back, ${resolvedUser.name} (${resolvedUser.title})!`, 'success');
-      return true;
+      logStaffActivity('Failed Login Attempt', `Unknown username attempted: "${username}"`);
+      return { success: false, error: 'Invalid username or password.' };
     }
-    return false;
+
+    if (!user.isActive) {
+      logStaffActivity('Deactivated Login Blocked', `Deactivated staff member "${user.name}" (${user.username}) attempted login.`);
+      return { success: false, error: 'This staff account has been deactivated. Please contact your property administrator.' };
+    }
+
+    const isPwValid = await verifyPassword(password, user.passwordSalt || '', user.passwordHash || '');
+    if (!isPwValid) {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      if (newAttempts >= 5) {
+        const lockoutTime = Date.now() + 30000;
+        setFailedLoginLockoutUntil(lockoutTime);
+        sessionStorage.setItem(`${STORAGE_PREFIX}_lockout_until`, lockoutTime.toString());
+        logStaffActivity('Security Alert', `Sign-in locked for 30 seconds after 5 failed attempts for staff: "${user.name}" (${user.username})`);
+        const msg = 'Too many failed login attempts. Sign-in is locked for 30 seconds.';
+        showNotification(msg, 'warning');
+        return { success: false, error: msg };
+      }
+      logStaffActivity('Failed Login Attempt', `Incorrect password for staff: "${user.name}" (${user.username})`);
+      return { success: false, error: 'Invalid username or password.' };
+    }
+
+    // Success! Reset failed attempts
+    setFailedAttempts(0);
+    setFailedLoginLockoutUntil(0);
+    sessionStorage.removeItem(`${STORAGE_PREFIX}_lockout_until`);
+
+    const resolvedUser: StaffUser = user.role === 'owner'
+      ? { ...user, branchId: undefined }
+      : (user.branchId ? user : { ...user, branchId: defaultBranchId });
+
+    setCurrentUser(resolvedUser);
+    sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(resolvedUser));
+
+    if (resolvedUser.role === 'front_desk' || resolvedUser.role === 'housekeeping') {
+      const staffBranch = resolvedUser.branchId || defaultBranchId;
+      setActiveBranchIdState(staffBranch);
+      localStorage.setItem(`${STORAGE_PREFIX}_active_branch`, staffBranch);
+    }
+
+    if (resolvedUser.role === 'housekeeping') setActiveTab('housekeeping');
+    else if (resolvedUser.role === 'owner') setActiveTab('analytics');
+    else setActiveTab('matrix');
+
+    logStaffActivity('Staff Login', `Staff signed in: ${resolvedUser.name} (${resolvedUser.username}, ${resolvedUser.role})`, { id: resolvedUser.id, name: resolvedUser.name });
+    showNotification(`Welcome back, ${resolvedUser.name}!`, 'success');
+    return { success: true };
   };
 
   const fastLogin = (userRole: UserRole) => {
-    const baseUser = STAFF_USERS.find((u) => u.role === userRole) || STAFF_USERS[0];
-    const resolvedUser: StaffUser = baseUser.branchId ? baseUser : { ...baseUser, branchId: defaultBranchId };
+    if (!isDemoMode) {
+      showNotification('Fast role switching is only available in demo mode.', 'warning');
+      return;
+    }
+    const baseUser = staffUsers.find((u) => u.role === userRole) || STAFF_USERS.find((u) => u.role === userRole) || staffUsers[0];
+    if (!baseUser) return;
+    const resolvedUser: StaffUser = baseUser.role === 'owner'
+      ? { ...baseUser, branchId: undefined }
+      : (baseUser.branchId ? baseUser : { ...baseUser, branchId: defaultBranchId });
     setCurrentUser(resolvedUser);
     sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(resolvedUser));
 
@@ -526,9 +696,251 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = () => {
+    if (currentUser) {
+      logStaffActivity('Staff Logout', `Staff signed out: ${currentUser.name} (${currentUser.username})`);
+    }
     setCurrentUser(null);
     sessionStorage.removeItem(`${STORAGE_PREFIX}_user`);
     showNotification('Logged out successfully.', 'info');
+  };
+
+  const addStaff = async (data: {
+    name: string;
+    username: string;
+    password: string;
+    role: UserRole;
+    branchId?: string;
+    title?: string;
+    email?: string;
+    phone?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
+      return { success: false, error: 'Unauthorized: Only owners and managers can add staff.' };
+    }
+
+    // Role creation rules: Managers can only create front_desk and housekeeping staff; only owners can create managers or owners.
+    if (currentUser?.role === 'manager' && (data.role === 'owner' || data.role === 'manager')) {
+      return { success: false, error: 'Unauthorized: Managers can only create Front Desk and Housekeeping staff.' };
+    }
+
+    const name = data.name.trim();
+    const uname = data.username.trim().toLowerCase();
+    const pw = data.password;
+
+    if (!name) return { success: false, error: 'Staff full name is required.' };
+    if (!uname || uname.length < 3) return { success: false, error: 'Username must be at least 3 characters.' };
+    if (!pw || pw.length < 8) return { success: false, error: 'Password must be at least 8 characters long.' };
+
+    if (staffUsers.some((u) => u.username.toLowerCase() === uname)) {
+      return { success: false, error: `Username "${uname}" is already taken.` };
+    }
+
+    // Branch assignment rules: front_desk and housekeeping must have a branch (owners have none)
+    if ((data.role === 'front_desk' || data.role === 'housekeeping') && !data.branchId) {
+      return { success: false, error: 'A specific branch is required for Front Desk and Housekeeping staff.' };
+    }
+
+    const assignedBranchId = data.role === 'owner' ? undefined : (data.branchId || undefined);
+
+    const salt = generateSalt();
+    const hash = await hashPassword(pw, salt);
+
+    const defaultTitle = data.title?.trim() || (
+      data.role === 'owner'
+        ? 'Property Owner'
+        : data.role === 'manager'
+        ? 'Property Manager'
+        : data.role === 'front_desk'
+        ? 'Front Desk Agent'
+        : 'Housekeeping Specialist'
+    );
+
+    const newStaff: StaffUser = {
+      id: `usr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      name,
+      username: uname,
+      role: data.role,
+      branchId: assignedBranchId,
+      title: defaultTitle,
+      email: data.email?.trim() || `${uname}@${hotelConfig.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'hotel'}.com`,
+      phone: data.phone?.trim() || '',
+      isActive: true,
+      passwordSalt: salt,
+      passwordHash: hash
+    };
+
+    setStaffUsers((prev) => [...prev, newStaff]);
+    logStaffActivity('Create Staff Member', `Created staff account for ${name} (${uname}) as ${data.role.replace('_', ' ')}.`);
+    showNotification(`Staff member "${name}" created successfully.`, 'success');
+    return { success: true };
+  };
+
+  const updateStaff = (id: string, data: Partial<Omit<StaffUser, 'id' | 'passwordHash' | 'passwordSalt'>>): { success: boolean; error?: string } => {
+    if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
+      return { success: false, error: 'Unauthorized: Only owners and managers can edit staff.' };
+    }
+
+    const targetUser = staffUsers.find((u) => u.id === id);
+    if (!targetUser) return { success: false, error: 'Staff user not found.' };
+
+    // Manager scope check: Managers can only edit front_desk and housekeeping staff
+    if (currentUser?.role === 'manager') {
+      if (targetUser.role === 'owner' || targetUser.role === 'manager') {
+        return { success: false, error: 'Unauthorized: Managers can only edit Front Desk and Housekeeping staff.' };
+      }
+      if (data.role && (data.role === 'owner' || data.role === 'manager')) {
+        return { success: false, error: 'Unauthorized: Managers cannot promote staff to Manager or Owner.' };
+      }
+    }
+
+    // The last active owner can never be deactivated or demoted
+    if (targetUser.role === 'owner' && data.role && data.role !== 'owner') {
+      const activeOwners = staffUsers.filter((u) => u.role === 'owner' && u.isActive && u.id !== id);
+      if (activeOwners.length === 0) {
+        return { success: false, error: 'Cannot demote the last active Owner account.' };
+      }
+    }
+
+    // Role & branch check
+    const resolvedRole = data.role || targetUser.role;
+    let resolvedBranch = data.branchId !== undefined ? data.branchId : targetUser.branchId;
+    if (resolvedRole === 'owner') {
+      resolvedBranch = undefined;
+    } else if ((resolvedRole === 'front_desk' || resolvedRole === 'housekeeping') && !resolvedBranch) {
+      return { success: false, error: 'Front Desk and Housekeeping staff must have an assigned branch.' };
+    }
+
+    // Username uniqueness check if changed
+    if (data.username && data.username.trim().toLowerCase() !== targetUser.username.toLowerCase()) {
+      const newUname = data.username.trim().toLowerCase();
+      if (staffUsers.some((u) => u.id !== id && u.username.toLowerCase() === newUname)) {
+        return { success: false, error: `Username "${newUname}" is already taken.` };
+      }
+    }
+
+    const updatedUser: StaffUser = {
+      ...targetUser,
+      ...data,
+      role: resolvedRole,
+      branchId: resolvedBranch,
+      name: data.name !== undefined ? data.name.trim() : targetUser.name,
+      username: data.username !== undefined ? data.username.trim().toLowerCase() : targetUser.username,
+      title: data.title !== undefined ? data.title.trim() : targetUser.title
+    };
+
+    setStaffUsers((prev) => prev.map((u) => (u.id === id ? updatedUser : u)));
+
+    // If updating current user, sync current user
+    if (currentUser?.id === id) {
+      setCurrentUser(updatedUser);
+      sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(updatedUser));
+    }
+
+    logStaffActivity('Update Staff Member', `Updated details for staff member ${updatedUser.name} (${updatedUser.username}).`);
+    showNotification(`Staff member "${updatedUser.name}" updated successfully.`, 'success');
+    return { success: true };
+  };
+
+  const toggleStaffActive = (id: string, active: boolean): { success: boolean; error?: string } => {
+    if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
+      return { success: false, error: 'Unauthorized: Only owners and managers can manage staff status.' };
+    }
+
+    const targetUser = staffUsers.find((u) => u.id === id);
+    if (!targetUser) return { success: false, error: 'Staff user not found.' };
+
+    // Nobody can deactivate themselves
+    if (currentUser?.id === id && !active) {
+      return { success: false, error: 'You cannot deactivate your own account.' };
+    }
+
+    // Managers cannot alter managers or owners
+    if (currentUser?.role === 'manager' && (targetUser.role === 'owner' || targetUser.role === 'manager')) {
+      return { success: false, error: 'Unauthorized: Managers cannot alter Manager or Owner accounts.' };
+    }
+
+    // The last active owner can never be deactivated or demoted
+    if (targetUser.role === 'owner' && !active) {
+      const activeOwners = staffUsers.filter((u) => u.role === 'owner' && u.isActive && u.id !== id);
+      if (activeOwners.length === 0) {
+        return { success: false, error: 'Cannot deactivate the last active Owner account. The system must retain at least one active owner.' };
+      }
+    }
+
+    setStaffUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, isActive: active } : u))
+    );
+
+    logStaffActivity(
+      active ? 'Reactivate Staff Member' : 'Deactivate Staff Member',
+      `${active ? 'Reactivated' : 'Deactivated'} staff member ${targetUser.name} (${targetUser.username}).`
+    );
+    showNotification(
+      `Staff member "${targetUser.name}" has been ${active ? 'reactivated' : 'deactivated'}.`,
+      active ? 'success' : 'info'
+    );
+    return { success: true };
+  };
+
+  const resetStaffPassword = async (id: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
+      return { success: false, error: 'Unauthorized: Only owners and managers can reset passwords.' };
+    }
+
+    const targetUser = staffUsers.find((u) => u.id === id);
+    if (!targetUser) return { success: false, error: 'Staff user not found.' };
+
+    if (currentUser?.role === 'manager' && (targetUser.role === 'owner' || targetUser.role === 'manager')) {
+      return { success: false, error: 'Unauthorized: Managers cannot reset passwords for Managers or Owners.' };
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, error: 'Password must be at least 8 characters long.' };
+    }
+
+    const salt = generateSalt();
+    const hash = await hashPassword(newPassword, salt);
+
+    setStaffUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, passwordSalt: salt, passwordHash: hash } : u))
+    );
+
+    logStaffActivity('Reset Staff Password', `Reset password for staff member ${targetUser.name} (${targetUser.username}).`);
+    showNotification(`Password for "${targetUser.name}" has been reset successfully.`, 'success');
+    return { success: true };
+  };
+
+  const changeMyPassword = async (oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    if (!currentUser) return { success: false, error: 'No user signed in.' };
+
+    const targetUser = staffUsers.find((u) => u.id === currentUser.id);
+    if (!targetUser) return { success: false, error: 'User record not found.' };
+
+    const isOldPwValid = await verifyPassword(oldPassword, targetUser.passwordSalt || '', targetUser.passwordHash || '');
+    if (!isOldPwValid) {
+      return { success: false, error: 'Current password does not match.' };
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, error: 'New password must be at least 8 characters long.' };
+    }
+
+    const salt = generateSalt();
+    const hash = await hashPassword(newPassword, salt);
+
+    const updatedUser: StaffUser = {
+      ...targetUser,
+      passwordSalt: salt,
+      passwordHash: hash
+    };
+
+    setStaffUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+    setCurrentUser(updatedUser);
+    sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(updatedUser));
+
+    logStaffActivity('Change Own Password', `${currentUser.name} successfully changed their account password.`);
+    showNotification('Your password has been changed successfully.', 'success');
+    return { success: true };
   };
 
   // Property Config
@@ -1004,7 +1416,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .reduce((sum, t) => sum + t.amount, 0);
 
     const discrepancy = actualCash - expectedCash;
-    const branchCurrentDate = branchBusinessDates[targetBranchId] || new Date().toISOString().split('T')[0];
+    const branchCurrentDate = branchBusinessDates[targetBranchId] || getLocalDateString();
 
     const report: NightAuditReport = {
       id: `na-${targetBranchId}-${branchCurrentDate}-${Date.now()}`,
@@ -1033,9 +1445,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAllNightAuditReports((prev) => [report, ...prev]);
 
     // Rollover business date ONLY for this specific branch
-    const currentDate = new Date(branchCurrentDate);
-    currentDate.setDate(currentDate.getDate() + 1);
-    const nextDate = currentDate.toISOString().split('T')[0];
+    const nextDate = getNextLocalDateString(branchCurrentDate);
 
     setBranchBusinessDates((prev) => ({
       ...prev,
@@ -1078,7 +1488,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setBranches((prev) => [...prev, newBranch]);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     setBranchBusinessDates((prev) => ({
       ...prev,
       [newId]: today
@@ -1178,8 +1588,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(`${STORAGE_PREFIX}_audits`);
     localStorage.removeItem(`${STORAGE_PREFIX}_pos_items`);
     localStorage.removeItem(`${STORAGE_PREFIX}_business_date`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_staff_users`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_staff_activity_log`);
+    sessionStorage.removeItem(`${STORAGE_PREFIX}_lockout_until`);
 
-    const initialDate = new Date().toISOString().split('T')[0];
+    const initialDate = getLocalDateString();
     const defaultBranch: Branch = {
       id: 'branch-1',
       name: hotelConfig.name || 'Main Branch',
@@ -1201,6 +1614,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAllMaintenanceTickets(isDemoMode ? INITIAL_MAINTENANCE_TICKETS.map((m) => ({ ...m, branchId: 'branch-1' })) : []);
     setPosItems(isDemoMode ? INITIAL_POS_ITEMS : []);
     setAllNightAuditReports(isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY.map((a) => ({ ...a, branchId: 'branch-1' })) : []);
+    setStaffUsers(isDemoMode ? STAFF_USERS : []);
+    setStaffActivityLogs([]);
+    setFailedAttempts(0);
+    setFailedLoginLockoutUntil(0);
     setSelectedRoom(null);
     setSelectedReservation(null);
     showNotification(isDemoMode ? 'System reset to clean sample demo data!' : 'System cleared to fresh empty state.', 'info');
@@ -1509,9 +1926,18 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         allTransactions,
         allMaintenanceTickets,
         allNightAuditReports,
+        staffUsers,
+        staffActivityLogs,
+        failedLoginLockoutUntil,
+        createInitialOwner,
         login,
         fastLogin,
         logout,
+        addStaff,
+        updateStaff,
+        toggleStaffActive,
+        resetStaffPassword,
+        changeMyPassword,
         updateHotelConfig,
         updateRoomTypePricing,
         setCurrency,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
-import { RoomType, Room, Branch } from '../types/hms';
+import { RoomType, Room, Branch, StaffUser, UserRole } from '../types/hms';
 import {
   Settings,
   Building,
@@ -23,7 +23,13 @@ import {
   X,
   Sparkles,
   GitBranch,
-  Building2
+  Building2,
+  Users,
+  ShieldCheck,
+  KeyRound,
+  Lock,
+  Clock,
+  History
 } from 'lucide-react';
 
 export const HotelSettingsView: React.FC = () => {
@@ -57,10 +63,17 @@ export const HotelSettingsView: React.FC = () => {
     allReservations,
     allTransactions,
     allMaintenanceTickets,
-    allNightAuditReports
+    allNightAuditReports,
+    currentUser,
+    staffUsers,
+    staffActivityLogs,
+    addStaff,
+    updateStaff,
+    toggleStaffActive,
+    resetStaffPassword
   } = useHMS();
 
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'branches' | 'room_types' | 'rooms'>('profile');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'branches' | 'room_types' | 'rooms' | 'staff'>('profile');
 
   // --- HOTEL PROFILE FORM STATE ---
   const [name, setName] = useState(hotelConfig.name);
@@ -524,7 +537,138 @@ export const HotelSettingsView: React.FC = () => {
     } else if (deactivatePrompt.type === 'branch') {
       toggleBranchActive(deactivatePrompt.id, false);
     }
-    setDeactivatePrompt(null);
+  };
+
+  // --- STAFF STATE & MODALS ---
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffUser | null>(null);
+  const [resetPasswordStaff, setResetPasswordStaff] = useState<StaffUser | null>(null);
+
+  const [staffFormName, setStaffFormName] = useState('');
+  const [staffFormUsername, setStaffFormUsername] = useState('');
+  const [staffFormPassword, setStaffFormPassword] = useState('');
+  const [staffFormRole, setStaffFormRole] = useState<UserRole>('front_desk');
+  const [staffFormBranchId, setStaffFormBranchId] = useState<string>(defaultBranchId);
+  const [staffFormTitle, setStaffFormTitle] = useState('');
+  const [staffFormEmail, setStaffFormEmail] = useState('');
+  const [staffFormPhone, setStaffFormPhone] = useState('');
+  const [staffFormError, setStaffFormError] = useState<string | null>(null);
+  const [staffFormSubmitting, setStaffFormSubmitting] = useState(false);
+
+  // Reset password state
+  const [resetPwValue, setResetPwValue] = useState('');
+  const [resetPwConfirm, setResetPwConfirm] = useState('');
+  const [resetPwError, setResetPwError] = useState<string | null>(null);
+  const [resetPwSubmitting, setResetPwSubmitting] = useState(false);
+
+  const openAddStaff = () => {
+    setEditingStaff(null);
+    setStaffFormName('');
+    setStaffFormUsername('');
+    setStaffFormPassword('');
+    const defaultRole: UserRole = 'front_desk';
+    setStaffFormRole(defaultRole);
+    setStaffFormBranchId(branches[0]?.id || 'branch-1');
+    setStaffFormTitle('');
+    setStaffFormEmail('');
+    setStaffFormPhone('');
+    setStaffFormError(null);
+    setShowAddStaffModal(true);
+  };
+
+  const openEditStaff = (staff: StaffUser) => {
+    setEditingStaff(staff);
+    setStaffFormName(staff.name);
+    setStaffFormUsername(staff.username);
+    setStaffFormPassword('');
+    setStaffFormRole(staff.role);
+    setStaffFormBranchId(staff.branchId || branches[0]?.id || 'branch-1');
+    setStaffFormTitle(staff.title || '');
+    setStaffFormEmail(staff.email || '');
+    setStaffFormPhone(staff.phone || '');
+    setStaffFormError(null);
+    setShowAddStaffModal(true);
+  };
+
+  const openResetPasswordModal = (staff: StaffUser) => {
+    setResetPasswordStaff(staff);
+    setResetPwValue('');
+    setResetPwConfirm('');
+    setResetPwError(null);
+  };
+
+  const handleSaveStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStaffFormError(null);
+
+    if (editingStaff) {
+      const res = updateStaff(editingStaff.id, {
+        name: staffFormName,
+        username: staffFormUsername,
+        role: staffFormRole,
+        branchId: staffFormRole === 'owner' ? undefined : staffFormBranchId,
+        title: staffFormTitle,
+        email: staffFormEmail,
+        phone: staffFormPhone
+      });
+      if (!res.success) {
+        setStaffFormError(res.error || 'Failed to update staff member.');
+        return;
+      }
+      setShowAddStaffModal(false);
+    } else {
+      if (!staffFormPassword || staffFormPassword.length < 8) {
+        setStaffFormError('Password must be at least 8 characters long.');
+        return;
+      }
+      setStaffFormSubmitting(true);
+      try {
+        const res = await addStaff({
+          name: staffFormName,
+          username: staffFormUsername,
+          password: staffFormPassword,
+          role: staffFormRole,
+          branchId: staffFormRole === 'owner' ? undefined : staffFormBranchId,
+          title: staffFormTitle,
+          email: staffFormEmail,
+          phone: staffFormPhone
+        });
+        if (!res.success) {
+          setStaffFormError(res.error || 'Failed to add staff member.');
+          return;
+        }
+        setShowAddStaffModal(false);
+      } finally {
+        setStaffFormSubmitting(false);
+      }
+    }
+  };
+
+  const handleExecuteResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordStaff) return;
+    setResetPwError(null);
+
+    if (!resetPwValue || resetPwValue.length < 8) {
+      setResetPwError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (resetPwValue !== resetPwConfirm) {
+      setResetPwError('Passwords do not match.');
+      return;
+    }
+
+    setResetPwSubmitting(true);
+    try {
+      const res = await resetStaffPassword(resetPasswordStaff.id, resetPwValue);
+      if (!res.success) {
+        setResetPwError(res.error || 'Failed to reset password.');
+        return;
+      }
+      setResetPasswordStaff(null);
+    } finally {
+      setResetPwSubmitting(false);
+    }
   };
 
   return (
@@ -581,7 +725,7 @@ export const HotelSettingsView: React.FC = () => {
 
           <button
             onClick={() => setActiveSettingsTab('rooms')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               activeSettingsTab === 'rooms'
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -589,6 +733,18 @@ export const HotelSettingsView: React.FC = () => {
           >
             <Bed className="w-3.5 h-3.5 text-purple-600" />
             <span>Hotel Rooms ({allRooms.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSettingsTab('staff')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeSettingsTab === 'staff'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-blue-600" />
+            <span>Staff Management ({staffUsers.length})</span>
           </button>
         </div>
       </div>
