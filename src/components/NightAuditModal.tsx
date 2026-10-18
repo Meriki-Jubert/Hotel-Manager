@@ -27,7 +27,10 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
     runNightAudit,
     businessDate,
     formatMoney,
-    nightAuditReports
+    nightAuditReports,
+    hasMultipleActiveBranches,
+    activeBranch,
+    activeBranchId
   } = useHMS();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -74,8 +77,13 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
               <Moon className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-bold">End-of-Day Night Audit Routine</h2>
+                {hasMultipleActiveBranches && activeBranch && activeBranchId !== 'all' && (
+                  <span className="text-xs bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">
+                    {activeBranch.name}
+                  </span>
+                )}
                 <span className="text-xs bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800 font-mono">
                   Date: {businessDate}
                 </span>

@@ -33,8 +33,16 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     businessDate,
     canVoidTransactions,
     isReadOnly,
-    hotelConfig
+    hotelConfig,
+    branches,
+    activeBranch
   } = useHMS();
+
+  const resBranch = branches.find((b) => b.id === reservation.branchId) || activeBranch || branches[0];
+  const invName = (resBranch?.name && resBranch.name.trim()) || hotelConfig.name;
+  const invAddress = (resBranch?.address && resBranch.address.trim()) || hotelConfig.address;
+  const invCity = (resBranch?.city && resBranch.city.trim()) || hotelConfig.city;
+  const invPhone = (resBranch?.phone && resBranch.phone.trim()) || hotelConfig.phone;
 
   const [activeView, setActiveView] = useState<'ledger' | 'printable'>('ledger');
   const [showAddCharge, setShowAddCharge] = useState(false);
@@ -521,19 +529,19 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
               <div className="flex justify-between items-start border-b border-slate-300 pb-6">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-                    {hotelConfig.name}
+                    {invName}
                   </h1>
                   {hotelConfig.tagline && (
                     <p className="text-xs italic text-slate-600 mt-0.5">{hotelConfig.tagline}</p>
                   )}
-                  {(hotelConfig.address || hotelConfig.city) && (
+                  {(invAddress || invCity) && (
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {[hotelConfig.address, hotelConfig.city].filter(Boolean).join(', ')}
+                      {[invAddress, invCity].filter(Boolean).join(', ')}
                     </p>
                   )}
-                  {(hotelConfig.phone || hotelConfig.email) && (
+                  {(invPhone || hotelConfig.email) && (
                     <p className="text-xs text-slate-500">
-                      {[hotelConfig.phone ? `Tel: ${hotelConfig.phone}` : '', hotelConfig.email ? `Email: ${hotelConfig.email}` : ''].filter(Boolean).join(' • ')}
+                      {[invPhone ? `Tel: ${invPhone}` : '', hotelConfig.email ? `Email: ${hotelConfig.email}` : ''].filter(Boolean).join(' • ')}
                     </p>
                   )}
                   {(hotelConfig.taxId || hotelConfig.registryNumber) && (
@@ -616,7 +624,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     <span>Includes Cameroon 19.25% TVA & Tourism Tax</span>
                   </div>
                   <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-[11px]">
-                    Thank you for choosing {hotelConfig.name}!
+                    Thank you for choosing {invName}!
                   </div>
                 </div>
 

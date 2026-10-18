@@ -21,6 +21,15 @@ export interface HotelConfig {
   checkOutTime: string;
 }
 
+export interface Branch {
+  id: string;
+  name: string;
+  city: string;
+  address: string;
+  phone: string;
+  isActive: boolean;
+}
+
 export interface RoomType {
   id: string;
   name: string;
@@ -39,6 +48,7 @@ export interface Room {
   roomNumber: string;
   floor: number;
   roomTypeId: string;
+  branchId?: string;
   status: RoomStatus;
   currentReservationId?: string;
   assignedHousekeeper?: string;
@@ -66,6 +76,7 @@ export interface Guest {
 
 export interface Reservation {
   id: string;
+  branchId?: string;
   bookingCode: string;
   roomId: string;
   roomNumber: string;
@@ -94,6 +105,7 @@ export interface Reservation {
 
 export interface FolioTransaction {
   id: string;
+  branchId?: string;
   reservationId: string;
   guestId: string;
   roomNumber: string;
@@ -125,6 +137,7 @@ export interface HousekeepingTask {
 
 export interface MaintenanceTicket {
   id: string;
+  branchId?: string;
   ticketNumber: string;
   roomId: string;
   roomNumber: string;
@@ -151,6 +164,7 @@ export interface PosItem {
 
 export interface StaffUser {
   id: string;
+  branchId?: string;
   name: string;
   username: string;
   password?: string;
@@ -164,6 +178,7 @@ export interface StaffUser {
 
 export interface NightAuditReport {
   id: string;
+  branchId?: string;
   date: string;
   totalRooms: number;
   roomsOccupied: number;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
-import { RoomType, Room } from '../types/hms';
+import { RoomType, Room, Branch } from '../types/hms';
 import {
   Settings,
   Building,
@@ -21,7 +21,9 @@ import {
   AlertCircle,
   Hash,
   X,
-  Sparkles
+  Sparkles,
+  GitBranch,
+  Building2
 } from 'lucide-react';
 
 export const HotelSettingsView: React.FC = () => {
@@ -40,10 +42,25 @@ export const HotelSettingsView: React.FC = () => {
     bulkAddRooms,
     updateRoom,
     deleteRoom,
-    toggleRoomActive
+    toggleRoomActive,
+    branches,
+    activeBranchId,
+    activeBranch,
+    hasMultipleActiveBranches,
+    branchBusinessDates,
+    addBranch,
+    updateBranch,
+    deleteBranch,
+    toggleBranchActive,
+    businessDate,
+    allRooms,
+    allReservations,
+    allTransactions,
+    allMaintenanceTickets,
+    allNightAuditReports
   } = useHMS();
 
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'room_types' | 'rooms'>('profile');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'branches' | 'room_types' | 'rooms'>('profile');
 
   // --- HOTEL PROFILE FORM STATE ---
   const [name, setName] = useState(hotelConfig.name);
@@ -75,6 +92,98 @@ export const HotelSettingsView: React.FC = () => {
     });
   };
 
+  // --- BRANCHES STATE & MODALS ---
+  const [showAddBranchModal, setShowAddBranchModal] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [branchFormName, setBranchFormName] = useState('');
+  const [branchFormCity, setBranchFormCity] = useState('');
+  const [branchFormAddress, setBranchFormAddress] = useState('');
+  const [branchFormPhone, setBranchFormPhone] = useState('');
+  const [branchFormActive, setBranchFormActive] = useState(true);
+  const [branchFormError, setBranchFormError] = useState<string | null>(null);
+
+  const openAddBranch = () => {
+    setEditingBranch(null);
+    setBranchFormName('');
+    setBranchFormCity('');
+    setBranchFormAddress('');
+    setBranchFormPhone('');
+    setBranchFormActive(true);
+    setBranchFormError(null);
+    setShowAddBranchModal(true);
+  };
+
+  const openEditBranch = (b: Branch) => {
+    setEditingBranch(b);
+    setBranchFormName(b.name);
+    setBranchFormCity(b.city);
+    setBranchFormAddress(b.address);
+    setBranchFormPhone(b.phone);
+    setBranchFormActive(b.isActive);
+    setBranchFormError(null);
+    setShowAddBranchModal(true);
+  };
+
+  const handleSaveBranch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBranchFormError(null);
+
+    const bName = branchFormName.trim();
+    const bCity = branchFormCity.trim();
+
+    if (!bName) {
+      setBranchFormError('Branch name is required.');
+      return;
+    }
+    if (!bCity) {
+      setBranchFormError('Branch city is required.');
+      return;
+    }
+
+    if (editingBranch) {
+      const res = updateBranch(editingBranch.id, {
+        name: bName,
+        city: bCity,
+        address: branchFormAddress.trim(),
+        phone: branchFormPhone.trim(),
+        isActive: branchFormActive
+      });
+      if (!res.success) {
+        setBranchFormError(res.error || 'Failed to update branch.');
+        return;
+      }
+    } else {
+      const res = addBranch({
+        name: bName,
+        city: bCity,
+        address: branchFormAddress.trim(),
+        phone: branchFormPhone.trim(),
+        isActive: branchFormActive
+      });
+      if (!res.success) {
+        setBranchFormError(res.error || 'Failed to create branch.');
+        return;
+      }
+    }
+
+    setShowAddBranchModal(false);
+  };
+
+  const handleDeleteBranch = (b: Branch) => {
+    const res = deleteBranch(b.id);
+    if (!res.success) {
+      if (res.canDeactivateInstead) {
+        setDeactivatePrompt({
+          isOpen: true,
+          type: 'branch',
+          id: b.id,
+          title: `Cannot Delete "${b.name}"`,
+          message: `${res.error} Would you like to deactivate this branch instead? Deactivated branches are preserved in historical records and invoices but will be hidden from new reservations.`
+        });
+      }
+    }
+  };
+
   // --- ROOM TYPE STATE & MODALS ---
   const [showAddTypeModal, setShowAddTypeModal] = useState(false);
   const [editingType, setEditingType] = useState<RoomType | null>(null);
@@ -91,7 +200,7 @@ export const HotelSettingsView: React.FC = () => {
   // Deactivation prompt dialog state
   const [deactivatePrompt, setDeactivatePrompt] = useState<{
     isOpen: boolean;
-    type: 'room_type' | 'room';
+    type: 'room_type' | 'room' | 'branch';
     id: string;
     title: string;
     message: string;
@@ -214,29 +323,38 @@ export const HotelSettingsView: React.FC = () => {
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
 
+  const defaultBranchId = (activeBranchId && activeBranchId !== 'all') ? activeBranchId : (branches[0]?.id || 'branch-1');
+
   // Single room form state
   const [roomFormNumber, setRoomFormNumber] = useState('');
   const [roomFormFloor, setRoomFormFloor] = useState<number>(1);
   const [roomFormTypeId, setRoomFormTypeId] = useState<string>(roomTypes[0]?.id || '');
+  const [roomFormBranchId, setRoomFormBranchId] = useState<string>(defaultBranchId);
   const [roomFormPrice, setRoomFormPrice] = useState<number | ''>(roomTypes[0]?.basePrice || 35000);
   const [roomFormImage, setRoomFormImage] = useState('');
   const [roomFormError, setRoomFormError] = useState<string | null>(null);
 
   // Bulk add form state
   const [bulkTypeId, setBulkTypeId] = useState<string>(roomTypes[0]?.id || '');
+  const [bulkBranchId, setBulkBranchId] = useState<string>(defaultBranchId);
   const [bulkFloor, setBulkFloor] = useState<number>(1);
   const [bulkStartNum, setBulkStartNum] = useState<number>(101);
   const [bulkEndNum, setBulkEndNum] = useState<number>(110);
   const [bulkPrice, setBulkPrice] = useState<number | ''>(roomTypes[0]?.basePrice || 35000);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
+  // Branch filter for rooms inventory list
+  const [roomFilterBranchId, setRoomFilterBranchId] = useState<string>('all');
+
   const openAddRoom = () => {
     setEditingRoom(null);
     const initialTypeId = roomTypes[0]?.id || '';
     const initialPrice = roomTypes[0]?.basePrice || 35000;
+    const initialBranch = (activeBranchId && activeBranchId !== 'all') ? activeBranchId : (branches[0]?.id || 'branch-1');
     setRoomFormNumber('');
     setRoomFormFloor(1);
     setRoomFormTypeId(initialTypeId);
+    setRoomFormBranchId(initialBranch);
     setRoomFormPrice(initialPrice);
     setRoomFormImage('');
     setRoomFormError(null);
@@ -248,10 +366,23 @@ export const HotelSettingsView: React.FC = () => {
     setRoomFormNumber(r.roomNumber);
     setRoomFormFloor(r.floor);
     setRoomFormTypeId(r.roomTypeId);
+    setRoomFormBranchId(r.branchId || ((activeBranchId && activeBranchId !== 'all') ? activeBranchId : (branches[0]?.id || 'branch-1')));
     setRoomFormPrice(r.pricePerNight);
     setRoomFormImage(r.image || '');
     setRoomFormError(null);
     setShowAddRoomModal(true);
+  };
+
+  const openBulkAddModal = () => {
+    const initialBranch = (activeBranchId && activeBranchId !== 'all') ? activeBranchId : (branches[0]?.id || 'branch-1');
+    setBulkTypeId(roomTypes[0]?.id || '');
+    setBulkBranchId(initialBranch);
+    setBulkFloor(1);
+    setBulkStartNum(101);
+    setBulkEndNum(110);
+    setBulkPrice(roomTypes[0]?.basePrice || 35000);
+    setBulkError(null);
+    setShowBulkAddModal(true);
   };
 
   const handleRoomTypeSelectionChange = (newTypeId: string) => {
@@ -283,6 +414,10 @@ export const HotelSettingsView: React.FC = () => {
       setRoomFormError('Please select a room type.');
       return;
     }
+    if (!roomFormBranchId) {
+      setRoomFormError('Please select a branch.');
+      return;
+    }
     if (roomFormFloor === undefined || isNaN(Number(roomFormFloor))) {
       setRoomFormError('Floor must be a valid number.');
       return;
@@ -297,6 +432,7 @@ export const HotelSettingsView: React.FC = () => {
         roomNumber: num,
         floor: Number(roomFormFloor),
         roomTypeId: roomFormTypeId,
+        branchId: roomFormBranchId,
         pricePerNight: Number(roomFormPrice),
         image: roomFormImage.trim() || undefined
       });
@@ -309,6 +445,7 @@ export const HotelSettingsView: React.FC = () => {
         roomNumber: num,
         floor: Number(roomFormFloor),
         roomTypeId: roomFormTypeId,
+        branchId: roomFormBranchId,
         pricePerNight: Number(roomFormPrice),
         image: roomFormImage.trim() || undefined
       });
@@ -329,6 +466,10 @@ export const HotelSettingsView: React.FC = () => {
       setBulkError('Please select a room type.');
       return;
     }
+    if (!bulkBranchId) {
+      setBulkError('Please select a branch.');
+      return;
+    }
     if (isNaN(bulkStartNum) || isNaN(bulkEndNum)) {
       setBulkError('Start and End room numbers must be valid numbers.');
       return;
@@ -347,6 +488,7 @@ export const HotelSettingsView: React.FC = () => {
       endNumber: Number(bulkEndNum),
       floor: Number(bulkFloor),
       roomTypeId: bulkTypeId,
+      branchId: bulkBranchId,
       pricePerNight: Number(bulkPrice)
     });
 
@@ -377,8 +519,10 @@ export const HotelSettingsView: React.FC = () => {
     if (!deactivatePrompt) return;
     if (deactivatePrompt.type === 'room_type') {
       toggleRoomTypeActive(deactivatePrompt.id, false);
-    } else {
+    } else if (deactivatePrompt.type === 'room') {
       toggleRoomActive(deactivatePrompt.id, false);
+    } else if (deactivatePrompt.type === 'branch') {
+      toggleBranchActive(deactivatePrompt.id, false);
     }
     setDeactivatePrompt(null);
   };
@@ -393,12 +537,12 @@ export const HotelSettingsView: React.FC = () => {
             Hotel Configuration & Inventory Management
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manager scope: Property branding, currency conversion, room categories, and room inventory control
+            Manager & Owner scope: Property branding, branch locations, currency conversion, room categories, and room inventory control
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold shrink-0">
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold shrink-0 overflow-x-auto">
           <button
             onClick={() => setActiveSettingsTab('profile')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
@@ -409,6 +553,18 @@ export const HotelSettingsView: React.FC = () => {
           >
             <Building className="w-3.5 h-3.5 text-emerald-600" />
             <span>Property & Currency</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSettingsTab('branches')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              activeSettingsTab === 'branches'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <GitBranch className="w-3.5 h-3.5 text-teal-600" />
+            <span>Branches ({branches.length})</span>
           </button>
 
           <button
@@ -432,7 +588,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <Bed className="w-3.5 h-3.5 text-purple-600" />
-            <span>Hotel Rooms ({rooms.length})</span>
+            <span>Hotel Rooms ({allRooms.length})</span>
           </button>
         </div>
       </div>
@@ -639,6 +795,143 @@ export const HotelSettingsView: React.FC = () => {
         </div>
       )}
 
+      {/* ================= SECTION: BRANCHES INVENTORY & LOCATIONS ================= */}
+      {activeSettingsTab === 'branches' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-teal-600" />
+                Hotel Branch Locations & Multi-Property Network
+              </h3>
+              <p className="text-xs text-slate-500">
+                Manage branch properties in different cities. Each branch has its own independent rooms inventory, Business Date, and Night Audit ledger.
+              </p>
+            </div>
+
+            <button
+              onClick={openAddBranch}
+              className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg text-xs shadow-sm transition-all shrink-0"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Add New Branch</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {branches.map((b) => {
+              const bRooms = allRooms.filter((r) => r.branchId === b.id);
+              const bOcc = bRooms.filter((r) => r.status === 'occupied').length;
+              const bRes = allReservations.filter((r) => r.branchId === b.id);
+              const bDate = branchBusinessDates[b.id] || businessDate;
+              const isCurrent = activeBranchId === b.id;
+
+              return (
+                <div
+                  key={b.id}
+                  className={`bg-white rounded-xl border p-5 shadow-xs transition-all flex flex-col justify-between ${
+                    !b.isActive
+                      ? 'border-slate-200 opacity-60 bg-slate-50/50'
+                      : isCurrent
+                      ? 'border-teal-500 ring-2 ring-teal-500/20'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-slate-900 text-sm">{b.name}</h4>
+                          {isCurrent && (
+                            <span className="text-[10px] font-bold bg-teal-100 text-teal-800 px-1.5 py-0.2 rounded">
+                              Current
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{b.city || 'No city set'}</span>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          b.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {b.isActive ? 'Active' : 'Deactivated'}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                      {b.address && (
+                        <div className="truncate">
+                          <strong className="text-slate-700">Address:</strong> {b.address}
+                        </div>
+                      )}
+                      {b.phone && (
+                        <div>
+                          <strong className="text-slate-700">Phone:</strong> {b.phone}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
+                        <span className="text-slate-500">Business Date:</span>
+                        <span className="font-mono font-bold text-slate-800">{bDate}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1">
+                      <div className="p-2 rounded-lg bg-purple-50/70 border border-purple-100">
+                        <div className="text-sm font-bold font-mono text-purple-900">{bRooms.length}</div>
+                        <div className="text-[10px] text-purple-700">Rooms ({bOcc} Occ)</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-blue-50/70 border border-blue-100">
+                        <div className="text-sm font-bold font-mono text-blue-900">{bRes.length}</div>
+                        <div className="text-[10px] text-blue-700">Reservations</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <button
+                      onClick={() => toggleBranchActive(b.id, !b.isActive)}
+                      className={`flex items-center gap-1 font-semibold text-[11px] px-2 py-1 rounded transition-colors ${
+                        !b.isActive
+                          ? 'text-emerald-700 hover:bg-emerald-50'
+                          : 'text-amber-700 hover:bg-amber-50'
+                      }`}
+                      title={!b.isActive ? 'Activate branch' : 'Deactivate from new bookings'}
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      <span>{!b.isActive ? 'Activate' : 'Deactivate'}</span>
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditBranch(b)}
+                        className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded"
+                        title="Edit Branch Information"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteBranch(b)}
+                        className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded"
+                        title="Delete Branch"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ================= SECTION 2: ROOM TYPES INVENTORY ================= */}
       {activeSettingsTab === 'room_types' && (
         <div className="space-y-4">
@@ -805,15 +1098,32 @@ export const HotelSettingsView: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {hasMultipleActiveBranches && (
+                <div className="flex items-center gap-1.5 text-xs bg-slate-100 p-1 rounded-lg border border-slate-200">
+                  <span className="font-semibold text-slate-600 pl-1">Branch:</span>
+                  <select
+                    value={roomFilterBranchId}
+                    onChange={(e) => setRoomFilterBranchId(e.target.value)}
+                    className="p-1 bg-white border border-slate-300 rounded text-xs font-semibold focus:outline-none"
+                  >
+                    <option value="all">All Branches ({allRooms.length})</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({allRooms.filter((r) => r.branchId === b.id).length})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   if (roomTypes.length === 0) {
-                    alert('Please create at least one room type before adding rooms.');
+                    setActiveSettingsTab('room_types');
                     return;
                   }
-                  setShowBulkAddModal(true);
-                  setBulkError(null);
+                  openBulkAddModal();
                 }}
                 className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs shadow-sm transition-all"
               >
@@ -824,7 +1134,7 @@ export const HotelSettingsView: React.FC = () => {
               <button
                 onClick={() => {
                   if (roomTypes.length === 0) {
-                    alert('Please create at least one room type before adding rooms.');
+                    setActiveSettingsTab('room_types');
                     return;
                   }
                   openAddRoom();
@@ -837,7 +1147,7 @@ export const HotelSettingsView: React.FC = () => {
             </div>
           </div>
 
-          {rooms.length === 0 ? (
+          {allRooms.length === 0 ? (
             <div className="bg-white rounded-xl border border-slate-200 p-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 mx-auto flex items-center justify-center">
                 <Bed className="w-6 h-6" />
@@ -861,7 +1171,7 @@ export const HotelSettingsView: React.FC = () => {
                 </button>
                 {roomTypes.length > 0 && (
                   <button
-                    onClick={() => setShowBulkAddModal(true)}
+                    onClick={openBulkAddModal}
                     className="px-4 py-2 bg-slate-900 text-white font-bold rounded-lg text-xs shadow-sm"
                   >
                     Bulk Add Rooms (Fast)
@@ -876,6 +1186,9 @@ export const HotelSettingsView: React.FC = () => {
                   <thead className="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200">
                     <tr>
                       <th className="py-3 px-4">Room #</th>
+                      {hasMultipleActiveBranches && (
+                        <th className="py-3 px-4">Branch</th>
+                      )}
                       <th className="py-3 px-4">Floor</th>
                       <th className="py-3 px-4">Room Category</th>
                       <th className="py-3 px-4 text-right">Nightly Price</th>
@@ -885,8 +1198,12 @@ export const HotelSettingsView: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {rooms.map((r) => {
+                    {(roomFilterBranchId === 'all'
+                      ? allRooms
+                      : allRooms.filter((r) => r.branchId === roomFilterBranchId)
+                    ).map((r) => {
                       const rType = roomTypes.find((t) => t.id === r.roomTypeId);
+                      const rBranch = branches.find((b) => b.id === r.branchId);
                       const isDeactivated = r.isActive === false;
 
                       return (
@@ -899,6 +1216,18 @@ export const HotelSettingsView: React.FC = () => {
                           <td className="py-3 px-4 font-bold font-mono text-slate-900 text-sm">
                             #{r.roomNumber}
                           </td>
+                          {hasMultipleActiveBranches && (
+                            <td className="py-3 px-4">
+                              <span className="font-semibold text-slate-800">
+                                {rBranch?.name || 'Main Branch'}
+                              </span>
+                              {rBranch?.city && (
+                                <span className="text-[10px] text-slate-400 block">
+                                  {rBranch.city}
+                                </span>
+                              )}
+                            </td>
+                          )}
                           <td className="py-3 px-4 text-slate-600">
                             Floor {r.floor}
                           </td>
@@ -1186,6 +1515,25 @@ export const HotelSettingsView: React.FC = () => {
               </div>
 
               <div>
+                <label className="block font-semibold text-slate-700 mb-1">Branch *</label>
+                <select
+                  value={roomFormBranchId}
+                  onChange={(e) => setRoomFormBranchId(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  required
+                >
+                  {branches.filter((b) => b.isActive).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.city || 'No city'})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Rooms are created per branch and room numbers are unique within that branch.
+                </p>
+              </div>
+
+              <div>
                 <label className="block font-semibold text-slate-700 mb-1">Room Type Category *</label>
                 <select
                   value={roomFormTypeId}
@@ -1278,6 +1626,22 @@ export const HotelSettingsView: React.FC = () => {
               )}
 
               <div>
+                <label className="block font-semibold text-slate-700 mb-1">Target Branch *</label>
+                <select
+                  value={bulkBranchId}
+                  onChange={(e) => setBulkBranchId(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                >
+                  {branches.filter((b) => b.isActive).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.city || 'No city'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block font-semibold text-slate-700 mb-1">Room Type Category *</label>
                 <select
                   value={bulkTypeId}
@@ -1364,6 +1728,112 @@ export const HotelSettingsView: React.FC = () => {
                   className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm"
                 >
                   Generate Rooms Batch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: ADD / EDIT BRANCH ================= */}
+      {showAddBranchModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-6">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GitBranch className="w-5 h-5 text-teal-400" />
+                <h3 className="font-bold text-sm sm:text-base">
+                  {editingBranch ? `Edit Branch: ${editingBranch.name}` : 'Add New Branch Location'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowAddBranchModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBranch} className="p-5 space-y-4 text-xs">
+              {branchFormError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{branchFormError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Branch Name *</label>
+                <input
+                  type="text"
+                  value={branchFormName}
+                  onChange={(e) => setBranchFormName(e.target.value)}
+                  placeholder="e.g. Limbe Oceanview, Douala Business Suites"
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">City / Location *</label>
+                <input
+                  type="text"
+                  value={branchFormCity}
+                  onChange={(e) => setBranchFormCity(e.target.value)}
+                  placeholder="e.g. Limbe, Douala, Yaoundé"
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Physical Address</label>
+                <input
+                  type="text"
+                  value={branchFormAddress}
+                  onChange={(e) => setBranchFormAddress(e.target.value)}
+                  placeholder="e.g. Down Beach Road, Limbe"
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Branch Direct Phone</label>
+                <input
+                  type="tel"
+                  value={branchFormPhone}
+                  onChange={(e) => setBranchFormPhone(e.target.value)}
+                  placeholder="e.g. +237 670 11 22 33"
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="branchActiveCheckbox"
+                  checked={branchFormActive}
+                  onChange={(e) => setBranchFormActive(e.target.checked)}
+                  className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                />
+                <label htmlFor="branchActiveCheckbox" className="font-semibold text-slate-700 cursor-pointer">
+                  Branch is Active (Available for bookings & check-ins)
+                </label>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddBranchModal(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-sm"
+                >
+                  {editingBranch ? 'Save Branch Details' : 'Create Branch'}
                 </button>
               </div>
             </form>

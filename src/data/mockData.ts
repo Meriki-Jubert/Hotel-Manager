@@ -8,11 +8,21 @@ import {
   PosItem,
   StaffUser,
   NightAuditReport,
-  HotelConfig
+  HotelConfig,
+  Branch
 } from '../types/hms';
 import { appConfig } from '../config/appConfig';
 
 export const DEFAULT_HOTEL_CONFIG: HotelConfig = appConfig;
+
+export const DEFAULT_BRANCH: Branch = {
+  id: 'branch-1',
+  name: appConfig.name || 'Main Branch',
+  city: appConfig.city || '',
+  address: appConfig.address || '',
+  phone: appConfig.phone || '',
+  isActive: true
+};
 
 export const INITIAL_ROOM_TYPES: RoomType[] = [
   {
@@ -474,6 +484,7 @@ export const INITIAL_POS_ITEMS: PosItem[] = [
 export const STAFF_USERS: StaffUser[] = [
   {
     id: 'usr-1',
+    branchId: 'branch-1',
     name: 'Nadine Ashu',
     username: 'frontdesk',
     password: 'password123',
@@ -486,6 +497,7 @@ export const STAFF_USERS: StaffUser[] = [
   },
   {
     id: 'usr-2',
+    branchId: 'branch-1',
     name: 'Therese Mbi',
     username: 'housekeeping',
     password: 'password123',
@@ -498,6 +510,7 @@ export const STAFF_USERS: StaffUser[] = [
   },
   {
     id: 'usr-3',
+    branchId: 'branch-1',
     name: 'Patrick Mengot',
     username: 'manager',
     password: 'password123',
@@ -510,6 +523,7 @@ export const STAFF_USERS: StaffUser[] = [
   },
   {
     id: 'usr-4',
+    branchId: 'branch-1',
     name: 'Dr. Martin Agbor',
     username: 'owner',
     password: 'password123',

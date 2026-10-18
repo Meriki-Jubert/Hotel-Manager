@@ -11,7 +11,9 @@ import {
   FileSpreadsheet,
   Printer,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Building,
+  MapPin
 } from 'lucide-react';
 
 export const OwnerAnalytics: React.FC = () => {
@@ -22,7 +24,15 @@ export const OwnerAnalytics: React.FC = () => {
     nightAuditReports,
     formatMoney,
     businessDate,
-    roomTypes
+    roomTypes,
+    branches,
+    activeBranchId,
+    activeBranch,
+    hasMultipleActiveBranches,
+    allRooms,
+    allReservations,
+    allTransactions,
+    branchBusinessDates
   } = useHMS();
 
   const [activeSubTab, setActiveSubTab] = useState<'metrics' | 'audits'>('metrics');
@@ -65,6 +75,45 @@ export const OwnerAnalytics: React.FC = () => {
       name: rt.name,
       occupied: matchingRooms.length,
       revenue: rev
+    };
+  });
+
+  // Per-Branch performance comparison
+  const activeBranchList = branches.filter((b) => b.isActive);
+  const branchComparison = activeBranchList.map((b) => {
+    const bRooms = allRooms.filter(
+      (r) => r.branchId === b.id && r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId)
+    );
+    const bTotalRooms = bRooms.length;
+    const bOccupied = bRooms.filter((r) => r.status === 'occupied').length;
+    const bOccRate = bTotalRooms > 0 ? (bOccupied / bTotalRooms) * 100 : 0;
+    const bRoomRev = allReservations
+      .filter((r) => r.branchId === b.id && r.bookingStatus === 'checked_in')
+      .reduce((s, r) => s + r.nightlyRate, 0);
+    const bPosRev = allTransactions
+      .filter(
+        (t) =>
+          t.branchId === b.id &&
+          !t.voided &&
+          (t.category === 'restaurant' || t.category === 'beverage' || t.category === 'laundry')
+      )
+      .reduce((s, t) => s + t.amount, 0);
+    const bTotalRev = bRoomRev + bPosRev;
+    const bAdr = bOccupied > 0 ? bRoomRev / bOccupied : 0;
+    const bRevPar = bTotalRooms > 0 ? bRoomRev / bTotalRooms : 0;
+    const bDate = branchBusinessDates[b.id] || businessDate;
+
+    return {
+      branch: b,
+      totalRooms: bTotalRooms,
+      occupied: bOccupied,
+      occupancyRate: bOccRate,
+      roomRevenue: bRoomRev,
+      posRevenue: bPosRev,
+      totalRevenue: bTotalRev,
+      adr: bAdr,
+      revPar: bRevPar,
+      businessDate: bDate
     };
   });
 
@@ -165,6 +214,154 @@ export const OwnerAnalytics: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Per-Branch Comparison Table (Shown when multi-branch property is active) */}
+          {hasMultipleActiveBranches && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="p-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <Building className="w-4 h-4 text-teal-600" />
+                    Multi-Branch Performance Ledger & Benchmark Comparison
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Live breakdown of occupancy yield, room revenue, and ADR across active branches
+                  </p>
+                </div>
+                {activeBranchId === 'all' && (
+                  <span className="text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full border border-indigo-200 shrink-0">
+                    Consolidated Enterprise View
+                  </span>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 uppercase text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-4">Branch / City</th>
+                      <th className="py-2.5 px-3 text-center">Business Date</th>
+                      <th className="py-2.5 px-3 text-center">Rooms (Total/Occ)</th>
+                      <th className="py-2.5 px-3 text-center">Occupancy %</th>
+                      <th className="py-2.5 px-3 text-right">Room Rev.</th>
+                      <th className="py-2.5 px-3 text-right">POS Rev.</th>
+                      <th className="py-2.5 px-3 text-right">Total Rev.</th>
+                      <th className="py-2.5 px-3 text-right">ADR</th>
+                      <th className="py-2.5 px-3 text-right">RevPAR</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {branchComparison.map((item) => (
+                      <tr
+                        key={item.branch.id}
+                        className={`hover:bg-slate-50/80 transition-colors ${
+                          activeBranchId === item.branch.id ? 'bg-teal-50/40 font-medium' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <div>
+                              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                {item.branch.name}
+                                {activeBranchId === item.branch.id && (
+                                  <span className="text-[10px] font-bold text-teal-700 bg-teal-100 px-1.5 py-0.2 rounded">
+                                    Active
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                <MapPin className="w-3 h-3 text-slate-400" />
+                                {item.branch.city || 'Location unassigned'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center font-mono text-slate-600">
+                          {item.businessDate}
+                        </td>
+                        <td className="py-3 px-3 text-center font-mono">
+                          <span className="font-bold text-slate-900">{item.occupied}</span>
+                          <span className="text-slate-400"> / {item.totalRooms}</span>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <div className="inline-flex flex-col items-center gap-1 w-24">
+                            <span className="font-bold font-mono text-emerald-700">
+                              {item.occupancyRate.toFixed(1)}%
+                            </span>
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full"
+                                style={{ width: `${Math.min(100, item.occupancyRate)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-medium text-slate-800">
+                          {formatMoney(item.roomRevenue)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-slate-600">
+                          {formatMoney(item.posRevenue)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                          {formatMoney(item.totalRevenue)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-semibold text-indigo-700">
+                          {formatMoney(item.adr)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-slate-700">
+                          {formatMoney(item.revPar)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {branchComparison.length > 1 && (
+                    <tfoot className="bg-slate-50 border-t-2 border-slate-300 font-bold text-slate-900">
+                      <tr>
+                        <td className="py-3 px-4">
+                          <span>Consolidated Total ({branchComparison.length} Branches)</span>
+                        </td>
+                        <td className="py-3 px-3 text-center text-slate-400 font-mono">-</td>
+                        <td className="py-3 px-3 text-center font-mono">
+                          {branchComparison.reduce((s, i) => s + i.occupied, 0)} / {branchComparison.reduce((s, i) => s + i.totalRooms, 0)}
+                        </td>
+                        <td className="py-3 px-3 text-center font-mono text-emerald-700">
+                          {(() => {
+                            const totRooms = branchComparison.reduce((s, i) => s + i.totalRooms, 0);
+                            const totOcc = branchComparison.reduce((s, i) => s + i.occupied, 0);
+                            return totRooms > 0 ? ((totOcc / totRooms) * 100).toFixed(1) : '0.0';
+                          })()}%
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-slate-800">
+                          {formatMoney(branchComparison.reduce((s, i) => s + i.roomRevenue, 0))}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-slate-600">
+                          {formatMoney(branchComparison.reduce((s, i) => s + i.posRevenue, 0))}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-emerald-800">
+                          {formatMoney(branchComparison.reduce((s, i) => s + i.totalRevenue, 0))}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-indigo-800">
+                          {(() => {
+                            const totOcc = branchComparison.reduce((s, i) => s + i.occupied, 0);
+                            const totRoomRev = branchComparison.reduce((s, i) => s + i.roomRevenue, 0);
+                            return formatMoney(totOcc > 0 ? totRoomRev / totOcc : 0);
+                          })()}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-slate-800">
+                          {(() => {
+                            const totRooms = branchComparison.reduce((s, i) => s + i.totalRooms, 0);
+                            const totRoomRev = branchComparison.reduce((s, i) => s + i.roomRevenue, 0);
+                            return formatMoney(totRooms > 0 ? totRoomRev / totRooms : 0);
+                          })()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Revenue Breakdown & Payment Channels */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

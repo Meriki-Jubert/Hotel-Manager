@@ -46,7 +46,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     fastLogin,
     allowedTabs,
     activeTab,
-    setActiveTab
+    setActiveTab,
+    branches,
+    activeBranchId,
+    activeBranch,
+    hasMultipleActiveBranches,
+    setActiveBranchId
   } = useHMS();
 
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
@@ -119,7 +124,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 truncate">
-                <span className="truncate max-w-[90px] sm:max-w-none">{hotelConfig.city}</span>
+                <span className="truncate max-w-[90px] sm:max-w-none">
+                  {hasMultipleActiveBranches && activeBranch && activeBranchId !== 'all'
+                    ? activeBranch.city || hotelConfig.city
+                    : hotelConfig.city}
+                </span>
                 <span className="hidden xs:inline">•</span>
                 <span className="text-champagne-gold-400 font-semibold shrink-0">
                   {occupancyPercent}% Occ. ({occupiedCount}/{activeRooms.length})
@@ -149,6 +158,38 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-2">
+
+            {/* Branch Switcher (Manager & Owner only, hidden if only 1 active branch) */}
+            {hasMultipleActiveBranches && (currentUser?.role === 'manager' || currentUser?.role === 'owner') && (
+              <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700/90 text-slate-200 border border-slate-700 transition-colors">
+                <Building className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <select
+                  value={activeBranchId}
+                  onChange={(e) => setActiveBranchId(e.target.value)}
+                  className="bg-transparent text-white font-medium text-xs focus:outline-none cursor-pointer pr-1"
+                  aria-label="Active Branch Switcher"
+                >
+                  {currentUser?.role === 'owner' && (
+                    <option value="all" className="bg-slate-900 text-white font-medium">
+                      All Branches (Consolidated)
+                    </option>
+                  )}
+                  {branches.filter((b) => b.isActive).map((b) => (
+                    <option key={b.id} value={b.id} className="bg-slate-900 text-white font-medium">
+                      {b.name} ({b.city})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Assigned Branch Indicator for Staff (Cannot switch) */}
+            {hasMultipleActiveBranches && (currentUser?.role === 'front_desk' || currentUser?.role === 'housekeeping') && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700">
+                <Building className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate max-w-[130px]">{activeBranch?.name || 'Assigned Branch'}</span>
+              </div>
+            )}
             
             {/* Currency Switcher */}
             <button

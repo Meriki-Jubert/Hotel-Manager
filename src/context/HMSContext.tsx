@@ -12,10 +12,12 @@ import {
   RoomStatus,
   PaymentMethod,
   UserRole,
-  HotelConfig
+  HotelConfig,
+  Branch
 } from '../types/hms';
 import {
   DEFAULT_HOTEL_CONFIG,
+  DEFAULT_BRANCH,
   INITIAL_ROOM_TYPES,
   INITIAL_ROOMS,
   INITIAL_GUESTS,
@@ -117,14 +119,33 @@ interface HMSContextType {
   addGuest: (guest: Omit<Guest, 'id' | 'createdAt' | 'totalVisits' | 'totalSpent'>) => Guest;
   resetToDemoData: () => void;
 
+  // Branches & Multi-Branch Hierarchy
+  branches: Branch[];
+  activeBranchId: string;
+  activeBranch: Branch | null;
+  hasMultipleActiveBranches: boolean;
+  branchBusinessDates: Record<string, string>;
+  setActiveBranchId: (id: string) => void;
+  addBranch: (branch: Omit<Branch, 'id'>) => { success: boolean; error?: string };
+  updateBranch: (id: string, branch: Partial<Branch>) => { success: boolean; error?: string };
+  deleteBranch: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
+  toggleBranchActive: (id: string, active: boolean) => void;
+
+  // Master Unfiltered Collections (for multi-branch analytics and settings inventory)
+  allRooms: Room[];
+  allReservations: Reservation[];
+  allTransactions: FolioTransaction[];
+  allMaintenanceTickets: MaintenanceTicket[];
+  allNightAuditReports: NightAuditReport[];
+
   // Room Type & Room Management (Manager Scope)
   addRoomType: (roomType: Omit<RoomType, 'id'>) => { success: boolean; error?: string };
   updateRoomType: (id: string, roomType: Partial<RoomType>) => { success: boolean; error?: string };
   deleteRoomType: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
   toggleRoomTypeActive: (id: string, active: boolean) => void;
 
-  addRoom: (room: { roomNumber: string; floor: number; roomTypeId: string; pricePerNight: number; image?: string }) => { success: boolean; error?: string };
-  bulkAddRooms: (params: { startNumber: number; endNumber: number; floor: number; roomTypeId: string; pricePerNight: number }) => { success: boolean; count: number; error?: string };
+  addRoom: (room: { roomNumber: string; floor: number; roomTypeId: string; pricePerNight: number; branchId?: string; image?: string }) => { success: boolean; error?: string };
+  bulkAddRooms: (params: { startNumber: number; endNumber: number; floor: number; roomTypeId: string; pricePerNight: number; branchId?: string }) => { success: boolean; count: number; error?: string };
   updateRoom: (id: string, room: Partial<Room>) => { success: boolean; error?: string };
   deleteRoom: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
   toggleRoomActive: (id: string, active: boolean) => void;
@@ -141,41 +162,117 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : DEFAULT_HOTEL_CONFIG;
   });
 
-  // Auth state (starts as null to force login page)
-  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
-    const saved = sessionStorage.getItem(`${STORAGE_PREFIX}_user`);
-    return saved ? JSON.parse(saved) : null;
+  // Branches state - app must always have at least one branch
+  const [branches, setBranches] = useState<Branch[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_branches`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+    const defaultBranch: Branch = {
+      id: 'branch-1',
+      name: hotelConfig.name || 'Main Branch',
+      city: hotelConfig.city || '',
+      address: hotelConfig.address || '',
+      phone: hotelConfig.phone || '',
+      isActive: true
+    };
+    return [defaultBranch];
   });
 
-  // State
+  const defaultBranchId = branches[0]?.id || 'branch-1';
+
+  // Active branch ID state
+  const [activeBranchId, setActiveBranchIdState] = useState<string>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_active_branch`);
+    return saved || defaultBranchId;
+  });
+
+  // Business date per branch
+  const [branchBusinessDates, setBranchBusinessDates] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_branch_business_dates`);
+    const oldSavedDate = localStorage.getItem(`${STORAGE_PREFIX}_business_date`);
+    const today = new Date().toISOString().split('T')[0];
+    const initialDate = oldSavedDate || today;
+    const initialObj: Record<string, string> = {};
+    branches.forEach((b) => {
+      initialObj[b.id] = initialDate;
+    });
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { ...initialObj, ...parsed };
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+    return initialObj;
+  });
+
+  // Auth state
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
+    const saved = sessionStorage.getItem(`${STORAGE_PREFIX}_user`);
+    if (saved) {
+      try {
+        const parsed: StaffUser = JSON.parse(saved);
+        return parsed.branchId ? parsed : { ...parsed, branchId: defaultBranchId };
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // Room Types (Shared across branches)
   const [roomTypes, setRoomTypes] = useState<RoomType[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_room_types`);
     return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_ROOM_TYPES : []);
   });
 
-  const [rooms, setRooms] = useState<Room[]>(() => {
+  // Master Room Inventory (Safe migration for missing branchId)
+  const [allRooms, setAllRooms] = useState<Room[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_rooms`);
-    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_ROOMS : []);
+    const raw: Room[] = saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_ROOMS : []);
+    const defId = branches[0]?.id || 'branch-1';
+    return raw.map((r) => (r.branchId ? r : { ...r, branchId: defId }));
   });
 
+  // Guests (Hotel-wide)
   const [guests, setGuests] = useState<Guest[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_guests`);
     return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_GUESTS : []);
   });
 
-  const [reservations, setReservations] = useState<Reservation[]>(() => {
+  // Master Reservations (Safe migration for missing branchId)
+  const [allReservations, setAllReservations] = useState<Reservation[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_reservations`);
-    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_RESERVATIONS : []);
+    const raw: Reservation[] = saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_RESERVATIONS : []);
+    const defId = branches[0]?.id || 'branch-1';
+    return raw.map((r) => (r.branchId ? r : { ...r, branchId: defId }));
   });
 
-  const [transactions, setTransactions] = useState<FolioTransaction[]>(() => {
+  // Master Transactions (Safe migration for missing branchId)
+  const [allTransactions, setAllTransactions] = useState<FolioTransaction[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_transactions`);
-    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_TRANSACTIONS : []);
+    const raw: FolioTransaction[] = saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_TRANSACTIONS : []);
+    const defId = branches[0]?.id || 'branch-1';
+    return raw.map((t) => (t.branchId ? t : { ...t, branchId: defId }));
   });
 
-  const [maintenanceTickets, setMaintenanceTickets] = useState<MaintenanceTicket[]>(() => {
+  // Master Maintenance Tickets (Safe migration for missing branchId)
+  const [allMaintenanceTickets, setAllMaintenanceTickets] = useState<MaintenanceTicket[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_maintenance`);
-    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_MAINTENANCE_TICKETS : []);
+    const raw: MaintenanceTicket[] = saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_MAINTENANCE_TICKETS : []);
+    const defId = branches[0]?.id || 'branch-1';
+    return raw.map((m) => (m.branchId ? m : { ...m, branchId: defId }));
   });
 
   const [posItems, setPosItems] = useState<PosItem[]>(() => {
@@ -183,20 +280,49 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_POS_ITEMS : []);
   });
 
-  const [nightAuditReports, setNightAuditReports] = useState<NightAuditReport[]>(() => {
+  // Master Night Audit Reports (Safe migration for missing branchId)
+  const [allNightAuditReports, setAllNightAuditReports] = useState<NightAuditReport[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_audits`);
-    return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY : []);
+    const raw: NightAuditReport[] = saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY : []);
+    const defId = branches[0]?.id || 'branch-1';
+    return raw.map((a) => (a.branchId ? a : { ...a, branchId: defId }));
   });
 
   const [currency, setCurrency] = useState<'FCFA' | 'USD'>(hotelConfig.defaultCurrency);
-  const [businessDate, setBusinessDate] = useState<string>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}_business_date`);
-    return saved || new Date().toISOString().split('T')[0];
-  });
   const [activeTab, setActiveTab] = useState<NavTab>('matrix');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
+
+  // Derived Branch Status
+  const activeBranches = branches.filter((b) => b.isActive);
+  const hasMultipleActiveBranches = activeBranches.length > 1;
+  const activeBranch = branches.find((b) => b.id === activeBranchId) || null;
+
+  // Active Business Date (Per-branch)
+  const currentBranchId = activeBranchId === 'all' ? (branches[0]?.id || 'branch-1') : activeBranchId;
+  const businessDate = branchBusinessDates[currentBranchId] || new Date().toISOString().split('T')[0];
+
+  // Scoped views for active branch (matrix, reservations, folios, POS, housekeeping, maintenance, audit)
+  const rooms = activeBranchId === 'all'
+    ? allRooms
+    : allRooms.filter((r) => r.branchId === activeBranchId);
+
+  const reservations = activeBranchId === 'all'
+    ? allReservations
+    : allReservations.filter((r) => r.branchId === activeBranchId);
+
+  const transactions = activeBranchId === 'all'
+    ? allTransactions
+    : allTransactions.filter((t) => t.branchId === activeBranchId);
+
+  const maintenanceTickets = activeBranchId === 'all'
+    ? allMaintenanceTickets
+    : allMaintenanceTickets.filter((m) => m.branchId === activeBranchId);
+
+  const nightAuditReports = activeBranchId === 'all'
+    ? allNightAuditReports
+    : allNightAuditReports.filter((a) => a.branchId === activeBranchId);
 
   // Document title sync
   useEffect(() => {
@@ -205,14 +331,21 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sync to Storage
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}_business_date`, businessDate);
-  }, [businessDate]);
+    localStorage.setItem(`${STORAGE_PREFIX}_branches`, JSON.stringify(branches));
+  }, [branches]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}_branch_business_dates`, JSON.stringify(branchBusinessDates));
+  }, [branchBusinessDates]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}_active_branch`, activeBranchId);
+  }, [activeBranchId]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}_pos_items`, JSON.stringify(posItems));
   }, [posItems]);
 
-  // Sync to Storage
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}_config`, JSON.stringify(hotelConfig));
   }, [hotelConfig]);
@@ -222,28 +355,28 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [roomTypes]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}_rooms`, JSON.stringify(rooms));
-  }, [rooms]);
+    localStorage.setItem(`${STORAGE_PREFIX}_rooms`, JSON.stringify(allRooms));
+  }, [allRooms]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}_guests`, JSON.stringify(guests));
   }, [guests]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}_reservations`, JSON.stringify(reservations));
-  }, [reservations]);
+    localStorage.setItem(`${STORAGE_PREFIX}_reservations`, JSON.stringify(allReservations));
+  }, [allReservations]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}_transactions`, JSON.stringify(transactions));
-  }, [transactions]);
+    localStorage.setItem(`${STORAGE_PREFIX}_transactions`, JSON.stringify(allTransactions));
+  }, [allTransactions]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}_maintenance`, JSON.stringify(maintenanceTickets));
-  }, [maintenanceTickets]);
+    localStorage.setItem(`${STORAGE_PREFIX}_maintenance`, JSON.stringify(allMaintenanceTickets));
+  }, [allMaintenanceTickets]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}_audits`, JSON.stringify(nightAuditReports));
-  }, [nightAuditReports]);
+    localStorage.setItem(`${STORAGE_PREFIX}_audits`, JSON.stringify(allNightAuditReports));
+  }, [allNightAuditReports]);
 
   // Role Permissions
   const role = currentUser?.role;
@@ -267,7 +400,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'settings'
     ];
   } else if (role === 'owner') {
-    allowedTabs = ['analytics', 'matrix'];
+    allowedTabs = ['analytics', 'matrix', 'settings'];
   }
 
   const canEditRates = role === 'manager';
@@ -276,6 +409,29 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const canCheckIn = role === 'front_desk' || role === 'manager';
   const canCheckOut = role === 'front_desk' || role === 'manager';
   const isReadOnly = role === 'owner';
+
+  // Enforce staff branch assignment (staff cannot switch branches)
+  useEffect(() => {
+    if (currentUser?.role === 'front_desk' || currentUser?.role === 'housekeeping') {
+      const assigned = currentUser.branchId || branches[0]?.id || 'branch-1';
+      if (activeBranchId !== assigned) {
+        setActiveBranchIdState(assigned);
+      }
+    }
+  }, [currentUser, branches, activeBranchId]);
+
+  // Deactivated active branch fallback
+  useEffect(() => {
+    if (activeBranchId !== 'all') {
+      const current = branches.find((b) => b.id === activeBranchId);
+      if (current && !current.isActive) {
+        const nextActive = branches.find((b) => b.isActive);
+        if (nextActive) {
+          setActiveBranchIdState(nextActive.id);
+        }
+      }
+    }
+  }, [branches, activeBranchId]);
 
   // Ensure active tab is allowed when role changes
   useEffect(() => {
@@ -306,6 +462,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return `${Math.round(amountInFcfa).toLocaleString('fr-FR')} FCFA`;
   };
 
+  // Branch Switcher Setter (Respects role permissions)
+  const setActiveBranchId = (id: string) => {
+    if (currentUser?.role === 'front_desk' || currentUser?.role === 'housekeeping') {
+      // Staff are assigned to one branch and cannot switch
+      return;
+    }
+    if (currentUser?.role === 'manager' && id === 'all') {
+      // Only owners get 'all'
+      return;
+    }
+    setActiveBranchIdState(id);
+    localStorage.setItem(`${STORAGE_PREFIX}_active_branch`, id);
+  };
+
   // Auth Actions
   const login = (username: string, password?: string) => {
     const user = STAFF_USERS.find(
@@ -315,30 +485,44 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     if (user) {
-      setCurrentUser(user);
-      sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(user));
+      const resolvedUser: StaffUser = user.branchId ? user : { ...user, branchId: defaultBranchId };
+      setCurrentUser(resolvedUser);
+      sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(resolvedUser));
+
+      if (resolvedUser.role === 'front_desk' || resolvedUser.role === 'housekeeping') {
+        const staffBranch = resolvedUser.branchId || defaultBranchId;
+        setActiveBranchIdState(staffBranch);
+        localStorage.setItem(`${STORAGE_PREFIX}_active_branch`, staffBranch);
+      }
 
       // Direct to initial landing tab based on role
-      if (user.role === 'housekeeping') setActiveTab('housekeeping');
-      else if (user.role === 'owner') setActiveTab('analytics');
+      if (resolvedUser.role === 'housekeeping') setActiveTab('housekeeping');
+      else if (resolvedUser.role === 'owner') setActiveTab('analytics');
       else setActiveTab('matrix');
 
-      showNotification(`Welcome back, ${user.name} (${user.title})!`, 'success');
+      showNotification(`Welcome back, ${resolvedUser.name} (${resolvedUser.title})!`, 'success');
       return true;
     }
     return false;
   };
 
   const fastLogin = (userRole: UserRole) => {
-    const user = STAFF_USERS.find((u) => u.role === userRole) || STAFF_USERS[0];
-    setCurrentUser(user);
-    sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(user));
+    const baseUser = STAFF_USERS.find((u) => u.role === userRole) || STAFF_USERS[0];
+    const resolvedUser: StaffUser = baseUser.branchId ? baseUser : { ...baseUser, branchId: defaultBranchId };
+    setCurrentUser(resolvedUser);
+    sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(resolvedUser));
 
-    if (user.role === 'housekeeping') setActiveTab('housekeeping');
-    else if (user.role === 'owner') setActiveTab('analytics');
+    if (resolvedUser.role === 'front_desk' || resolvedUser.role === 'housekeeping') {
+      const staffBranch = resolvedUser.branchId || defaultBranchId;
+      setActiveBranchIdState(staffBranch);
+      localStorage.setItem(`${STORAGE_PREFIX}_active_branch`, staffBranch);
+    }
+
+    if (resolvedUser.role === 'housekeeping') setActiveTab('housekeeping');
+    else if (resolvedUser.role === 'owner') setActiveTab('analytics');
     else setActiveTab('matrix');
 
-    showNotification(`Signed in as ${user.name} (${user.title})`, 'success');
+    showNotification(`Signed in as ${resolvedUser.name} (${resolvedUser.title})`, 'success');
   };
 
   const logout = () => {
@@ -361,8 +545,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setRoomTypes((prev) =>
       prev.map((rt) => (rt.id === roomTypeId ? { ...rt, basePrice: newBasePrice } : rt))
     );
-    // Also update any available room pricing
-    setRooms((prev) =>
+    // Also update any available room pricing across inventory
+    setAllRooms((prev) =>
       prev.map((r) =>
         r.roomTypeId === roomTypeId && r.status === 'available'
           ? { ...r, pricePerNight: newBasePrice }
@@ -379,7 +563,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    setRooms((prev) =>
+    setAllRooms((prev) =>
       prev.map((r) => {
         if (r.id !== roomId) return r;
         return {
@@ -404,10 +588,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, error: 'Unauthorized: Your role does not have check-in permissions.' };
     }
 
-    const room = rooms.find((r) => r.id === payload.roomId);
+    const room = allRooms.find((r) => r.id === payload.roomId);
     if (!room) return { success: false, error: 'Target room not found' };
     if (room.status === 'occupied') return { success: false, error: 'Room is already occupied!' };
     if (room.status === 'maintenance') return { success: false, error: 'Room is blocked for maintenance!' };
+
+    const targetBranchId = room.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
 
     let guest = guests.find(
       (g) =>
@@ -450,6 +636,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const newReservation: Reservation = {
       id: resId,
+      branchId: targetBranchId,
       bookingCode,
       roomId: room.id,
       roomNumber: room.roomNumber,
@@ -477,6 +664,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const roomChargeTx: FolioTransaction = {
       id: `tx-${Date.now()}-1`,
+      branchId: targetBranchId,
       reservationId: resId,
       guestId: guest.id,
       roomNumber: room.roomNumber,
@@ -492,6 +680,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (payload.amountPaid > 0) {
       paymentTxs.push({
         id: `tx-${Date.now()}-2`,
+        branchId: targetBranchId,
         reservationId: resId,
         guestId: guest.id,
         roomNumber: room.roomNumber,
@@ -506,10 +695,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
 
-    setReservations((prev) => [newReservation, ...prev]);
-    setTransactions((prev) => [...paymentTxs, ...prev]);
+    setAllReservations((prev) => [newReservation, ...prev]);
+    setAllTransactions((prev) => [...paymentTxs, ...prev]);
 
-    setRooms((prev) =>
+    setAllRooms((prev) =>
       prev.map((r) =>
         r.id === room.id
           ? { ...r, status: 'occupied', currentReservationId: resId }
@@ -526,12 +715,15 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, error: 'Unauthorized: Your role does not have check-out permissions.' };
     }
 
-    const res = reservations.find((r) => r.id === reservationId);
+    const res = allReservations.find((r) => r.id === reservationId);
     if (!res) return { success: false, error: 'Reservation not found' };
+
+    const targetBranchId = res.branchId || defaultBranchId;
 
     if (settlementAmount && settlementAmount > 0 && paymentMethod) {
       const settlementTx: FolioTransaction = {
         id: `tx-${Date.now()}-stl`,
+        branchId: targetBranchId,
         reservationId: res.id,
         guestId: res.guestId,
         roomNumber: res.roomNumber,
@@ -544,10 +736,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
         recordedBy: currentUser?.name || 'Front Desk'
       };
-      setTransactions((prev) => [settlementTx, ...prev]);
+      setAllTransactions((prev) => [settlementTx, ...prev]);
     }
 
-    setReservations((prev) =>
+    setAllReservations((prev) =>
       prev.map((r) =>
         r.id === reservationId
           ? {
@@ -563,7 +755,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     // Turnover room to dirty for Housekeeping
-    setRooms((prev) =>
+    setAllRooms((prev) =>
       prev.map((room) =>
         room.id === res.roomId
           ? {
@@ -586,22 +778,26 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    const res = allReservations.find((r) => r.id === charge.reservationId);
+    const targetBranchId = charge.branchId || res?.branchId || defaultBranchId;
+
     const tx: FolioTransaction = {
       ...charge,
+      branchId: targetBranchId,
       id: `tx-${Date.now()}`,
       timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
-    setTransactions((prev) => [tx, ...prev]);
+    setAllTransactions((prev) => [tx, ...prev]);
 
-    setReservations((prev) =>
-      prev.map((res) => {
-        if (res.id !== charge.reservationId) return res;
-        const newTotal = res.totalAmount + charge.amount;
+    setAllReservations((prev) =>
+      prev.map((r) => {
+        if (r.id !== charge.reservationId) return r;
+        const newTotal = r.totalAmount + charge.amount;
         return {
-          ...res,
+          ...r,
           totalAmount: newTotal,
-          paymentStatus: res.amountPaid >= newTotal ? 'paid' : 'partial'
+          paymentStatus: r.amountPaid >= newTotal ? 'paid' : 'partial'
         };
       })
     );
@@ -615,23 +811,27 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    const res = allReservations.find((r) => r.id === payment.reservationId);
+    const targetBranchId = payment.branchId || res?.branchId || defaultBranchId;
+
     const tx: FolioTransaction = {
       ...payment,
+      branchId: targetBranchId,
       id: `tx-${Date.now()}`,
       type: 'payment',
       timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
-    setTransactions((prev) => [tx, ...prev]);
+    setAllTransactions((prev) => [tx, ...prev]);
 
-    setReservations((prev) =>
-      prev.map((res) => {
-        if (res.id !== payment.reservationId) return res;
-        const newPaid = res.amountPaid + payment.amount;
+    setAllReservations((prev) =>
+      prev.map((r) => {
+        if (r.id !== payment.reservationId) return r;
+        const newPaid = r.amountPaid + payment.amount;
         return {
-          ...res,
+          ...r,
           amountPaid: newPaid,
-          paymentStatus: newPaid >= res.totalAmount ? 'paid' : 'partial'
+          paymentStatus: newPaid >= r.totalAmount ? 'paid' : 'partial'
         };
       })
     );
@@ -645,10 +845,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    const tx = transactions.find((t) => t.id === txId);
+    const tx = allTransactions.find((t) => t.id === txId);
     if (!tx || tx.voided) return false;
 
-    setTransactions((prev) =>
+    setAllTransactions((prev) =>
       prev.map((t) =>
         t.id === txId
           ? {
@@ -663,7 +863,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Re-adjust reservation balance
     if (tx.type === 'charge') {
-      setReservations((prev) =>
+      setAllReservations((prev) =>
         prev.map((res) =>
           res.id === tx.reservationId
             ? { ...res, totalAmount: Math.max(0, res.totalAmount - tx.amount) }
@@ -671,7 +871,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         )
       );
     } else if (tx.type === 'payment') {
-      setReservations((prev) =>
+      setAllReservations((prev) =>
         prev.map((res) =>
           res.id === tx.reservationId
             ? { ...res, amountPaid: Math.max(0, res.amountPaid - tx.amount) }
@@ -685,18 +885,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createMaintenanceTicket = (ticket: Omit<MaintenanceTicket, 'id' | 'ticketNumber' | 'reportedAt'>) => {
+    const room = allRooms.find((r) => r.id === ticket.roomId);
+    const targetBranchId = ticket.branchId || room?.branchId || defaultBranchId;
+
     const ticketNumber = `MT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const newTicket: MaintenanceTicket = {
       ...ticket,
+      branchId: targetBranchId,
       id: `mt-${Date.now()}`,
       ticketNumber,
       reportedAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
-    setMaintenanceTickets((prev) => [newTicket, ...prev]);
+    setAllMaintenanceTickets((prev) => [newTicket, ...prev]);
 
     if (ticket.blocksRoom) {
-      setRooms((prev) =>
+      setAllRooms((prev) =>
         prev.map((r) =>
           r.id === ticket.roomId
             ? { ...r, status: 'maintenance', maintenanceNote: ticket.description }
@@ -709,7 +913,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateMaintenanceStatus = (ticketId: string, status: MaintenanceTicket['status'], cost?: number) => {
-    setMaintenanceTickets((prev) =>
+    setAllMaintenanceTickets((prev) =>
       prev.map((t) => {
         if (t.id !== ticketId) return t;
         const updated = {
@@ -726,7 +930,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
 
         if (status === 'Resolved' && t.blocksRoom) {
-          setRooms((roomsList) =>
+          setAllRooms((roomsList) =>
             roomsList.map((r) =>
               r.id === t.roomId && r.status === 'maintenance'
                 ? { ...r, status: 'dirty', maintenanceNote: 'Repairs completed. Turnover cleaning required.' }
@@ -742,50 +946,70 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showNotification(`Work order updated to ${status}`, 'info');
   };
 
+  // Night Audit (Per-Branch Execution & Isolated Rollover)
   const runNightAudit = (expectedCash: number, actualCash: number, notes: string) => {
     if (!canRunAudit) {
       throw new Error('Unauthorized: Only Manager / Lead Accountant can execute Night Audit.');
     }
 
+    const targetBranchId = (activeBranchId && activeBranchId !== 'all') ? activeBranchId : defaultBranchId;
+    const targetBranch = branches.find((b) => b.id === targetBranchId);
+    const branchLabel = targetBranch?.name || 'Branch';
+
     const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
-    const activeRooms = rooms.filter((r) => r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId));
-    const occupied = activeRooms.filter((r) => r.status === 'occupied').length;
-    const totalRooms = activeRooms.length;
+    const branchRooms = allRooms.filter(
+      (r) => r.branchId === targetBranchId && r.isActive !== false && activeRoomTypeIds.has(r.roomTypeId)
+    );
+    const occupied = branchRooms.filter((r) => r.status === 'occupied').length;
+    const totalRooms = branchRooms.length;
     const occupancyRate = totalRooms > 0 ? (occupied / totalRooms) * 100 : 0;
 
-    const roomRevenue = reservations
-      .filter((r) => r.bookingStatus === 'checked_in')
+    const roomRevenue = allReservations
+      .filter((r) => r.branchId === targetBranchId && r.bookingStatus === 'checked_in')
       .reduce((sum, r) => sum + r.nightlyRate, 0);
 
-    const posRevenue = transactions
-      .filter((t) => !t.voided && (t.category === 'restaurant' || t.category === 'beverage' || t.category === 'laundry'))
+    const posRevenue = allTransactions
+      .filter(
+        (t) =>
+          t.branchId === targetBranchId &&
+          !t.voided &&
+          (t.category === 'restaurant' || t.category === 'beverage' || t.category === 'laundry')
+      )
       .reduce((sum, t) => sum + t.amount, 0);
 
     const totalGrossRevenue = roomRevenue + posRevenue;
     const adr = occupied > 0 ? roomRevenue / occupied : 0;
     const revPar = totalRooms > 0 ? roomRevenue / totalRooms : 0;
 
-    const cashCollected = transactions
-      .filter((t) => !t.voided && t.type === 'payment' && t.paymentMethod === 'cash')
+    const cashCollected = allTransactions
+      .filter((t) => t.branchId === targetBranchId && !t.voided && t.type === 'payment' && t.paymentMethod === 'cash')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const momoCollected = transactions
-      .filter((t) => !t.voided && t.type === 'payment' && t.paymentMethod === 'momo')
+    const momoCollected = allTransactions
+      .filter((t) => t.branchId === targetBranchId && !t.voided && t.type === 'payment' && t.paymentMethod === 'momo')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const orangeMoneyCollected = transactions
-      .filter((t) => !t.voided && t.type === 'payment' && t.paymentMethod === 'orange_money')
+    const orangeMoneyCollected = allTransactions
+      .filter((t) => t.branchId === targetBranchId && !t.voided && t.type === 'payment' && t.paymentMethod === 'orange_money')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const cardCollected = transactions
-      .filter((t) => !t.voided && t.type === 'payment' && (t.paymentMethod === 'card' || t.paymentMethod === 'bank_transfer'))
+    const cardCollected = allTransactions
+      .filter(
+        (t) =>
+          t.branchId === targetBranchId &&
+          !t.voided &&
+          t.type === 'payment' &&
+          (t.paymentMethod === 'card' || t.paymentMethod === 'bank_transfer')
+      )
       .reduce((sum, t) => sum + t.amount, 0);
 
     const discrepancy = actualCash - expectedCash;
+    const branchCurrentDate = branchBusinessDates[targetBranchId] || new Date().toISOString().split('T')[0];
 
     const report: NightAuditReport = {
-      id: `na-${businessDate}-${Date.now()}`,
-      date: businessDate,
+      id: `na-${targetBranchId}-${branchCurrentDate}-${Date.now()}`,
+      branchId: targetBranchId,
+      date: branchCurrentDate,
       totalRooms,
       roomsOccupied: occupied,
       occupancyRate: Number(occupancyRate.toFixed(1)),
@@ -801,19 +1025,24 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       expectedCashFloat: expectedCash,
       actualCashFloat: actualCash,
       discrepancy,
-      notes: notes || 'Night audit reconciled by management.',
+      notes: notes || `Night audit reconciled for ${branchLabel}.`,
       auditedBy: currentUser?.name || 'General Manager',
-      timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+      timestamp: `${branchCurrentDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
-    setNightAuditReports((prev) => [report, ...prev]);
+    setAllNightAuditReports((prev) => [report, ...prev]);
 
-    const currentDate = new Date(businessDate);
+    // Rollover business date ONLY for this specific branch
+    const currentDate = new Date(branchCurrentDate);
     currentDate.setDate(currentDate.getDate() + 1);
     const nextDate = currentDate.toISOString().split('T')[0];
-    setBusinessDate(nextDate);
 
-    showNotification(`Night Audit closed! Rolled over business date to ${nextDate}`, 'success');
+    setBranchBusinessDates((prev) => ({
+      ...prev,
+      [targetBranchId]: nextDate
+    }));
+
+    showNotification(`Night Audit closed for ${branchLabel}! Rolled over business date to ${nextDate}`, 'success');
     return report;
   };
 
@@ -830,7 +1059,116 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newGuest;
   };
 
+  // Branch Management (Manager / Owner)
+  const addBranch = (branchData: Omit<Branch, 'id'>) => {
+    const name = branchData.name.trim();
+    const city = branchData.city.trim();
+    if (!name) return { success: false, error: 'Branch name is required.' };
+    if (!city) return { success: false, error: 'Branch city is required.' };
+
+    const newId = `branch-${Date.now()}`;
+    const newBranch: Branch = {
+      ...branchData,
+      id: newId,
+      name,
+      city,
+      address: branchData.address?.trim() || '',
+      phone: branchData.phone?.trim() || '',
+      isActive: branchData.isActive !== false
+    };
+
+    setBranches((prev) => [...prev, newBranch]);
+    const today = new Date().toISOString().split('T')[0];
+    setBranchBusinessDates((prev) => ({
+      ...prev,
+      [newId]: today
+    }));
+
+    showNotification(`Branch "${name}" added successfully!`, 'success');
+    return { success: true };
+  };
+
+  const updateBranch = (id: string, branchData: Partial<Branch>) => {
+    if (branchData.name !== undefined && !branchData.name.trim()) {
+      return { success: false, error: 'Branch name cannot be empty.' };
+    }
+    if (branchData.city !== undefined && !branchData.city.trim()) {
+      return { success: false, error: 'Branch city cannot be empty.' };
+    }
+
+    setBranches((prev) =>
+      prev.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              ...branchData,
+              name: branchData.name !== undefined ? branchData.name.trim() : b.name,
+              city: branchData.city !== undefined ? branchData.city.trim() : b.city,
+              address: branchData.address !== undefined ? branchData.address.trim() : b.address,
+              phone: branchData.phone !== undefined ? branchData.phone.trim() : b.phone
+            }
+          : b
+      )
+    );
+    showNotification('Branch updated successfully.', 'success');
+    return { success: true };
+  };
+
+  const toggleBranchActive = (id: string, active: boolean) => {
+    if (!active) {
+      const activeCount = branches.filter((b) => b.isActive).length;
+      if (activeCount <= 1) {
+        showNotification('Cannot deactivate the only active branch. The system must always have at least one active branch.', 'warning');
+        return;
+      }
+    }
+    setBranches((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, isActive: active } : b))
+    );
+    if (!active && activeBranchId === id) {
+      const fallback = branches.find((b) => b.id !== id && b.isActive);
+      if (fallback) {
+        setActiveBranchIdState(fallback.id);
+      }
+    }
+    showNotification(`Branch ${active ? 'activated' : 'deactivated'}.`, 'info');
+  };
+
+  const deleteBranch = (id: string) => {
+    if (branches.length <= 1) {
+      return { success: false, error: 'Cannot delete the only branch in the system.' };
+    }
+
+    const roomCount = allRooms.filter((r) => r.branchId === id).length;
+    const resCount = allReservations.filter((r) => r.branchId === id).length;
+    const txCount = allTransactions.filter((t) => t.branchId === id).length;
+    const mtCount = allMaintenanceTickets.filter((m) => m.branchId === id).length;
+    const auditCount = allNightAuditReports.filter((a) => a.branchId === id).length;
+
+    if (roomCount > 0 || resCount > 0 || txCount > 0 || mtCount > 0 || auditCount > 0) {
+      return {
+        success: false,
+        error: `Cannot delete branch with active rooms or history (${roomCount} rooms, ${resCount} reservations, ${txCount} transactions).`,
+        canDeactivateInstead: true
+      };
+    }
+
+    setBranches((prev) => prev.filter((b) => b.id !== id));
+    if (activeBranchId === id) {
+      const fallback = branches.find((b) => b.id !== id && b.isActive) || branches[0];
+      if (fallback) {
+        setActiveBranchIdState(fallback.id);
+      }
+    }
+    showNotification('Branch deleted permanently.', 'info');
+    return { success: true };
+  };
+
+  // Reset to Demo Data
   const resetToDemoData = () => {
+    localStorage.removeItem(`${STORAGE_PREFIX}_branches`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_branch_business_dates`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_active_branch`);
     localStorage.removeItem(`${STORAGE_PREFIX}_room_types`);
     localStorage.removeItem(`${STORAGE_PREFIX}_rooms`);
     localStorage.removeItem(`${STORAGE_PREFIX}_guests`);
@@ -842,15 +1180,27 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(`${STORAGE_PREFIX}_business_date`);
 
     const initialDate = new Date().toISOString().split('T')[0];
-    setBusinessDate(initialDate);
+    const defaultBranch: Branch = {
+      id: 'branch-1',
+      name: hotelConfig.name || 'Main Branch',
+      city: hotelConfig.city || '',
+      address: hotelConfig.address || '',
+      phone: hotelConfig.phone || '',
+      isActive: true
+    };
+
+    setBranches([defaultBranch]);
+    setActiveBranchIdState('branch-1');
+    setBranchBusinessDates({ 'branch-1': initialDate });
+
     setRoomTypes(isDemoMode ? INITIAL_ROOM_TYPES : []);
-    setRooms(isDemoMode ? INITIAL_ROOMS : []);
+    setAllRooms(isDemoMode ? INITIAL_ROOMS.map((r) => ({ ...r, branchId: 'branch-1' })) : []);
     setGuests(isDemoMode ? INITIAL_GUESTS : []);
-    setReservations(isDemoMode ? INITIAL_RESERVATIONS : []);
-    setTransactions(isDemoMode ? INITIAL_TRANSACTIONS : []);
-    setMaintenanceTickets(isDemoMode ? INITIAL_MAINTENANCE_TICKETS : []);
+    setAllReservations(isDemoMode ? INITIAL_RESERVATIONS.map((res) => ({ ...res, branchId: 'branch-1' })) : []);
+    setAllTransactions(isDemoMode ? INITIAL_TRANSACTIONS.map((t) => ({ ...t, branchId: 'branch-1' })) : []);
+    setAllMaintenanceTickets(isDemoMode ? INITIAL_MAINTENANCE_TICKETS.map((m) => ({ ...m, branchId: 'branch-1' })) : []);
     setPosItems(isDemoMode ? INITIAL_POS_ITEMS : []);
-    setNightAuditReports(isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY : []);
+    setAllNightAuditReports(isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY.map((a) => ({ ...a, branchId: 'branch-1' })) : []);
     setSelectedRoom(null);
     setSelectedReservation(null);
     showNotification(isDemoMode ? 'System reset to clean sample demo data!' : 'System cleared to fresh empty state.', 'info');
@@ -858,9 +1208,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Room Type & Room Management (Manager Scope)
   const addRoomType = (newTypeData: Omit<RoomType, 'id'>) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can configure room types.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers can configure room types.' };
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can configure room types.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can configure room types.' };
     }
     const name = newTypeData.name?.trim();
     const code = newTypeData.code?.trim().toUpperCase();
@@ -885,9 +1235,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateRoomType = (id: string, updatedData: Partial<RoomType>) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can edit room types.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers can edit room types.' };
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can edit room types.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can edit room types.' };
     }
     if (updatedData.name !== undefined && !updatedData.name.trim()) {
       return { success: false, error: 'Room type name cannot be empty.' };
@@ -910,11 +1260,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteRoomType = (id: string) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can delete room types.', 'warning');
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can delete room types.', 'warning');
       return { success: false, error: 'Unauthorized.' };
     }
-    const hasRooms = rooms.some((r) => r.roomTypeId === id);
+    const hasRooms = allRooms.some((r) => r.roomTypeId === id);
     if (hasRooms) {
       return {
         success: false,
@@ -928,8 +1278,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const toggleRoomTypeActive = (id: string, active: boolean) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can alter room type status.', 'warning');
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can alter room type status.', 'warning');
       return;
     }
     setRoomTypes((prev) =>
@@ -938,9 +1288,17 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showNotification(`Room type ${active ? 'activated' : 'deactivated'}.`, 'info');
   };
 
-  const addRoom = (roomData: { roomNumber: string; floor: number; roomTypeId: string; pricePerNight: number; image?: string }) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can add rooms.', 'warning');
+  // Rooms Management (Per-Branch Creation & Uniqueness)
+  const addRoom = (roomData: {
+    roomNumber: string;
+    floor: number;
+    roomTypeId: string;
+    pricePerNight: number;
+    branchId?: string;
+    image?: string;
+  }) => {
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can add rooms.', 'warning');
       return { success: false, error: 'Unauthorized.' };
     }
     const num = roomData.roomNumber?.trim();
@@ -949,24 +1307,30 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isNaN(roomData.floor)) return { success: false, error: 'Floor must be a valid number.' };
     if (roomData.pricePerNight <= 0) return { success: false, error: 'Nightly rate must be greater than 0.' };
 
-    const duplicate = rooms.some((r) => r.roomNumber.toLowerCase() === num.toLowerCase());
+    const targetBranchId = roomData.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
+
+    // Room numbers must be unique within a branch, not across the whole hotel
+    const duplicate = allRooms.some(
+      (r) => r.branchId === targetBranchId && r.roomNumber.toLowerCase() === num.toLowerCase()
+    );
     if (duplicate) {
-      return { success: false, error: `Room number "${num}" already exists in the property inventory.` };
+      return { success: false, error: `Room number "${num}" already exists in this branch.` };
     }
 
     const newRoom: Room = {
-      id: `rm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      id: `rm-${targetBranchId}-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
       roomNumber: num,
       floor: roomData.floor,
       roomTypeId: roomData.roomTypeId,
+      branchId: targetBranchId,
       pricePerNight: roomData.pricePerNight,
       status: 'available',
       isActive: true,
       image: roomData.image
     };
 
-    setRooms((prev) => [...prev, newRoom]);
-    showNotification(`Room #${newRoom.roomNumber} created and ready in inventory.`, 'success');
+    setAllRooms((prev) => [...prev, newRoom]);
+    showNotification(`Room #${newRoom.roomNumber} created in branch.`, 'success');
     return { success: true };
   };
 
@@ -976,9 +1340,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     floor: number;
     roomTypeId: string;
     pricePerNight: number;
+    branchId?: string;
   }) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can bulk-add rooms.', 'warning');
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can bulk-add rooms.', 'warning');
       return { success: false, count: 0, error: 'Unauthorized.' };
     }
     const { startNumber, endNumber, floor, roomTypeId, pricePerNight } = params;
@@ -988,10 +1353,17 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (pricePerNight <= 0) return { success: false, count: 0, error: 'Price per night must be greater than 0.' };
     if (!roomTypeId) return { success: false, count: 0, error: 'Please select a room type.' };
 
-    const existingSet = new Set(rooms.map((r) => r.roomNumber.toLowerCase()));
+    const targetBranchId = params.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
+
+    const existingBranchRooms = new Set(
+      allRooms
+        .filter((r) => r.branchId === targetBranchId)
+        .map((r) => r.roomNumber.toLowerCase())
+    );
+
     const conflicts: string[] = [];
     for (let n = startNumber; n <= endNumber; n++) {
-      if (existingSet.has(String(n).toLowerCase())) {
+      if (existingBranchRooms.has(String(n).toLowerCase())) {
         conflicts.push(String(n));
       }
     }
@@ -1000,56 +1372,65 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         success: false,
         count: 0,
-        error: `Cannot create rooms: Room number(s) ${conflicts.slice(0, 6).join(', ')}${conflicts.length > 6 ? '...' : ''} already exist.`
+        error: `Cannot create rooms: Room number(s) ${conflicts.slice(0, 6).join(', ')}${conflicts.length > 6 ? '...' : ''} already exist in this branch.`
       };
     }
 
     const created: Room[] = [];
     for (let n = startNumber; n <= endNumber; n++) {
       created.push({
-        id: `rm-${Date.now()}-${n}`,
+        id: `rm-${targetBranchId}-${Date.now()}-${n}`,
         roomNumber: String(n),
         floor,
         roomTypeId,
+        branchId: targetBranchId,
         pricePerNight,
         status: 'available',
         isActive: true
       });
     }
 
-    setRooms((prev) => [...prev, ...created]);
-    showNotification(`Added ${created.length} rooms (${startNumber} to ${endNumber}) on Floor ${floor}!`, 'success');
+    setAllRooms((prev) => [...prev, ...created]);
+    showNotification(`Added ${created.length} rooms (${startNumber} to ${endNumber}) on Floor ${floor} to branch!`, 'success');
     return { success: true, count: created.length };
   };
 
   const updateRoom = (id: string, updatedData: Partial<Room>) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can edit rooms.', 'warning');
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can edit rooms.', 'warning');
       return { success: false, error: 'Unauthorized.' };
     }
+
+    const existingRoom = allRooms.find((r) => r.id === id);
+    if (!existingRoom) return { success: false, error: 'Room not found.' };
+
+    const targetBranchId = updatedData.branchId || existingRoom.branchId;
+
     if (updatedData.roomNumber !== undefined) {
       const num = updatedData.roomNumber.trim();
       if (!num) return { success: false, error: 'Room number cannot be empty.' };
-      const duplicate = rooms.some((r) => r.id !== id && r.roomNumber.toLowerCase() === num.toLowerCase());
-      if (duplicate) return { success: false, error: `Room number "${num}" is already in use by another room.` };
+      const duplicate = allRooms.some(
+        (r) => r.id !== id && r.branchId === targetBranchId && r.roomNumber.toLowerCase() === num.toLowerCase()
+      );
+      if (duplicate) return { success: false, error: `Room number "${num}" is already in use by another room in this branch.` };
     }
     if (updatedData.pricePerNight !== undefined && updatedData.pricePerNight <= 0) {
       return { success: false, error: 'Price per night must be greater than 0.' };
     }
 
-    setRooms((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...updatedData } : r))
+    setAllRooms((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updatedData, branchId: targetBranchId } : r))
     );
     showNotification('Room updated successfully.', 'success');
     return { success: true };
   };
 
   const deleteRoom = (id: string) => {
-    if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can delete rooms.', 'warning');
+    if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+      showNotification('Unauthorized: Only managers and owners can delete rooms.', 'warning');
       return { success: false, error: 'Unauthorized.' };
     }
-    const targetRoom = rooms.find((r) => r.id === id);
+    const targetRoom = allRooms.find((r) => r.id === id);
     if (!targetRoom) return { success: false, error: 'Room not found.' };
 
     if (targetRoom.status === 'occupied' || targetRoom.currentReservationId) {
@@ -1060,8 +1441,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const hasResHistory = reservations.some(
-      (res) => res.roomId === id || res.roomNumber === targetRoom.roomNumber
+    const hasResHistory = allReservations.some(
+      (res) => res.roomId === id || (res.branchId === targetRoom.branchId && res.roomNumber === targetRoom.roomNumber)
     );
     if (hasResHistory) {
       return {
@@ -1071,7 +1452,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    setRooms((prev) => prev.filter((r) => r.id !== id));
+    setAllRooms((prev) => prev.filter((r) => r.id !== id));
     showNotification(`Room #${targetRoom.roomNumber} removed from inventory.`, 'info');
     return { success: true };
   };
@@ -1081,7 +1462,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showNotification('Unauthorized: Only managers can alter room status.', 'warning');
       return;
     }
-    setRooms((prev) =>
+    setAllRooms((prev) =>
       prev.map((r) => (r.id === id ? { ...r, isActive: active } : r))
     );
     showNotification(`Room ${active ? 'activated' : 'deactivated'}.`, 'info');
@@ -1113,6 +1494,21 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         canCheckIn,
         canCheckOut,
         isReadOnly,
+        branches,
+        activeBranchId,
+        activeBranch,
+        hasMultipleActiveBranches,
+        branchBusinessDates,
+        setActiveBranchId,
+        addBranch,
+        updateBranch,
+        deleteBranch,
+        toggleBranchActive,
+        allRooms,
+        allReservations,
+        allTransactions,
+        allMaintenanceTickets,
+        allNightAuditReports,
         login,
         fastLogin,
         logout,
