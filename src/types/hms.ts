@@ -80,6 +80,7 @@ export interface Reservation {
   bookingCode: string;
   roomId: string;
   roomNumber: string;
+  roomTypeId?: string;
   guestId: string;
   guestName: string;
   guestPhone: string;
@@ -94,13 +95,17 @@ export interface Reservation {
   paymentStatus: 'unpaid' | 'partial' | 'paid';
   bookingStatus: BookingStatus;
   paymentMethod: PaymentMethod;
-  source: 'Walk-In' | 'Phone' | 'Direct Website' | 'OTA - Booking.com' | 'Corporate';
+  source: 'Walk-In' | 'Phone' | 'WhatsApp' | 'Direct Website' | 'OTA - Booking.com' | 'Corporate';
   specialRequests?: string;
   keyReturned?: boolean;
   createdAt: string;
   checkedInAt?: string;
   checkedOutAt?: string;
   checkedInBy?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
+  cancellationReason?: string;
+  cancellationFee?: number;
 }
 
 export interface FolioTransaction {
