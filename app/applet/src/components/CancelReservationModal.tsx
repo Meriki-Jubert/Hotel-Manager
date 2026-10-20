@@ -6,9 +6,7 @@ import {
   AlertTriangle,
   UserX,
   DollarSign,
-  FileText,
-  AlertCircle,
-  CreditCard
+  AlertCircle
 } from 'lucide-react';
 
 interface CancelReservationModalProps {
@@ -24,25 +22,24 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { cancelReservation, formatMoney, transactions } = useHMS();
+  const { cancelReservation, transactions, formatMoney } = useHMS();
   const [isNoShow, setIsNoShow] = useState(initialIsNoShow);
   const [reason, setReason] = useState(
     initialIsNoShow ? 'Guest failed to arrive on the scheduled check-in date without notification' : ''
   );
   const [fee, setFee] = useState<number>(0);
   const [settlementChoice, setSettlementChoice] = useState<'refund' | 'credit'>('refund');
-  const [refundMethod, setRefundMethod] = useState<PaymentMethod>('cash');
+  const [refundMethod, setRefundMethod] = useState<PaymentMethod>('momo');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Calculate deposit / payments paid for this reservation
-  const reservationTransactions = transactions.filter(
-    (t) => t.reservationId === reservation.id && !t.voided
-  );
-  const totalPaymentsPaid = reservationTransactions
-    .filter((t) => t.type === 'payment' || t.category === 'deposit')
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Calculate deposit paid
+  const reservationTxs = transactions.filter((t) => t.reservationId === reservation.id && !t.voided);
+  const depositPaid = reservationTxs
+    .filter((t) => t.type === 'payment')
+    .reduce((s, t) => s + t.amount, 0);
 
-  const netBalance = fee - totalPaymentsPaid; // if negative, refund is due. if positive, balance due.
+  const refundDue = depositPaid > fee ? depositPaid - fee : 0;
+  const balanceDue = fee > depositPaid ? fee - depositPaid : 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,9 +54,10 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
       reason,
       fee,
       isNoShow,
-      settlementChoice,
-      refundMethod
+      refundDue > 0 ? settlementChoice : undefined,
+      refundDue > 0 && settlementChoice === 'refund' ? refundMethod : undefined
     );
+
     if (!res.success) {
       setErrorMsg(res.error || 'Failed to cancel reservation.');
       return;
@@ -71,14 +69,14 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in fade-in zoom-in-95">
-        {/* Header - shrink-0 pinned at top */}
+        {/* Header */}
         <div className="bg-rose-950 text-white px-5 sm:px-6 py-4 flex items-center justify-between border-b border-rose-900 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
               <UserX className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-white">
                 {isNoShow ? 'Record Guest No-Show' : 'Cancel Reservation'}
               </h2>
               <p className="text-xs text-rose-200 font-mono">
@@ -94,7 +92,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body - scrollable */}
+        {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 text-slate-900 overflow-y-auto flex-1">
           {errorMsg && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-700">
@@ -141,7 +139,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             </div>
           </div>
 
-          {/* Cancellation Reason (REQUIRED) */}
+          {/* Reason */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               {isNoShow ? 'No-Show Explanation / Notes' : 'Cancellation Reason'}{' '}
@@ -149,26 +147,23 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             </label>
             <textarea
               required
-              rows={3}
+              rows={2}
               placeholder={
                 isNoShow
                   ? 'Describe details (e.g. Phone unreachable, no arrival by midnight)...'
-                  : 'Specify reason (e.g. Guest travel plans changed, emergency, weather)...'
+                  : 'Specify reason (e.g. Guest travel plans changed, emergency)...'
               }
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white resize-none text-slate-900"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white resize-none"
             />
           </div>
 
-          {/* Optional Fee & Accounting Summary */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-700">
-                Cancellation / Penalty Fee
-              </label>
-              <span className="text-[10px] text-slate-500 font-mono">Original Room Charge: {formatMoney(reservation.totalAmount)}</span>
-            </div>
+          {/* Fee Input */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <label className="block text-xs font-bold text-slate-700">
+              Cancellation / No-Show Fee Penalty
+            </label>
             <div className="relative">
               <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -181,78 +176,103 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
                 className="w-full pl-9 pr-3 py-2 text-xs font-mono font-bold bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-900"
               />
             </div>
+          </div>
 
-            {/* Accounting Settlement Summary */}
-            <div className="pt-3 border-t border-slate-200 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-600">
+          {/* Financial Summary & Settlement */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+              Folio Settlement & Refund Summary
+            </span>
+            <div className="space-y-1.5 text-xs text-slate-600">
+              <div className="flex justify-between">
                 <span>Deposit / Payments Paid:</span>
-                <span className="font-mono font-bold text-emerald-700">{formatMoney(totalPaymentsPaid)}</span>
+                <span className="font-mono font-bold text-emerald-700">{formatMoney(depositPaid)}</span>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Cancellation Fee:</span>
+              <div className="flex justify-between">
+                <span>Applied Fee:</span>
                 <span className="font-mono font-bold text-rose-700">{formatMoney(fee)}</span>
               </div>
-              <div className="flex justify-between pt-1 border-t border-slate-200 font-bold text-slate-900">
-                <span>
-                  {netBalance < 0 ? 'Refund Due to Guest:' : netBalance > 0 ? 'Remaining Balance Due:' : 'Net Folio Balance:'}
+              <div className="h-px bg-slate-200 my-1" />
+              <div className="flex justify-between font-bold text-sm">
+                <span className="text-slate-900">
+                  {refundDue > 0 ? 'Refund Due to Guest:' : balanceDue > 0 ? 'Remaining Balance Due:' : 'Net Folio Balance:'}
                 </span>
-                <span className={`font-mono ${netBalance < 0 ? 'text-emerald-700' : netBalance > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
-                  {formatMoney(Math.abs(netBalance))} {netBalance < 0 ? '(Refund)' : netBalance > 0 ? '(Due)' : ''}
+                <span
+                  className={`font-mono ${
+                    refundDue > 0 ? 'text-blue-600 font-extrabold' : balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'
+                  }`}
+                >
+                  {refundDue > 0 ? formatMoney(refundDue) : balanceDue > 0 ? formatMoney(balanceDue) : '0 FCFA (Fully Settled)'}
                 </span>
               </div>
             </div>
 
-            {netBalance < 0 && (
-              <div className="pt-3 border-t border-slate-200 space-y-2">
-                <label className="block text-xs font-bold text-slate-700">
-                  Select Settlement for Excess Deposit ({formatMoney(Math.abs(netBalance))})
-                </label>
+            {refundDue > 0 && (
+              <div className="pt-2 border-t border-slate-200 space-y-2.5">
+                <span className="text-xs font-bold text-slate-700 block">
+                  Select Refund / Credit Option:
+                </span>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setSettlementChoice('refund')}
-                    className={`p-2.5 rounded-xl border text-left text-xs font-semibold transition-all ${
+                    className={`p-2.5 rounded-lg border text-xs font-bold text-left transition-all ${
                       settlementChoice === 'refund'
-                        ? 'bg-rose-50 border-rose-500 text-rose-900'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                        ? 'bg-rose-50 border-rose-500 text-rose-900 ring-2 ring-rose-500/20'
+                        : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    <div className="font-bold">Refund Now</div>
-                    <div className="text-[10px] text-slate-500 font-normal">Issue cash/MoMo refund immediately</div>
+                    <div>Refund Now</div>
+                    <span className="text-[10px] font-normal text-slate-500 block">Issue immediate refund</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSettlementChoice('credit')}
-                    className={`p-2.5 rounded-xl border text-left text-xs font-semibold transition-all ${
+                    className={`p-2.5 rounded-lg border text-xs font-bold text-left transition-all ${
                       settlementChoice === 'credit'
-                        ? 'bg-rose-50 border-rose-500 text-rose-900'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20'
+                        : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    <div className="font-bold">Keep as Credit</div>
-                    <div className="text-[10px] text-slate-500 font-normal">Retain deposit as guest profile credit</div>
+                    <div>Keep as Credit</div>
+                    <span className="text-[10px] font-normal text-slate-500 block">Save deposit as guest credit</span>
                   </button>
                 </div>
 
                 {settlementChoice === 'refund' && (
-                  <div className="pt-2">
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Refund Payout Channel
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[11px] font-semibold text-slate-700 block">
+                      Refund Payout Channel:
                     </label>
-                    <select
-                      value={refundMethod}
-                      onChange={(e) => setRefundMethod(e.target.value as PaymentMethod)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg font-semibold text-slate-900"
-                    >
-                      <option value="cash">Cash Refund</option>
-                      <option value="momo">MTN Mobile Money (MoMo)</option>
-                      <option value="orange_money">Orange Money</option>
-                      <option value="card">Bank Card / POS</option>
-                      <option value="bank_transfer">Bank Wire Transfer</option>
-                    </select>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { id: 'cash', label: 'Cash' },
+                        { id: 'momo', label: 'MTN MoMo' },
+                        { id: 'orange_money', label: 'Orange Money' }
+                      ].map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setRefundMethod(m.id as PaymentMethod)}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                            refundMethod === m.id
+                              ? 'bg-slate-900 text-white border-slate-900'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
+            )}
+
+            {balanceDue > 0 && (
+              <p className="text-[11px] text-rose-700 font-semibold pt-1">
+                The remaining balance of {formatMoney(balanceDue)} will stay visible on the guest folio for collection.
+              </p>
             )}
           </div>
 
@@ -261,13 +281,13 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
             >
               Keep Booking
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5"
             >
               <UserX className="w-4 h-4" />
               <span>Confirm {isNoShow ? 'No-Show' : 'Cancellation'}</span>

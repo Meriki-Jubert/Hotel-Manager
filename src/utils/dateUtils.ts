@@ -74,3 +74,13 @@ export function isValidDateString(dateStr: string): boolean {
     d.getDate() === parts[2]
   );
 }
+
+export function listNights(checkIn: string, checkOut: string): string[] {
+  const nights: string[] = [];
+  let curr = checkIn;
+  while (curr < checkOut) {
+    nights.push(curr);
+    curr = addDaysToLocalDate(curr, 1);
+  }
+  return nights;
+}
