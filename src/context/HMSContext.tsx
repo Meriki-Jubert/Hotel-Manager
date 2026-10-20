@@ -42,6 +42,7 @@ import {
   calculateStayNights,
   isValidDateString
 } from '../utils/dateUtils';
+import { checkAvailability } from '../utils/availability';
 import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
 
 export type NavTab =
@@ -1175,6 +1176,33 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, reservationId: resId };
   };
 
+  const isRoomAvailableForDateRange = (
+    roomId: string,
+    checkInDate: string,
+    checkOutDate: string,
+    excludeReservationId?: string
+  ): boolean => {
+    const room = allRooms.find((r) => r.id === roomId);
+    if (!room || room.isActive === false) return false;
+
+    const branchId = room.branchId || defaultBranchId;
+    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === branchId);
+    const branchReservations = allReservations.filter((res) => (res.branchId || defaultBranchId) === branchId);
+
+    const check = checkAvailability({
+      branchId,
+      roomTypeId: room.roomTypeId,
+      checkInDate,
+      checkOutDate,
+      rooms: branchRooms,
+      reservations: branchReservations,
+      excludeReservationId,
+      requestedRoomId: roomId
+    });
+
+    return check.available;
+  };
+
   const getAvailableRoomsForDateRange = (
     checkInDate: string,
     checkOutDate: string,
@@ -1187,34 +1215,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (targetBranchId && room.branchId !== targetBranchId) return false;
       if (roomTypeId && room.roomTypeId !== roomTypeId) return false;
 
-      const hasOverlap = allReservations.some((res) => {
-        if (excludeReservationId && res.id === excludeReservationId) return false;
-        if (res.roomId !== room.id) return false;
-        if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') return false;
-        return doDateRangesOverlap(res.checkInDate, res.checkOutDate, checkInDate, checkOutDate);
-      });
-
-      return !hasOverlap;
+      return isRoomAvailableForDateRange(room.id, checkInDate, checkOutDate, excludeReservationId);
     });
-  };
-
-  const isRoomAvailableForDateRange = (
-    roomId: string,
-    checkInDate: string,
-    checkOutDate: string,
-    excludeReservationId?: string
-  ): boolean => {
-    const room = allRooms.find((r) => r.id === roomId);
-    if (!room || room.isActive === false) return false;
-
-    const hasOverlap = allReservations.some((res) => {
-      if (excludeReservationId && res.id === excludeReservationId) return false;
-      if (res.roomId !== room.id) return false;
-      if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') return false;
-      return doDateRangesOverlap(res.checkInDate, res.checkOutDate, checkInDate, checkOutDate);
-    });
-
-    return !hasOverlap;
   };
 
   const getNextUpcomingReservationForRoom = (roomId: string): Reservation | undefined => {
@@ -1274,34 +1276,26 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!assignedRoom) {
         return { success: false, error: 'Selected room not found or is deactivated.' };
       }
-      const isFree = isRoomAvailableForDateRange(assignedRoom.id, payload.checkInDate, payload.checkOutDate);
-      if (!isFree) {
-        return {
-          success: false,
-          error: `Room #${assignedRoom.roomNumber} already has an overlapping reservation for these dates. Please choose another room or date range.`
-        };
-      }
-    } else {
-      const activeRoomsOfType = allRooms.filter(
-        (r) => r.branchId === targetBranchId && r.isActive !== false && r.roomTypeId === roomType.id
-      );
-      if (activeRoomsOfType.length === 0) {
-        return { success: false, error: `No active rooms of type ${roomType.name} configured in this branch.` };
-      }
-      const overlappingBookings = allReservations.filter((res) => {
-        if (res.branchId !== targetBranchId) return false;
-        if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') return false;
-        const resRoomTypeId = res.roomTypeId || allRooms.find((r) => r.id === res.roomId)?.roomTypeId;
-        if (resRoomTypeId !== roomType.id) return false;
-        return doDateRangesOverlap(res.checkInDate, res.checkOutDate, payload.checkInDate, payload.checkOutDate);
-      });
+    }
 
-      if (overlappingBookings.length >= activeRoomsOfType.length) {
-        return {
-          success: false,
-          error: `All ${activeRoomsOfType.length} rooms of type ${roomType.name} are fully booked for these dates.`
-        };
-      }
+    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = allReservations.filter((res) => (res.branchId || defaultBranchId) === targetBranchId);
+
+    const availCheck = checkAvailability({
+      branchId: targetBranchId,
+      roomTypeId: roomType.id,
+      checkInDate: payload.checkInDate,
+      checkOutDate: payload.checkOutDate,
+      rooms: branchRooms,
+      reservations: branchReservations,
+      requestedRoomId: assignedRoom ? assignedRoom.id : undefined
+    });
+
+    if (!availCheck.available) {
+      return {
+        success: false,
+        error: availCheck.reason || `No rooms available for ${roomType.name} on the selected dates.`
+      };
     }
 
     let guest = payload.guestId ? guests.find((g) => g.id === payload.guestId) : undefined;
@@ -1454,30 +1448,33 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    const targetBranchId = res.branchId || defaultBranchId;
+
     let assignedRoom: Room | undefined;
     if (payload.roomId) {
       assignedRoom = allRooms.find((r) => r.id === payload.roomId && r.isActive !== false);
       if (!assignedRoom) return { success: false, error: 'Selected room not found or deactivated.' };
+    }
 
-      const isFree = isRoomAvailableForDateRange(assignedRoom.id, payload.checkInDate, payload.checkOutDate, reservationId);
-      if (!isFree) {
-        return { success: false, error: `Room #${assignedRoom.roomNumber} is unavailable for the selected dates.` };
-      }
-    } else {
-      const activeRoomsOfType = allRooms.filter(
-        (r) => r.branchId === res.branchId && r.isActive !== false && r.roomTypeId === roomType.id
-      );
-      const overlapping = allReservations.filter((r) => {
-        if (r.id === reservationId) return false;
-        if (r.branchId !== res.branchId) return false;
-        if (r.bookingStatus !== 'reserved' && r.bookingStatus !== 'checked_in') return false;
-        const resRoomTypeId = r.roomTypeId || allRooms.find((rm) => rm.id === r.roomId)?.roomTypeId;
-        if (resRoomTypeId !== roomType.id) return false;
-        return doDateRangesOverlap(r.checkInDate, r.checkOutDate, payload.checkInDate, payload.checkOutDate);
-      });
-      if (overlapping.length >= activeRoomsOfType.length) {
-        return { success: false, error: `All rooms of type ${roomType.name} are booked for these dates.` };
-      }
+    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+
+    const availCheck = checkAvailability({
+      branchId: targetBranchId,
+      roomTypeId: roomType.id,
+      checkInDate: payload.checkInDate,
+      checkOutDate: payload.checkOutDate,
+      rooms: branchRooms,
+      reservations: branchReservations,
+      excludeReservationId: reservationId,
+      requestedRoomId: assignedRoom ? assignedRoom.id : undefined
+    });
+
+    if (!availCheck.available) {
+      return {
+        success: false,
+        error: availCheck.reason || `No rooms available for ${roomType.name} on the selected dates.`
+      };
     }
 
     const nights = calculateStayNights(payload.checkInDate, payload.checkOutDate);

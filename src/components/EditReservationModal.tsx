@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, BookingSource } from '../types/hms';
 import { calculateStayNights, isValidDateString } from '../utils/dateUtils';
+import { checkAvailability, getAvailableRoomCount } from '../utils/availability';
 import {
   X,
   Calendar,
@@ -27,10 +28,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const {
     roomTypes,
     rooms,
+    allRooms,
+    allReservations,
+    branches,
     businessDate,
     formatMoney,
-    updateReservation,
-    getAvailableRoomsForDateRange
+    updateReservation
   } = useHMS();
 
   const activeRoomTypes = roomTypes.filter((rt) => rt.isActive !== false);
@@ -50,13 +53,52 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const [specialRequests, setSpecialRequests] = useState(reservation.specialRequests || '');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Available rooms for selected dates, excluding current reservation
+  const effectiveBranchId = useMemo(() => {
+    return reservation.branchId || branches[0]?.id || 'branch-1';
+  }, [reservation.branchId, branches]);
+
+  const branchRooms = useMemo(() => {
+    return allRooms.filter((r) => (r.branchId || branches[0]?.id || 'branch-1') === effectiveBranchId);
+  }, [allRooms, effectiveBranchId, branches]);
+
+  const branchReservations = useMemo(() => {
+    return allReservations.filter((res) => (res.branchId || branches[0]?.id || 'branch-1') === effectiveBranchId);
+  }, [allReservations, effectiveBranchId, branches]);
+
+  // Total bookable room count using getAvailableRoomCount
+  const availableRoomCount = useMemo(() => {
+    if (!checkInDate || !checkOutDate || checkOutDate <= checkInDate || !roomTypeId) return 0;
+    return getAvailableRoomCount(
+      effectiveBranchId,
+      roomTypeId,
+      checkInDate,
+      checkOutDate,
+      branchRooms,
+      branchReservations,
+      reservation.id
+    );
+  }, [effectiveBranchId, roomTypeId, checkInDate, checkOutDate, branchRooms, branchReservations, reservation.id]);
+
+  // Specific room dropdown items using checkAvailability
   const availableRoomsForRange = useMemo(() => {
-    if (!checkInDate || !checkOutDate || checkOutDate <= checkInDate) {
+    if (!checkInDate || !checkOutDate || checkOutDate <= checkInDate || !roomTypeId) {
       return [];
     }
-    return getAvailableRoomsForDateRange(checkInDate, checkOutDate, roomTypeId, reservation.id);
-  }, [checkInDate, checkOutDate, roomTypeId, reservation.id, getAvailableRoomsForDateRange]);
+    return branchRooms.filter((room) => {
+      if (room.roomTypeId !== roomTypeId || room.isActive === false) return false;
+      const check = checkAvailability({
+        branchId: effectiveBranchId,
+        roomTypeId,
+        checkInDate,
+        checkOutDate,
+        rooms: branchRooms,
+        reservations: branchReservations,
+        excludeReservationId: reservation.id,
+        requestedRoomId: room.id
+      });
+      return check.available;
+    });
+  }, [effectiveBranchId, roomTypeId, checkInDate, checkOutDate, branchRooms, branchReservations, reservation.id]);
 
   const currentRoomType = activeRoomTypes.find((rt) => rt.id === roomTypeId);
   const currentRoom = rooms.find((r) => r.id === selectedRoomId);
@@ -104,7 +146,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
         return;
       }
     } else {
-      if (availableRoomsForRange.length === 0) {
+      if (availableRoomCount === 0) {
         setErrorMsg(`All rooms of type ${currentRoomType?.name} are booked for the selected dates.`);
         return;
       }
@@ -223,7 +265,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
                 <span>Specific Room</span>
                 <span className="text-[10px] font-semibold text-emerald-700">
-                  {availableRoomsForRange.length} available
+                  {availableRoomCount} {availableRoomCount === 1 ? 'room' : 'rooms'} available
                 </span>
               </label>
               <select
