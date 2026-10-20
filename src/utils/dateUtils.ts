@@ -41,3 +41,36 @@ export function getLocalTimestampString(d: Date = new Date()): string {
   const minutes = String(d.getMinutes()).padStart(2, '0');
   return `${date} ${hours}:${minutes}`;
 }
+
+/**
+ * Checks whether two date ranges [startA, endA] and [startB, endB] overlap.
+ * Date strings must be in 'YYYY-MM-DD' format.
+ * Note: A checkout on date X does NOT overlap with a checkin on date X (startA < endB && endA > startB).
+ */
+export function doDateRangesOverlap(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string
+): boolean {
+  return startA < endB && endA > startB;
+}
+
+export function calculateStayNights(checkIn: string, checkOut: string): number {
+  const start = new Date(checkIn).getTime();
+  const end = new Date(checkOut).getTime();
+  if (isNaN(start) || isNaN(end) || end <= start) return 1;
+  const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+  return Math.max(1, diffDays);
+}
+
+export function isValidDateString(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const parts = dateStr.split('-').map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  return (
+    d.getFullYear() === parts[0] &&
+    d.getMonth() === parts[1] - 1 &&
+    d.getDate() === parts[2]
+  );
+}

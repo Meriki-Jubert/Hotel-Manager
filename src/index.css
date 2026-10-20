@@ -6,6 +6,33 @@
   * {
     border-color: rgb(226 232 240);
   }
+  input, select, textarea {
+    color: #0f172a;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #64748b;
+  }
+}
+
+/* Ensure light modal containers and light inputs always have bold dark text */
+.bg-white input,
+.bg-white select,
+.bg-white textarea,
+.bg-slate-50 input,
+.bg-slate-50 select,
+.bg-slate-50 textarea,
+.bg-slate-100 input,
+.bg-slate-100 select,
+.bg-slate-100 textarea,
+input[type="text"]:not(.text-white),
+input[type="number"]:not(.text-white),
+input[type="date"]:not(.text-white),
+input[type="tel"]:not(.text-white),
+input[type="email"]:not(.text-white),
+input[type="password"]:not(.text-white),
+select:not(.text-white),
+textarea:not(.text-white) {
+  color: #0f172a !important;
 }
 
 /* Custom scrollbars */

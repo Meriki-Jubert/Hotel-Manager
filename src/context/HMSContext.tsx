@@ -14,7 +14,11 @@ import {
   UserRole,
   HotelConfig,
   Branch,
-  StaffActivityLog
+  StaffActivityLog,
+  BookingSource,
+  CreateReservationPayload,
+  UpdateReservationPayload,
+  ConvertToCheckInPayload
 } from '../types/hms';
 import {
   DEFAULT_HOTEL_CONFIG,
@@ -30,7 +34,14 @@ import {
   INITIAL_NIGHT_AUDIT_HISTORY
 } from '../data/mockData';
 import { isDemoMode } from '../config/appConfig';
-import { getLocalDateString, getNextLocalDateString } from '../utils/dateUtils';
+import {
+  getLocalDateString,
+  getNextLocalDateString,
+  getLocalTimestampString,
+  doDateRangesOverlap,
+  calculateStayNights,
+  isValidDateString
+} from '../utils/dateUtils';
 import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
 
 export type NavTab =
@@ -121,6 +132,13 @@ interface HMSContextType {
   // Actions
   checkInGuest: (payload: CheckInPayload) => { success: boolean; reservationId?: string; error?: string };
   checkOutGuest: (reservationId: string, paymentMethod?: PaymentMethod, settlementAmount?: number) => { success: boolean; error?: string };
+  createReservation: (payload: CreateReservationPayload) => { success: boolean; reservationId?: string; error?: string };
+  updateReservation: (reservationId: string, payload: UpdateReservationPayload) => { success: boolean; error?: string };
+  cancelReservation: (reservationId: string, reason: string, cancellationFee?: number, isNoShow?: boolean) => { success: boolean; error?: string };
+  convertReservationToCheckIn: (payload: ConvertToCheckInPayload) => { success: boolean; error?: string };
+  getAvailableRoomsForDateRange: (checkInDate: string, checkOutDate: string, roomTypeId?: string, excludeReservationId?: string) => Room[];
+  isRoomAvailableForDateRange: (roomId: string, checkInDate: string, checkOutDate: string, excludeReservationId?: string) => boolean;
+  getNextUpcomingReservationForRoom: (roomId: string) => Reservation | undefined;
   updateRoomStatus: (roomId: string, status: RoomStatus, note?: string) => void;
   addFolioCharge: (charge: Omit<FolioTransaction, 'id' | 'timestamp'>) => void;
   recordFolioPayment: (payment: Omit<FolioTransaction, 'id' | 'timestamp' | 'type'>) => void;
@@ -1002,6 +1020,35 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const room = allRooms.find((r) => r.id === payload.roomId);
     if (!room) return { success: false, error: 'Target room not found' };
+    
+    // Validate dates
+    if (!isValidDateString(payload.checkInDate) || !isValidDateString(payload.checkOutDate)) {
+      return { success: false, error: 'Invalid dates provided.' };
+    }
+    if (payload.checkOutDate <= payload.checkInDate) {
+      return { success: false, error: 'Check-out date must be strictly after check-in date.' };
+    }
+    if (payload.checkInDate < businessDate) {
+      return { success: false, error: 'Check-in date cannot be in the past.' };
+    }
+
+    // Check date availability overlap
+    const isFree = isRoomAvailableForDateRange(room.id, payload.checkInDate, payload.checkOutDate);
+    if (!isFree) {
+      return {
+        success: false,
+        error: `Room #${room.roomNumber} is already booked or occupied for the selected dates!`
+      };
+    }
+
+    // Check-in Valve: block immediate check-in for future dates
+    if (payload.checkInDate > businessDate) {
+      return {
+        success: false,
+        error: `Early check-in blocked: Cannot check in for a future date (${payload.checkInDate}). Today is ${businessDate}. Please use 'New Reservation' to book for future arrival dates.`
+      };
+    }
+
     if (room.status === 'occupied') return { success: false, error: 'Room is already occupied!' };
     if (room.status === 'maintenance') return { success: false, error: 'Room is blocked for maintenance!' };
 
@@ -1052,6 +1099,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       bookingCode,
       roomId: room.id,
       roomNumber: room.roomNumber,
+      roomTypeId: room.roomTypeId,
       guestId: guest.id,
       guestName: guest.fullName,
       guestPhone: guest.phone,
@@ -1118,8 +1166,519 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
+    logStaffActivity(
+      'Check In Guest',
+      `Walk-in check-in for ${guest.fullName} into Room #${room.roomNumber} (${nights} nights, ${payload.checkInDate} to ${payload.checkOutDate}).`
+    );
+
     showNotification(`Guest ${guest.fullName} checked into Room ${room.roomNumber}!`, 'success');
     return { success: true, reservationId: resId };
+  };
+
+  const getAvailableRoomsForDateRange = (
+    checkInDate: string,
+    checkOutDate: string,
+    roomTypeId?: string,
+    excludeReservationId?: string
+  ): Room[] => {
+    const targetBranchId = activeBranchId === 'all' ? undefined : activeBranchId;
+    return allRooms.filter((room) => {
+      if (room.isActive === false) return false;
+      if (targetBranchId && room.branchId !== targetBranchId) return false;
+      if (roomTypeId && room.roomTypeId !== roomTypeId) return false;
+
+      const hasOverlap = allReservations.some((res) => {
+        if (excludeReservationId && res.id === excludeReservationId) return false;
+        if (res.roomId !== room.id) return false;
+        if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') return false;
+        return doDateRangesOverlap(res.checkInDate, res.checkOutDate, checkInDate, checkOutDate);
+      });
+
+      return !hasOverlap;
+    });
+  };
+
+  const isRoomAvailableForDateRange = (
+    roomId: string,
+    checkInDate: string,
+    checkOutDate: string,
+    excludeReservationId?: string
+  ): boolean => {
+    const room = allRooms.find((r) => r.id === roomId);
+    if (!room || room.isActive === false) return false;
+
+    const hasOverlap = allReservations.some((res) => {
+      if (excludeReservationId && res.id === excludeReservationId) return false;
+      if (res.roomId !== room.id) return false;
+      if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') return false;
+      return doDateRangesOverlap(res.checkInDate, res.checkOutDate, checkInDate, checkOutDate);
+    });
+
+    return !hasOverlap;
+  };
+
+  const getNextUpcomingReservationForRoom = (roomId: string): Reservation | undefined => {
+    const upcoming = allReservations
+      .filter(
+        (res) =>
+          res.roomId === roomId &&
+          res.bookingStatus === 'reserved' &&
+          res.checkInDate >= businessDate
+      )
+      .sort((a, b) => a.checkInDate.localeCompare(b.checkInDate));
+
+    return upcoming[0];
+  };
+
+  const createReservation = (
+    payload: CreateReservationPayload
+  ): { success: boolean; reservationId?: string; error?: string } => {
+    if (!isValidDateString(payload.checkInDate) || !isValidDateString(payload.checkOutDate)) {
+      return { success: false, error: 'Please enter valid check-in and check-out dates (YYYY-MM-DD).' };
+    }
+    if (payload.checkOutDate <= payload.checkInDate) {
+      return { success: false, error: 'Check-out date must be strictly after check-in date.' };
+    }
+    if (payload.checkInDate < businessDate) {
+      return { success: false, error: 'Check-in date cannot be in the past.' };
+    }
+    if (payload.adults < 1) {
+      return { success: false, error: 'At least 1 adult is required.' };
+    }
+
+    const roomType = roomTypes.find((rt) => rt.id === payload.roomTypeId);
+    if (!roomType) {
+      return { success: false, error: 'Selected room category is not found.' };
+    }
+
+    const totalGuests = payload.adults + (payload.children || 0);
+    if (totalGuests > roomType.maxCapacity) {
+      return {
+        success: false,
+        error: `Total guests (${totalGuests}) exceeds the maximum capacity of ${roomType.maxCapacity} for ${roomType.name}.`
+      };
+    }
+
+    const targetBranchId =
+      activeBranchId !== 'all'
+        ? activeBranchId
+        : payload.roomId
+        ? (allRooms.find((r) => r.id === payload.roomId)?.branchId || defaultBranchId)
+        : defaultBranchId;
+
+    let assignedRoom: Room | undefined;
+    if (payload.roomId) {
+      assignedRoom = allRooms.find(
+        (r) => r.id === payload.roomId && r.branchId === targetBranchId && r.isActive !== false
+      );
+      if (!assignedRoom) {
+        return { success: false, error: 'Selected room not found or is deactivated.' };
+      }
+      const isFree = isRoomAvailableForDateRange(assignedRoom.id, payload.checkInDate, payload.checkOutDate);
+      if (!isFree) {
+        return {
+          success: false,
+          error: `Room #${assignedRoom.roomNumber} already has an overlapping reservation for these dates. Please choose another room or date range.`
+        };
+      }
+    } else {
+      const activeRoomsOfType = allRooms.filter(
+        (r) => r.branchId === targetBranchId && r.isActive !== false && r.roomTypeId === roomType.id
+      );
+      if (activeRoomsOfType.length === 0) {
+        return { success: false, error: `No active rooms of type ${roomType.name} configured in this branch.` };
+      }
+      const overlappingBookings = allReservations.filter((res) => {
+        if (res.branchId !== targetBranchId) return false;
+        if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') return false;
+        const resRoomTypeId = res.roomTypeId || allRooms.find((r) => r.id === res.roomId)?.roomTypeId;
+        if (resRoomTypeId !== roomType.id) return false;
+        return doDateRangesOverlap(res.checkInDate, res.checkOutDate, payload.checkInDate, payload.checkOutDate);
+      });
+
+      if (overlappingBookings.length >= activeRoomsOfType.length) {
+        return {
+          success: false,
+          error: `All ${activeRoomsOfType.length} rooms of type ${roomType.name} are fully booked for these dates.`
+        };
+      }
+    }
+
+    let guest = payload.guestId ? guests.find((g) => g.id === payload.guestId) : undefined;
+    if (!guest) {
+      guest = guests.find(
+        (g) =>
+          g.phone === payload.phone ||
+          (payload.email && g.email && g.email.toLowerCase() === payload.email.toLowerCase()) ||
+          (payload.idCardNumber && g.idCardNumber && g.idCardNumber === payload.idCardNumber)
+      );
+    }
+
+    const deposit = payload.depositAmount && payload.depositAmount > 0 ? payload.depositAmount : 0;
+
+    if (!guest) {
+      guest = {
+        id: `gst-${Date.now()}`,
+        fullName: payload.guestName,
+        phone: payload.phone,
+        email: payload.email || `${payload.guestName.toLowerCase().replace(/\s+/g, '.')}@guest.com`,
+        idCardNumber: payload.idCardNumber || 'PENDING',
+        nationality: payload.nationality || 'Cameroonian',
+        vipTier: 'Standard',
+        notes: payload.specialRequests || '',
+        totalVisits: 1,
+        totalSpent: deposit,
+        createdAt: businessDate
+      };
+      setGuests((prev) => [guest!, ...prev]);
+    } else {
+      setGuests((prev) =>
+        prev.map((g) =>
+          g.id === guest!.id
+            ? { ...g, totalVisits: g.totalVisits + 1, totalSpent: g.totalSpent + deposit }
+            : g
+        )
+      );
+    }
+
+    const nights = calculateStayNights(payload.checkInDate, payload.checkOutDate);
+    const nightlyRate = assignedRoom ? assignedRoom.pricePerNight : roomType.basePrice;
+    const totalAmount = nightlyRate * nights;
+    const resId = `res-${Date.now()}`;
+    const codeSuffix = assignedRoom ? assignedRoom.roomNumber : roomType.code;
+    const bookingCode = `BK-${codeSuffix}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const newRes: Reservation = {
+      id: resId,
+      branchId: targetBranchId,
+      bookingCode,
+      roomId: assignedRoom ? assignedRoom.id : '',
+      roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned',
+      roomTypeId: roomType.id,
+      guestId: guest.id,
+      guestName: guest.fullName,
+      guestPhone: guest.phone,
+      checkInDate: payload.checkInDate,
+      checkOutDate: payload.checkOutDate,
+      adults: payload.adults,
+      children: payload.children || 0,
+      nightlyRate,
+      totalNights: nights,
+      totalAmount,
+      amountPaid: deposit,
+      paymentStatus: deposit >= totalAmount ? 'paid' : deposit > 0 ? 'partial' : 'unpaid',
+      bookingStatus: 'reserved',
+      paymentMethod: payload.depositMethod || 'cash',
+      source: payload.source,
+      specialRequests: payload.specialRequests,
+      keyReturned: false,
+      createdAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+    };
+
+    const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    const staffName = currentUser?.name || 'Staff';
+
+    const roomChargeTx: FolioTransaction = {
+      id: `tx-${Date.now()}-1`,
+      branchId: targetBranchId,
+      reservationId: resId,
+      guestId: guest.id,
+      roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned',
+      category: 'room_charge',
+      description: `${nights} Night(s) Stay (${roomType.name}${assignedRoom ? ` - Room #${assignedRoom.roomNumber}` : ''})`,
+      amount: totalAmount,
+      type: 'charge',
+      timestamp,
+      recordedBy: staffName
+    };
+
+    const txs: FolioTransaction[] = [roomChargeTx];
+    if (deposit > 0 && payload.depositMethod) {
+      txs.push({
+        id: `tx-${Date.now()}-2`,
+        branchId: targetBranchId,
+        reservationId: resId,
+        guestId: guest.id,
+        roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned',
+        category: 'deposit',
+        description: `Reservation Advance Deposit (${payload.depositMethod.toUpperCase()})`,
+        amount: deposit,
+        type: 'payment',
+        paymentMethod: payload.depositMethod,
+        reference: `${payload.depositMethod.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`,
+        timestamp,
+        recordedBy: staffName
+      });
+    }
+
+    setAllReservations((prev) => [newRes, ...prev]);
+    setAllTransactions((prev) => [...txs, ...prev]);
+
+    logStaffActivity(
+      'Create Reservation',
+      `Created reservation ${bookingCode} for ${guest.fullName} (${roomType.name}, ${payload.checkInDate} to ${payload.checkOutDate}${assignedRoom ? `, Room #${assignedRoom.roomNumber}` : ', Hold Room Type'}${deposit > 0 ? `, Deposit: ${formatMoney(deposit)}` : ''})`
+    );
+
+    showNotification(`Reservation ${bookingCode} confirmed for ${guest.fullName}!`, 'success');
+    return { success: true, reservationId: resId };
+  };
+
+  const updateReservation = (
+    reservationId: string,
+    payload: UpdateReservationPayload
+  ): { success: boolean; error?: string } => {
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) return { success: false, error: 'Reservation not found.' };
+    if (res.bookingStatus !== 'reserved') {
+      return { success: false, error: 'Only bookings in "reserved" status can be edited.' };
+    }
+
+    if (!isValidDateString(payload.checkInDate) || !isValidDateString(payload.checkOutDate)) {
+      return { success: false, error: 'Invalid dates.' };
+    }
+    if (payload.checkOutDate <= payload.checkInDate) {
+      return { success: false, error: 'Check-out date must be strictly after check-in date.' };
+    }
+    if (payload.checkInDate < businessDate) {
+      return { success: false, error: 'Check-in date cannot be in the past.' };
+    }
+
+    const roomType = roomTypes.find((rt) => rt.id === payload.roomTypeId);
+    if (!roomType) return { success: false, error: 'Invalid room category.' };
+
+    const totalGuests = payload.adults + (payload.children || 0);
+    if (totalGuests > roomType.maxCapacity) {
+      return {
+        success: false,
+        error: `Guest count (${totalGuests}) exceeds capacity of ${roomType.maxCapacity} for ${roomType.name}.`
+      };
+    }
+
+    let assignedRoom: Room | undefined;
+    if (payload.roomId) {
+      assignedRoom = allRooms.find((r) => r.id === payload.roomId && r.isActive !== false);
+      if (!assignedRoom) return { success: false, error: 'Selected room not found or deactivated.' };
+
+      const isFree = isRoomAvailableForDateRange(assignedRoom.id, payload.checkInDate, payload.checkOutDate, reservationId);
+      if (!isFree) {
+        return { success: false, error: `Room #${assignedRoom.roomNumber} is unavailable for the selected dates.` };
+      }
+    } else {
+      const activeRoomsOfType = allRooms.filter(
+        (r) => r.branchId === res.branchId && r.isActive !== false && r.roomTypeId === roomType.id
+      );
+      const overlapping = allReservations.filter((r) => {
+        if (r.id === reservationId) return false;
+        if (r.branchId !== res.branchId) return false;
+        if (r.bookingStatus !== 'reserved' && r.bookingStatus !== 'checked_in') return false;
+        const resRoomTypeId = r.roomTypeId || allRooms.find((rm) => rm.id === r.roomId)?.roomTypeId;
+        if (resRoomTypeId !== roomType.id) return false;
+        return doDateRangesOverlap(r.checkInDate, r.checkOutDate, payload.checkInDate, payload.checkOutDate);
+      });
+      if (overlapping.length >= activeRoomsOfType.length) {
+        return { success: false, error: `All rooms of type ${roomType.name} are booked for these dates.` };
+      }
+    }
+
+    const nights = calculateStayNights(payload.checkInDate, payload.checkOutDate);
+    const nightlyRate = assignedRoom ? assignedRoom.pricePerNight : roomType.basePrice;
+    const newTotalAmount = nightlyRate * nights;
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId
+          ? {
+              ...r,
+              checkInDate: payload.checkInDate,
+              checkOutDate: payload.checkOutDate,
+              roomTypeId: roomType.id,
+              roomId: assignedRoom ? assignedRoom.id : '',
+              roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned',
+              adults: payload.adults,
+              children: payload.children || 0,
+              nightlyRate,
+              totalNights: nights,
+              totalAmount: newTotalAmount,
+              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid',
+              source: payload.source || r.source,
+              specialRequests: payload.specialRequests !== undefined ? payload.specialRequests : r.specialRequests
+            }
+          : r
+      )
+    );
+
+    // Update room charge transaction
+    setAllTransactions((prev) =>
+      prev.map((tx) =>
+        tx.reservationId === reservationId && tx.category === 'room_charge'
+          ? {
+              ...tx,
+              amount: newTotalAmount,
+              description: `${nights} Night(s) Stay (${roomType.name}${assignedRoom ? ` - Room #${assignedRoom.roomNumber}` : ''})`,
+              roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned'
+            }
+          : tx
+      )
+    );
+
+    logStaffActivity(
+      'Update Reservation',
+      `Modified reservation ${res.bookingCode} for ${res.guestName}: Dates ${payload.checkInDate} to ${payload.checkOutDate}, ${roomType.name}${assignedRoom ? `, Room #${assignedRoom.roomNumber}` : ', Unassigned'}`
+    );
+
+    showNotification(`Reservation ${res.bookingCode} updated successfully.`, 'success');
+    return { success: true };
+  };
+
+  const cancelReservation = (
+    reservationId: string,
+    reason: string,
+    cancellationFee?: number,
+    isNoShow?: boolean
+  ): { success: boolean; error?: string } => {
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) return { success: false, error: 'Reservation not found.' };
+    if (res.bookingStatus === 'cancelled' || res.bookingStatus === 'checked_out') {
+      return { success: false, error: `Cannot cancel booking in ${res.bookingStatus} status.` };
+    }
+
+    if (!reason.trim()) {
+      return { success: false, error: 'A cancellation reason is required.' };
+    }
+
+    const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    const staffName = currentUser?.name || 'Staff';
+    const fullReason = isNoShow ? `No-Show: ${reason.trim()}` : reason.trim();
+    const fee = cancellationFee && cancellationFee > 0 ? cancellationFee : 0;
+
+    if (fee > 0) {
+      const feeTx: FolioTransaction = {
+        id: `tx-${Date.now()}-cancel-fee`,
+        branchId: res.branchId,
+        reservationId: res.id,
+        guestId: res.guestId,
+        roomNumber: res.roomNumber,
+        category: 'late_checkout',
+        description: isNoShow ? `No-Show Fee: ${fullReason}` : `Cancellation Fee: ${fullReason}`,
+        amount: fee,
+        type: 'charge',
+        timestamp,
+        recordedBy: staffName
+      };
+      setAllTransactions((prev) => [feeTx, ...prev]);
+    }
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId
+          ? {
+              ...r,
+              bookingStatus: 'cancelled',
+              cancelledAt: timestamp,
+              cancelledBy: staffName,
+              cancellationReason: fullReason,
+              cancellationFee: fee
+            }
+          : r
+      )
+    );
+
+    setAllRooms((prev) =>
+      prev.map((room) =>
+        room.currentReservationId === reservationId
+          ? { ...room, status: 'dirty', currentReservationId: undefined }
+          : room
+      )
+    );
+
+    logStaffActivity(
+      isNoShow ? 'Reservation No-Show' : 'Cancel Reservation',
+      `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${formatMoney(fee)}.`
+    );
+
+    showNotification(`Reservation ${res.bookingCode} has been ${isNoShow ? 'marked No-Show' : 'cancelled'}.`, 'info');
+    return { success: true };
+  };
+
+  const convertReservationToCheckIn = (
+    payload: ConvertToCheckInPayload
+  ): { success: boolean; error?: string } => {
+    const res = allReservations.find((r) => r.id === payload.reservationId);
+    if (!res) return { success: false, error: 'Reservation not found.' };
+    if (res.bookingStatus !== 'reserved') {
+      return { success: false, error: 'Only reserved bookings can be checked in.' };
+    }
+
+    // Check-in Valve: strictly block checking in before scheduled check-in date
+    if (res.checkInDate > businessDate) {
+      return {
+        success: false,
+        error: `Early check-in blocked: Reservation is scheduled for arrival on ${res.checkInDate}. Current business date is ${businessDate}. Guests cannot be checked in before their arrival date.`
+      };
+    }
+
+    const room = allRooms.find((r) => r.id === payload.roomId);
+    if (!room) return { success: false, error: 'Selected room not found.' };
+    if (room.isActive === false) return { success: false, error: `Room #${room.roomNumber} is deactivated.` };
+    if (room.status === 'occupied') return { success: false, error: `Room #${room.roomNumber} is currently occupied!` };
+
+    const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    const staffName = currentUser?.name || 'Staff';
+
+    const extraDeposit = payload.additionalDeposit && payload.additionalDeposit > 0 ? payload.additionalDeposit : 0;
+    if (extraDeposit > 0 && payload.paymentMethod) {
+      const depositTx: FolioTransaction = {
+        id: `tx-${Date.now()}-extra-dep`,
+        branchId: res.branchId,
+        reservationId: res.id,
+        guestId: res.guestId,
+        roomNumber: room.roomNumber,
+        category: 'deposit',
+        description: `Check-in Deposit (${payload.paymentMethod.toUpperCase()})`,
+        amount: extraDeposit,
+        type: 'payment',
+        paymentMethod: payload.paymentMethod,
+        reference: `${payload.paymentMethod.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`,
+        timestamp,
+        recordedBy: staffName
+      };
+      setAllTransactions((prev) => [depositTx, ...prev]);
+    }
+
+    const newAmountPaid = res.amountPaid + extraDeposit;
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === res.id
+          ? {
+              ...r,
+              roomId: room.id,
+              roomNumber: room.roomNumber,
+              bookingStatus: 'checked_in',
+              checkedInAt: timestamp,
+              checkedInBy: staffName,
+              amountPaid: newAmountPaid,
+              paymentStatus: newAmountPaid >= r.totalAmount ? 'paid' : newAmountPaid > 0 ? 'partial' : 'unpaid'
+            }
+          : r
+      )
+    );
+
+    setAllRooms((prev) =>
+      prev.map((r) =>
+        r.id === room.id
+          ? { ...r, status: 'occupied', currentReservationId: res.id }
+          : r
+      )
+    );
+
+    logStaffActivity(
+      'Check In Guest',
+      `Guest ${res.guestName} checked into Room #${room.roomNumber} (Converted from Reservation ${res.bookingCode}).`
+    );
+
+    showNotification(`Guest ${res.guestName} checked in to Room #${room.roomNumber}!`, 'success');
+    return { success: true };
   };
 
   const checkOutGuest = (reservationId: string, paymentMethod?: PaymentMethod, settlementAmount?: number) => {
@@ -1949,6 +2508,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         formatMoney,
         checkInGuest,
         checkOutGuest,
+        createReservation,
+        updateReservation,
+        cancelReservation,
+        convertReservationToCheckIn,
+        getAvailableRoomsForDateRange,
+        isRoomAvailableForDateRange,
+        getNextUpcomingReservationForRoom,
         updateRoomStatus,
         addFolioCharge,
         recordFolioPayment,

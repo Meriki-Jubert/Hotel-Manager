@@ -40,6 +40,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     transactions,
     updateRoomStatus,
     formatMoney,
+    businessDate,
     canCheckIn,
     canCheckOut,
     isReadOnly,
@@ -263,6 +264,9 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
         {filteredRooms.map((room) => {
           const type = roomTypes.find((t) => t.id === room.roomTypeId);
           const currentRes = reservations.find((r) => r.id === room.currentReservationId);
+          const arrivingTodayRes = reservations.find(
+            (r) => r.roomId === room.id && r.bookingStatus === 'reserved' && r.checkInDate === businessDate
+          );
           const cfg = statusConfig[room.status];
 
           let folioBalance = 0;
@@ -296,6 +300,13 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     {cfg.label}
                   </span>
                 </div>
+                {arrivingTodayRes && (
+                  <div className="absolute top-2.5 right-2.5">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-md border border-amber-300 animate-pulse">
+                      Arriving today
+                    </span>
+                  </div>
+                )}
                 <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-white">
                   <span className="font-mono font-bold text-base drop-shadow-md">
                     #{room.roomNumber}
@@ -340,14 +351,16 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   </div>
                 )}
 
-                {room.status === 'reserved' && currentRes && (
-                  <div className="space-y-1 bg-blue-50/70 p-2.5 rounded-lg border border-blue-100">
-                    <div className="font-semibold text-blue-900 flex items-center gap-1 truncate">
-                      <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="truncate">{currentRes.guestName}</span>
+                {arrivingTodayRes && room.status !== 'occupied' && (
+                  <div className="space-y-1 bg-amber-50/90 p-2.5 rounded-lg border border-amber-200">
+                    <div className="font-bold text-amber-900 flex items-center justify-between text-[11px] truncate">
+                      <span className="truncate flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        Arrival: {arrivingTodayRes.guestName}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-blue-700">
-                      Check-in: <strong className="font-mono">{currentRes.checkInDate}</strong>
+                    <div className="text-[10px] text-amber-800">
+                      Stay: {arrivingTodayRes.totalNights} nts • Out: {arrivingTodayRes.checkOutDate}
                     </div>
                   </div>
                 )}

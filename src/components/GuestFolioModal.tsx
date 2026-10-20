@@ -310,7 +310,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         placeholder="e.g. 2x Oku Coffee & Club Sandwich"
                         value={chargeDesc}
                         onChange={(e) => setChargeDesc(e.target.value)}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
+                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 font-medium"
                         required
                       />
                     </div>
@@ -322,7 +322,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         step="500"
                         value={chargeAmount}
                         onChange={(e) => setChargeAmount(Number(e.target.value))}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold"
+                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
                         required
                       />
                     </div>
@@ -330,7 +330,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <div className="flex justify-end">
                     <button
                       type="submit"
-                      className="px-4 py-1.5 text-xs font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800"
+                      className="px-4 py-1.5 text-xs font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer"
                     >
                       Confirm Charge
                     </button>
@@ -360,13 +360,13 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       <select
                         value={payMethod}
                         onChange={(e: any) => setPayMethod(e.target.value)}
-                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-medium"
+                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-medium text-slate-900"
                       >
-                        <option value="momo">MTN Mobile Money</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="cash">Cash (FCFA)</option>
-                        <option value="card">Credit / Debit Card</option>
-                        <option value="bank_transfer">Bank Wire Transfer</option>
+                        <option value="momo" className="text-slate-900">MTN Mobile Money</option>
+                        <option value="orange_money" className="text-slate-900">Orange Money</option>
+                        <option value="cash" className="text-slate-900">Cash (FCFA)</option>
+                        <option value="card" className="text-slate-900">Credit / Debit Card</option>
+                        <option value="bank_transfer" className="text-slate-900">Bank Wire Transfer</option>
                       </select>
                     </div>
                     <div>
@@ -377,7 +377,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         step="500"
                         value={payAmount}
                         onChange={(e) => setPayAmount(Number(e.target.value))}
-                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono font-bold"
+                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono font-bold text-slate-900"
                         required
                       />
                     </div>
@@ -388,7 +388,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         placeholder="MOMO-982143"
                         value={payRef}
                         onChange={(e) => setPayRef(e.target.value)}
-                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono"
+                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono text-slate-900 placeholder-slate-400 font-medium"
                       />
                     </div>
                   </div>

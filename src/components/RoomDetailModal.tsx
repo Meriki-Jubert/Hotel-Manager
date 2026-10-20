@@ -35,20 +35,21 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
   onOpenFolio,
   onReportMaintenance
 }) => {
-  const { roomTypes, reservations, updateRoomStatus, formatMoney, maintenanceTickets } = useHMS();
+  const { roomTypes, reservations, updateRoomStatus, formatMoney, maintenanceTickets, getNextUpcomingReservationForRoom } = useHMS();
 
   const type = roomTypes.find((t) => t.id === room.roomTypeId);
   const currentRes = reservations.find((r) => r.id === room.currentReservationId);
+  const nextReservation = getNextUpcomingReservationForRoom(room.id);
   const activeTicket = maintenanceTickets.find(
     (t) => t.roomId === room.id && t.status !== 'Resolved'
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in fade-in zoom-in-95">
         
-        {/* Header */}
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        {/* Header - shrink-0 pinned at top */}
+        <div className="bg-slate-900 text-white px-5 sm:px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-slate-800 text-emerald-400 border border-slate-700">
               <Bed className="w-5 h-5" />
@@ -65,13 +66,13 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-5 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
           {/* Status & Pricing Banner */}
           <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <div>
@@ -137,6 +138,40 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               {currentRes.specialRequests && (
                 <div className="text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 italic">
                   Note: "{currentRes.specialRequests}"
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Next Upcoming Reservation */}
+          {nextReservation && (
+            <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-600" /> Next Upcoming Reservation
+                </span>
+                <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-800 font-bold">
+                  {nextReservation.bookingCode}
+                </span>
+              </div>
+              <div className="text-sm font-bold text-slate-900">{nextReservation.guestName}</div>
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div>
+                  Phone: <strong className="font-mono text-slate-800">{nextReservation.guestPhone}</strong>
+                </div>
+                <div>
+                  Source: <strong className="text-slate-800">{nextReservation.source}</strong>
+                </div>
+                <div>
+                  Arrival: <strong className="font-mono text-slate-800">{nextReservation.checkInDate}</strong>
+                </div>
+                <div>
+                  Departure: <strong className="font-mono text-slate-800">{nextReservation.checkOutDate}</strong>
+                </div>
+              </div>
+              {nextReservation.specialRequests && (
+                <div className="text-xs text-slate-500 bg-white p-2 rounded border border-blue-100 italic">
+                  Special Note: "{nextReservation.specialRequests}"
                 </div>
               )}
             </div>

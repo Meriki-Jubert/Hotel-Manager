@@ -74,12 +74,21 @@ export interface Guest {
   createdAt: string;
 }
 
+export type BookingSource =
+  | 'Walk-In'
+  | 'Phone'
+  | 'WhatsApp'
+  | 'Direct Website'
+  | 'OTA - Booking.com'
+  | 'Corporate'
+  | 'Agency';
+
 export interface Reservation {
   id: string;
   branchId?: string;
   bookingCode: string;
-  roomId: string;
-  roomNumber: string;
+  roomId: string; // May be empty string if room is unassigned holding room type
+  roomNumber: string; // 'Unassigned' or room number
   roomTypeId?: string;
   guestId: string;
   guestName: string;
@@ -95,7 +104,7 @@ export interface Reservation {
   paymentStatus: 'unpaid' | 'partial' | 'paid';
   bookingStatus: BookingStatus;
   paymentMethod: PaymentMethod;
-  source: 'Walk-In' | 'Phone' | 'WhatsApp' | 'Direct Website' | 'OTA - Booking.com' | 'Corporate';
+  source: BookingSource;
   specialRequests?: string;
   keyReturned?: boolean;
   createdAt: string;
@@ -106,6 +115,43 @@ export interface Reservation {
   cancelledBy?: string;
   cancellationReason?: string;
   cancellationFee?: number;
+}
+
+export interface CreateReservationPayload {
+  guestId?: string;
+  guestName: string;
+  phone: string;
+  email?: string;
+  idCardNumber?: string;
+  nationality?: string;
+  roomTypeId: string;
+  roomId?: string; // Optional specific room
+  checkInDate: string;
+  checkOutDate: string;
+  adults: number;
+  children: number;
+  source: BookingSource;
+  specialRequests?: string;
+  depositAmount?: number;
+  depositMethod?: PaymentMethod;
+}
+
+export interface UpdateReservationPayload {
+  checkInDate: string;
+  checkOutDate: string;
+  roomTypeId: string;
+  roomId?: string;
+  adults: number;
+  children: number;
+  source?: BookingSource;
+  specialRequests?: string;
+}
+
+export interface ConvertToCheckInPayload {
+  reservationId: string;
+  roomId: string;
+  paymentMethod?: PaymentMethod;
+  additionalDeposit?: number;
 }
 
 export interface FolioTransaction {

@@ -158,14 +158,15 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden p-4 sm:p-6 lg:p-8">
-      {/* 4K Architectural Hotel Backdrop */}
-      <div className="absolute inset-0 z-0">
+      {/* 4K Architectural Hotel Backdrop - clearly visible with soft atmospheric overlay */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=2000&auto=format&fit=crop&q=85"
           alt="Hotel Exterior"
-          className="w-full h-full object-cover opacity-25 filter brightness-75 scale-105"
+          className="w-full h-full object-cover opacity-60 filter brightness-95 scale-100"
         />
-        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900/95 to-slate-900/90" />
+        {/* Soft subtle vignette overlay so text and cards stay crisp while image is beautifully visible */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-slate-950/60" />
       </div>
 
       <div className="relative z-10 flex flex-col justify-between min-h-[calc(100vh-4rem)] w-full">

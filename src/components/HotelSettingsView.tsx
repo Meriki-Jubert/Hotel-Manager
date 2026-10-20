@@ -1630,9 +1630,9 @@ export const HotelSettingsView: React.FC = () => {
 
       {/* ================= MODAL: ADD / EDIT STAFF ================= */}
       {showAddStaffModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-6">
-            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-auto">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-400" />
                 <h3 className="font-bold text-sm sm:text-base">
@@ -1641,13 +1641,13 @@ export const HotelSettingsView: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowAddStaffModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveStaff} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSaveStaff} className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
               {staffFormError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1662,7 +1662,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={staffFormName}
                   onChange={(e) => setStaffFormName(e.target.value)}
                   placeholder="e.g. Marie Claire"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -1675,7 +1675,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={staffFormUsername}
                     onChange={(e) => setStaffFormUsername(e.target.value)}
                     placeholder="e.g. marie"
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono lowercase focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono lowercase font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
@@ -1688,7 +1688,7 @@ export const HotelSettingsView: React.FC = () => {
                       value={staffFormPassword}
                       onChange={(e) => setStaffFormPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
@@ -1701,13 +1701,13 @@ export const HotelSettingsView: React.FC = () => {
                   <select
                     value={staffFormRole}
                     onChange={(e) => setStaffFormRole(e.target.value as UserRole)}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
-                    <option value="front_desk">Front Desk</option>
-                    <option value="housekeeping">Housekeeping</option>
-                    <option value="manager">Manager</option>
-                    <option value="owner">Owner</option>
+                    <option value="front_desk" className="text-slate-900">Front Desk</option>
+                    <option value="housekeeping" className="text-slate-900">Housekeeping</option>
+                    <option value="manager" className="text-slate-900">Manager</option>
+                    <option value="owner" className="text-slate-900">Owner</option>
                   </select>
                 </div>
 
@@ -1717,11 +1717,11 @@ export const HotelSettingsView: React.FC = () => {
                     <select
                       value={staffFormBranchId}
                       onChange={(e) => setStaffFormBranchId(e.target.value)}
-                      className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     >
                       {branches.filter((b) => b.isActive).map((b) => (
-                        <option key={b.id} value={b.id}>
+                        <option key={b.id} value={b.id} className="text-slate-900">
                           {b.name} ({b.city})
                         </option>
                       ))}
@@ -1738,7 +1738,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={staffFormTitle}
                     onChange={(e) => setStaffFormTitle(e.target.value)}
                     placeholder="e.g. Senior Receptionist"
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
@@ -1749,7 +1749,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={staffFormPhone}
                     onChange={(e) => setStaffFormPhone(e.target.value)}
                     placeholder="+237 ..."
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1761,7 +1761,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={staffFormEmail}
                   onChange={(e) => setStaffFormEmail(e.target.value)}
                   placeholder="staff@hotel.com"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -1858,9 +1858,9 @@ export const HotelSettingsView: React.FC = () => {
 
       {/* ================= MODAL: ADD / EDIT ROOM TYPE ================= */}
       {showAddTypeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-6">
-            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-auto">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Layers className="w-5 h-5 text-indigo-400" />
                 <h3 className="font-bold text-sm sm:text-base">
@@ -1869,17 +1869,17 @@ export const HotelSettingsView: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowAddTypeModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveRoomType} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSaveRoomType} className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
               {typeFormError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{typeFormError}</span>
+                  <span className="font-semibold">{typeFormError}</span>
                 </div>
               )}
 
@@ -1891,7 +1891,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={typeFormName}
                     onChange={(e) => setTypeFormName(e.target.value)}
                     placeholder="e.g. Standard Executive Room"
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
@@ -1903,7 +1903,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={typeFormCode}
                     onChange={(e) => setTypeFormCode(e.target.value.toUpperCase())}
                     placeholder="e.g. STD"
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 placeholder-slate-400 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     maxLength={6}
                     required
                   />
@@ -1919,7 +1919,7 @@ export const HotelSettingsView: React.FC = () => {
                     min="1"
                     value={typeFormPrice}
                     onChange={(e) => setTypeFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
@@ -1931,7 +1931,7 @@ export const HotelSettingsView: React.FC = () => {
                     min="1"
                     value={typeFormCapacity}
                     onChange={(e) => setTypeFormCapacity(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
@@ -1945,7 +1945,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={typeFormBedType}
                     onChange={(e) => setTypeFormBedType(e.target.value)}
                     placeholder="e.g. King Bed, 2x Twin Beds"
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
@@ -1957,7 +1957,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={typeFormImage}
                     onChange={(e) => setTypeFormImage(e.target.value)}
                     placeholder="https://images.unsplash.com/..."
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -1969,7 +1969,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={typeFormAmenities}
                   onChange={(e) => setTypeFormAmenities(e.target.value)}
                   placeholder="Free Wi-Fi, Hot Shower, Smart TV, AC"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -1980,7 +1980,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={typeFormDesc}
                   onChange={(e) => setTypeFormDesc(e.target.value)}
                   placeholder="Describe the room experience, view, or executive features..."
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   required
                 />
               </div>
@@ -2007,9 +2007,9 @@ export const HotelSettingsView: React.FC = () => {
 
       {/* ================= MODAL: ADD / EDIT SINGLE ROOM ================= */}
       {showAddRoomModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-6">
-            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-auto">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Bed className="w-5 h-5 text-purple-400" />
                 <h3 className="font-bold text-sm sm:text-base">
@@ -2018,17 +2018,17 @@ export const HotelSettingsView: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowAddRoomModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveRoom} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSaveRoom} className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
               {roomFormError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{roomFormError}</span>
+                  <span className="font-semibold">{roomFormError}</span>
                 </div>
               )}
 
@@ -2040,7 +2040,7 @@ export const HotelSettingsView: React.FC = () => {
                     value={roomFormNumber}
                     onChange={(e) => setRoomFormNumber(e.target.value)}
                     placeholder="e.g. 101"
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
                 </div>
@@ -2051,7 +2051,7 @@ export const HotelSettingsView: React.FC = () => {
                     type="number"
                     value={roomFormFloor}
                     onChange={(e) => setRoomFormFloor(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
                 </div>
@@ -2062,11 +2062,11 @@ export const HotelSettingsView: React.FC = () => {
                 <select
                   value={roomFormBranchId}
                   onChange={(e) => setRoomFormBranchId(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   required
                 >
                   {branches.filter((b) => b.isActive).map((b) => (
-                    <option key={b.id} value={b.id}>
+                    <option key={b.id} value={b.id} className="text-slate-900">
                       {b.name} ({b.city || 'No city'})
                     </option>
                   ))}
@@ -2081,11 +2081,11 @@ export const HotelSettingsView: React.FC = () => {
                 <select
                   value={roomFormTypeId}
                   onChange={(e) => handleRoomTypeSelectionChange(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   required
                 >
                   {roomTypes.map((rt) => (
-                    <option key={rt.id} value={rt.id}>
+                    <option key={rt.id} value={rt.id} className="text-slate-900">
                       {rt.name} ({rt.code}) - {formatMoney(rt.basePrice)}
                     </option>
                   ))}
@@ -2103,7 +2103,7 @@ export const HotelSettingsView: React.FC = () => {
                   min="1"
                   value={roomFormPrice}
                   onChange={(e) => setRoomFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   required
                 />
               </div>
@@ -2115,21 +2115,21 @@ export const HotelSettingsView: React.FC = () => {
                   value={roomFormImage}
                   onChange={(e) => setRoomFormImage(e.target.value)}
                   placeholder="https://images.unsplash.com/..."
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAddRoomModal(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold"
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-sm"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
                   {editingRoom ? 'Save Changes' : 'Create Room'}
                 </button>
@@ -2141,22 +2141,22 @@ export const HotelSettingsView: React.FC = () => {
 
       {/* ================= MODAL: BULK ADD ROOMS ================= */}
       {showBulkAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-6">
-            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-auto">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Hash className="w-5 h-5 text-champagne-gold-400" />
                 <h3 className="font-bold text-sm sm:text-base">Bulk Add Hotel Rooms</h3>
               </div>
               <button
                 onClick={() => setShowBulkAddModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleExecuteBulkAdd} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleExecuteBulkAdd} className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
               <p className="text-slate-600 text-xs">
                 Quickly populate a corridor or floor with sequential room numbers (e.g. rooms 101 to 110).
               </p>
@@ -2164,7 +2164,7 @@ export const HotelSettingsView: React.FC = () => {
               {bulkError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{bulkError}</span>
+                  <span className="font-semibold">{bulkError}</span>
                 </div>
               )}
 
@@ -2173,11 +2173,11 @@ export const HotelSettingsView: React.FC = () => {
                 <select
                   value={bulkBranchId}
                   onChange={(e) => setBulkBranchId(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 >
                   {branches.filter((b) => b.isActive).map((b) => (
-                    <option key={b.id} value={b.id}>
+                    <option key={b.id} value={b.id} className="text-slate-900">
                       {b.name} ({b.city || 'No city'})
                     </option>
                   ))}
@@ -2189,11 +2189,11 @@ export const HotelSettingsView: React.FC = () => {
                 <select
                   value={bulkTypeId}
                   onChange={(e) => handleBulkTypeSelectionChange(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 >
                   {roomTypes.map((rt) => (
-                    <option key={rt.id} value={rt.id}>
+                    <option key={rt.id} value={rt.id} className="text-slate-900">
                       {rt.name} ({rt.code}) - {formatMoney(rt.basePrice)}
                     </option>
                   ))}
@@ -2207,7 +2207,7 @@ export const HotelSettingsView: React.FC = () => {
                     type="number"
                     value={bulkFloor}
                     onChange={(e) => setBulkFloor(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
@@ -2218,7 +2218,7 @@ export const HotelSettingsView: React.FC = () => {
                     type="number"
                     value={bulkStartNum}
                     onChange={(e) => setBulkStartNum(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="101"
                     required
                   />
@@ -2230,7 +2230,7 @@ export const HotelSettingsView: React.FC = () => {
                     type="number"
                     value={bulkEndNum}
                     onChange={(e) => setBulkEndNum(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="110"
                     required
                   />
@@ -2245,7 +2245,7 @@ export const HotelSettingsView: React.FC = () => {
                   min="1"
                   value={bulkPrice}
                   onChange={(e) => setBulkPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 />
               </div>
@@ -2258,17 +2258,17 @@ export const HotelSettingsView: React.FC = () => {
                 rooms on Floor {bulkFloor}. All rooms will start with status <strong>AVAILABLE</strong>.
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowBulkAddModal(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold"
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm"
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
                   Generate Rooms Batch
                 </button>
@@ -2280,9 +2280,9 @@ export const HotelSettingsView: React.FC = () => {
 
       {/* ================= MODAL: ADD / EDIT BRANCH ================= */}
       {showAddBranchModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-6">
-            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 my-auto">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <GitBranch className="w-5 h-5 text-teal-400" />
                 <h3 className="font-bold text-sm sm:text-base">
@@ -2291,17 +2291,17 @@ export const HotelSettingsView: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowAddBranchModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveBranch} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSaveBranch} className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
               {branchFormError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{branchFormError}</span>
+                  <span className="font-semibold">{branchFormError}</span>
                 </div>
               )}
 
@@ -2312,7 +2312,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={branchFormName}
                   onChange={(e) => setBranchFormName(e.target.value)}
                   placeholder="e.g. Limbe Oceanview, Douala Business Suites"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                   required
                 />
               </div>
@@ -2324,7 +2324,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={branchFormCity}
                   onChange={(e) => setBranchFormCity(e.target.value)}
                   placeholder="e.g. Limbe, Douala, Yaoundé"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                   required
                 />
               </div>
@@ -2336,7 +2336,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={branchFormAddress}
                   onChange={(e) => setBranchFormAddress(e.target.value)}
                   placeholder="e.g. Down Beach Road, Limbe"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
 
@@ -2347,7 +2347,7 @@ export const HotelSettingsView: React.FC = () => {
                   value={branchFormPhone}
                   onChange={(e) => setBranchFormPhone(e.target.value)}
                   placeholder="e.g. +237 670 11 22 33"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
 
@@ -2364,17 +2364,17 @@ export const HotelSettingsView: React.FC = () => {
                 </label>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAddBranchModal(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold"
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-sm"
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
                   {editingBranch ? 'Save Branch Details' : 'Create Branch'}
                 </button>
