@@ -339,10 +339,14 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                 const charges = transactions
                   .filter((t) => !t.voided && t.reservationId === res.id && t.type === 'charge')
                   .reduce((sum, t) => sum + t.amount, 0);
-                const payments = transactions
-                  .filter((t) => !t.voided && t.reservationId === res.id && t.type === 'payment')
-                  .reduce((sum, t) => sum + t.amount, 0);
-                const actualBalanceDue = Math.max(0, (charges > 0 ? charges : res.totalAmount) - (payments > 0 ? payments : res.amountPaid));
+                const resPayments = transactions
+                  .filter((t) => !t.voided && t.reservationId === res.id && t.type === 'payment');
+                const netPayments = resPayments.length > 0
+                  ? resPayments.reduce((sum, t) => sum + t.amount, 0)
+                  : res.amountPaid;
+                const totalCharged = charges > 0 ? charges : (res.bookingStatus === 'cancelled' ? (res.cancellationFee || 0) : res.totalAmount);
+                const actualBalanceDue = Math.max(0, totalCharged - netPayments);
+                const isCredit = netPayments > totalCharged;
 
                 const typeObj = roomTypes.find((t) => t.id === res.roomTypeId);
 
@@ -424,15 +428,19 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                     {/* Paid & Balance Due */}
                     <td className="py-3.5 px-4">
                       <div className="font-mono text-xs text-emerald-700 font-semibold">
-                        Paid: {formatMoney(res.amountPaid)}
+                        Paid: {formatMoney(netPayments)}
                       </div>
                       <div className="mt-0.5">
-                        {actualBalanceDue > 0 ? (
+                        {isCredit ? (
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                            Credit: {formatMoney(netPayments - totalCharged)}
+                          </span>
+                        ) : actualBalanceDue > 0 ? (
                           <span className="text-[11px] font-mono font-bold text-rose-600">
                             Due: {formatMoney(actualBalanceDue)}
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                             Settled
                           </span>
                         )}
@@ -477,7 +485,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                         )}
 
                         {/* Cancel / No-Show (Reserved only) */}
-                        {res.bookingStatus === 'reserved' && (
+                        {res.bookingStatus === 'reserved' ? (
                           <button
                             onClick={() => {
                               setCancelIsNoShow(isArrivingToday);
@@ -489,7 +497,14 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             <UserX className="w-3 h-3 text-rose-600" />
                             <span>Cancel</span>
                           </button>
-                        )}
+                        ) : res.bookingStatus === 'checked_in' ? (
+                          <span
+                            className="px-2 py-1 text-[10px] text-slate-500 font-medium italic border border-dashed border-slate-200 rounded-lg bg-slate-50 flex items-center whitespace-nowrap"
+                            title="Cannot cancel a checked-in guest. Use Check-Out to settle folio."
+                          >
+                            Use Check-Out instead
+                          </span>
+                        ) : null}
 
                         {/* In-House Check-Out */}
                         {res.bookingStatus === 'checked_in' && (

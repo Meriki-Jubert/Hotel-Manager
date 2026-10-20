@@ -135,7 +135,14 @@ interface HMSContextType {
   checkOutGuest: (reservationId: string, paymentMethod?: PaymentMethod, settlementAmount?: number) => { success: boolean; error?: string };
   createReservation: (payload: CreateReservationPayload) => { success: boolean; reservationId?: string; error?: string };
   updateReservation: (reservationId: string, payload: UpdateReservationPayload) => { success: boolean; error?: string };
-  cancelReservation: (reservationId: string, reason: string, cancellationFee?: number, isNoShow?: boolean) => { success: boolean; error?: string };
+  cancelReservation: (
+    reservationId: string,
+    reason: string,
+    cancellationFee?: number,
+    isNoShow?: boolean,
+    settlement?: 'refund' | 'credit',
+    refundMethod?: PaymentMethod
+  ) => { success: boolean; error?: string };
   convertReservationToCheckIn: (payload: ConvertToCheckInPayload) => { success: boolean; error?: string };
   getAvailableRoomsForDateRange: (checkInDate: string, checkOutDate: string, roomTypeId?: string, excludeReservationId?: string) => Room[];
   isRoomAvailableForDateRange: (roomId: string, checkInDate: string, checkOutDate: string, excludeReservationId?: string) => boolean;
@@ -1531,12 +1538,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reservationId: string,
     reason: string,
     cancellationFee?: number,
-    isNoShow?: boolean
+    isNoShow?: boolean,
+    settlement?: 'refund' | 'credit',
+    refundMethod?: PaymentMethod
   ): { success: boolean; error?: string } => {
     const res = allReservations.find((r) => r.id === reservationId);
     if (!res) return { success: false, error: 'Reservation not found.' };
-    if (res.bookingStatus === 'cancelled' || res.bookingStatus === 'checked_out') {
-      return { success: false, error: `Cannot cancel booking in ${res.bookingStatus} status.` };
+
+    // Only bookings with status 'reserved' can be cancelled or marked no-show
+    if (res.bookingStatus !== 'reserved') {
+      if (res.bookingStatus === 'checked_in') {
+        return { success: false, error: 'Cannot cancel a checked-in booking. Use Check-Out instead.' };
+      }
+      return {
+        success: false,
+        error: `Only bookings in 'reserved' status can be cancelled or marked no-show (current status: ${res.bookingStatus}).`
+      };
     }
 
     if (!reason.trim()) {
@@ -1546,25 +1563,91 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
     const staffName = currentUser?.name || 'Staff';
     const fullReason = isNoShow ? `No-Show: ${reason.trim()}` : reason.trim();
-    const fee = cancellationFee && cancellationFee > 0 ? cancellationFee : 0;
 
+    // Cap the fee at the booking's original total
+    const rawFee = typeof cancellationFee === 'number' && cancellationFee > 0 ? cancellationFee : 0;
+    const fee = Math.min(rawFee, res.totalAmount);
+
+    // Sum non-voided payments/deposits on this folio
+    const paid = allTransactions
+      .filter(
+        (t) =>
+          t.reservationId === res.id &&
+          !t.voided &&
+          (t.type === 'payment' || t.category === 'payment' || t.category === 'deposit')
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const newTransactions: FolioTransaction[] = [];
+
+    // If fee > 0, post the fee as a charge with category 'cancellation_fee' or 'no_show_fee'
     if (fee > 0) {
       const feeTx: FolioTransaction = {
-        id: `tx-${Date.now()}-cancel-fee`,
+        id: `tx-${Date.now()}-fee`,
         branchId: res.branchId,
         reservationId: res.id,
         guestId: res.guestId,
         roomNumber: res.roomNumber,
-        category: 'late_checkout',
+        category: isNoShow ? 'no_show_fee' : 'cancellation_fee',
         description: isNoShow ? `No-Show Fee: ${fullReason}` : `Cancellation Fee: ${fullReason}`,
         amount: fee,
         type: 'charge',
         timestamp,
         recordedBy: staffName
       };
-      setAllTransactions((prev) => [feeTx, ...prev]);
+      newTransactions.push(feeTx);
     }
 
+    // Settlement calculation
+    let finalSettlement: 'refund' | 'credit' | undefined;
+    let actualRefundAmount: number | undefined;
+    let chosenRefundMethod: PaymentMethod | undefined;
+
+    if (paid > fee) {
+      const refundDue = paid - fee;
+      if (settlement === 'refund') {
+        finalSettlement = 'refund';
+        actualRefundAmount = refundDue;
+        chosenRefundMethod = refundMethod || res.paymentMethod || 'cash';
+
+        const refundTx: FolioTransaction = {
+          id: `tx-${Date.now()}-refund`,
+          branchId: res.branchId,
+          reservationId: res.id,
+          guestId: res.guestId,
+          roomNumber: res.roomNumber,
+          category: 'refund',
+          description: `Refund for Cancelled Reservation (${chosenRefundMethod.toUpperCase()})`,
+          amount: -refundDue, // stored as a NEGATIVE amount
+          type: 'payment',
+          paymentMethod: chosenRefundMethod,
+          reference: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+          timestamp,
+          recordedBy: staffName
+        };
+        newTransactions.push(refundTx);
+      } else {
+        // settlement 'credit': post nothing more; folio shows a credit of (paid - fee)
+        finalSettlement = 'credit';
+      }
+    }
+
+    // Void the reservation's room_charge transactions using the existing voided flag
+    setAllTransactions((prev) => {
+      const updated = prev.map((tx) =>
+        tx.reservationId === res.id && tx.category === 'room_charge' && !tx.voided
+          ? {
+              ...tx,
+              voided: true,
+              voidedBy: staffName,
+              voidReason: 'Reservation cancelled'
+            }
+          : tx
+      );
+      return [...newTransactions, ...updated];
+    });
+
+    // Store on the reservation: settlement, refundAmount, refundMethod, cancelledAt, cancelledBy, cancellationReason, cancellationFee
     setAllReservations((prev) =>
       prev.map((r) =>
         r.id === reservationId
@@ -1574,26 +1657,37 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               cancelledAt: timestamp,
               cancelledBy: staffName,
               cancellationReason: fullReason,
-              cancellationFee: fee
+              cancellationFee: fee,
+              settlement: finalSettlement,
+              refundAmount: actualRefundAmount,
+              refundMethod: chosenRefundMethod
             }
           : r
       )
     );
 
+    // Release any room holding this reservation
     setAllRooms((prev) =>
       prev.map((room) =>
         room.currentReservationId === reservationId
-          ? { ...room, status: 'dirty', currentReservationId: undefined }
+          ? {
+              ...room,
+              currentReservationId: undefined,
+              status: room.status === 'reserved' ? 'available' : room.status
+            }
           : room
       )
     );
 
     logStaffActivity(
       isNoShow ? 'Reservation No-Show' : 'Cancel Reservation',
-      `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${formatMoney(fee)}.`
+      `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${formatMoney(fee)}.${finalSettlement ? ` Settlement: ${finalSettlement}.` : ''}`
     );
 
-    showNotification(`Reservation ${res.bookingCode} has been ${isNoShow ? 'marked No-Show' : 'cancelled'}.`, 'info');
+    showNotification(
+      `Reservation ${res.bookingCode} has been ${isNoShow ? 'marked No-Show' : 'cancelled'}.`,
+      'info'
+    );
     return { success: true };
   };
 
@@ -1941,7 +2035,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         (t) =>
           t.branchId === targetBranchId &&
           !t.voided &&
-          (t.category === 'restaurant' || t.category === 'beverage' || t.category === 'laundry')
+          (t.category === 'restaurant' ||
+            t.category === 'beverage' ||
+            t.category === 'laundry' ||
+            t.category === 'cancellation_fee' ||
+            t.category === 'no_show_fee')
       )
       .reduce((sum, t) => sum + t.amount, 0);
 

@@ -115,6 +115,9 @@ export interface Reservation {
   cancelledBy?: string;
   cancellationReason?: string;
   cancellationFee?: number;
+  settlement?: 'refund' | 'credit';
+  refundAmount?: number;
+  refundMethod?: PaymentMethod;
 }
 
 export interface CreateReservationPayload {
@@ -160,7 +163,7 @@ export interface FolioTransaction {
   reservationId: string;
   guestId: string;
   roomNumber: string;
-  category: 'room_charge' | 'restaurant' | 'beverage' | 'laundry' | 'maintenance_charge' | 'late_checkout' | 'cancellation_fee' | 'no_show_fee' | 'room_charge_void' | 'payment' | 'deposit' | 'tax';
+  category: 'room_charge' | 'restaurant' | 'beverage' | 'laundry' | 'maintenance_charge' | 'late_checkout' | 'cancellation_fee' | 'no_show_fee' | 'room_charge_void' | 'payment' | 'deposit' | 'tax' | 'refund';
   description: string;
   amount: number;
   type: 'charge' | 'payment';

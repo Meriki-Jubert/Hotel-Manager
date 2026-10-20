@@ -429,8 +429,24 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                             {t.timestamp}
                           </td>
                           <td className="py-2.5 px-3 capitalize">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
-                              {t.category.replace('_', ' ')}
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                t.category === 'refund'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  : t.category === 'cancellation_fee' || t.category === 'no_show_fee'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {t.category === 'refund'
+                                ? 'Refund'
+                                : t.category === 'cancellation_fee'
+                                ? 'Cancellation Fee'
+                                : t.category === 'no_show_fee'
+                                ? 'No-Show Fee'
+                                : t.category === 'room_charge'
+                                ? 'Room Charge'
+                                : t.category.replace(/_/g, ' ')}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-slate-900">
@@ -447,7 +463,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                           <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
                             {t.type === 'charge' ? formatMoney(t.amount) : '-'}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-700 whitespace-nowrap">
+                          <td
+                            className={`py-2.5 px-3 text-right font-mono font-semibold whitespace-nowrap ${
+                              t.category === 'refund' || t.amount < 0 ? 'text-blue-600 font-bold' : 'text-emerald-700'
+                            }`}
+                          >
                             {t.type === 'payment' ? formatMoney(t.amount) : '-'}
                           </td>
                           {canVoidTransactions && (
@@ -596,7 +616,15 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         <td className="py-2 px-3">
                           <span className="font-semibold text-slate-900">{t.description}</span>
                         </td>
-                        <td className="py-2 px-3 capitalize text-slate-600 text-[11px]">{t.category.replace('_', ' ')}</td>
+                        <td className="py-2 px-3 capitalize text-slate-600 text-[11px]">
+                          {t.category === 'cancellation_fee'
+                            ? 'Cancellation Fee'
+                            : t.category === 'no_show_fee'
+                            ? 'No-Show Fee'
+                            : t.category === 'room_charge'
+                            ? 'Room Charge'
+                            : t.category.replace(/_/g, ' ')}
+                        </td>
                         <td className="py-2 px-3 text-right font-mono text-slate-900 font-medium">{formatMoney(t.amount)}</td>
                         <td className="py-2 px-3 text-right font-mono text-slate-400">-</td>
                       </tr>
@@ -604,12 +632,18 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     {activePayments.map((t) => (
                       <tr key={t.id}>
                         <td className="py-2 px-3">
-                          <span className="font-semibold text-emerald-800">{t.description}</span>
+                          <span className={`font-semibold ${t.category === 'refund' || t.amount < 0 ? 'text-blue-800' : 'text-emerald-800'}`}>
+                            {t.description}
+                          </span>
                           {t.reference && <span className="text-[10px] font-mono text-slate-500 ml-1.5">({t.reference})</span>}
                         </td>
-                        <td className="py-2 px-3 capitalize text-emerald-700 text-[11px]">Payment</td>
+                        <td className={`py-2 px-3 capitalize text-[11px] ${t.category === 'refund' || t.amount < 0 ? 'text-blue-700 font-bold' : 'text-emerald-700'}`}>
+                          {t.category === 'refund' ? 'Refund' : 'Payment'}
+                        </td>
                         <td className="py-2 px-3 text-right font-mono text-slate-400">-</td>
-                        <td className="py-2 px-3 text-right font-mono text-emerald-700 font-bold">{formatMoney(t.amount)}</td>
+                        <td className={`py-2 px-3 text-right font-mono font-bold ${t.category === 'refund' || t.amount < 0 ? 'text-blue-700' : 'text-emerald-700'}`}>
+                          {formatMoney(t.amount)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
