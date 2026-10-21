@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Building
 } from 'lucide-react';
+import { sumPaymentsByMethod } from '../utils/folio';
 
 interface NightAuditModalProps {
   onClose: () => void;
@@ -62,17 +63,9 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
     .filter((r) => r.bookingStatus === 'checked_in')
     .reduce((s, r) => s + r.nightlyRate, 0);
 
-  const cashCollected = transactions
-    .filter((t) => t.type === 'payment' && t.paymentMethod === 'cash')
-    .reduce((s, t) => s + t.amount, 0);
-
-  const momoCollected = transactions
-    .filter((t) => t.type === 'payment' && t.paymentMethod === 'momo')
-    .reduce((s, t) => s + t.amount, 0);
-
-  const orangeCollected = transactions
-    .filter((t) => t.type === 'payment' && t.paymentMethod === 'orange_money')
-    .reduce((s, t) => s + t.amount, 0);
+  const cashCollected = sumPaymentsByMethod(transactions, 'cash');
+  const momoCollected = sumPaymentsByMethod(transactions, 'momo');
+  const orangeCollected = sumPaymentsByMethod(transactions, 'orange_money');
 
   const expectedCashTotal = 150000 + cashCollected; // Base opening float + cash collected
   const discrepancy = actualCashFloat - expectedCashTotal;

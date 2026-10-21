@@ -15,6 +15,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { getFolioTotals } from '../utils/folio';
+
 interface FoliosListViewProps {
   onOpenFolio: (resId: string) => void;
   onOpenCheckOut: (resId: string) => void;
@@ -31,25 +33,16 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
   const [filterBalance, setFilterBalance] = useState<'all' | 'unsettled' | 'settled'>('all');
 
   const folioList = reservations.map((res) => {
-    const charges = transactions
-      .filter((t) => t.reservationId === res.id && t.type === 'charge')
-      .reduce((s, t) => s + t.amount, 0);
-    const payments = transactions
-      .filter((t) => t.reservationId === res.id && t.type === 'payment')
-      .reduce((s, t) => s + t.amount, 0);
-    const balance = charges - payments;
-
+    const totals = getFolioTotals(transactions, res.id);
     return {
       reservation: res,
-      charges,
-      payments,
-      balance
+      totals
     };
   });
 
-  const filtered = folioList.filter(({ reservation, balance }) => {
-    if (filterBalance === 'unsettled' && balance <= 0) return false;
-    if (filterBalance === 'settled' && balance > 0) return false;
+  const filtered = folioList.filter(({ reservation, totals }) => {
+    if (filterBalance === 'unsettled' && totals.balance === 0) return false;
+    if (filterBalance === 'settled' && totals.balance !== 0) return false;
 
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
@@ -125,11 +118,19 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {filtered.map(({ reservation: res, charges, payments, balance }) => (
+              {filtered.map(({ reservation: res, totals }) => (
                 <tr key={res.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 px-4">
                     <span className="font-mono font-bold text-slate-900">{res.bookingCode}</span>
-                    <div className="text-[10px] text-slate-400 capitalize">{res.bookingStatus.replace('_', ' ')}</div>
+                    <div className="text-[10px] text-slate-400 capitalize flex items-center gap-1.5 mt-0.5">
+                      {res.bookingStatus === 'cancelled' ? (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                          Cancelled
+                        </span>
+                      ) : (
+                        <span>{res.bookingStatus.replace('_', ' ')}</span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="py-3 px-4">
@@ -152,20 +153,28 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
                   </td>
 
                   <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
-                    {formatMoney(charges)}
+                    {formatMoney(totals.charges)}
                   </td>
 
                   <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">
-                    {formatMoney(payments)}
+                    {formatMoney(totals.netPaid)}
                   </td>
 
                   <td className="py-3 px-4 text-right font-mono font-bold">
                     <span
                       className={`px-2 py-0.5 rounded text-xs ${
-                        balance > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                        totals.balance < 0
+                          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                          : totals.balance > 0
+                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                       }`}
                     >
-                      {balance > 0 ? formatMoney(balance) : '0 FCFA'}
+                      {totals.balance < 0
+                        ? `Credit: ${formatMoney(Math.abs(totals.balance))}`
+                        : totals.balance > 0
+                        ? formatMoney(totals.balance)
+                        : '0 FCFA Settled'}
                     </span>
                   </td>
 

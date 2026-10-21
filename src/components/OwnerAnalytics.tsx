@@ -15,6 +15,8 @@ import {
   Building,
   MapPin
 } from 'lucide-react';
+import { PaymentMethod } from '../types/hms';
+import { sumPaymentsByMethod } from '../utils/folio';
 
 export const OwnerAnalytics: React.FC = () => {
   const {
@@ -56,14 +58,12 @@ export const OwnerAnalytics: React.FC = () => {
   const adr = occupiedRooms > 0 ? roomRevenueToday / occupiedRooms : 0;
   const revPar = totalRooms > 0 ? roomRevenueToday / totalRooms : 0;
 
-  // Breakdown by payment method
-  const paymentsByMethod = transactions
-    .filter((t) => t.type === 'payment')
-    .reduce((acc, t) => {
-      const m = t.paymentMethod || 'cash';
-      acc[m] = (acc[m] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
+  // Breakdown by payment method using sumPaymentsByMethod
+  const paymentMethods: PaymentMethod[] = ['cash', 'momo', 'orange_money', 'card', 'bank_transfer'];
+  const paymentsByMethod = paymentMethods.reduce((acc, m) => {
+    acc[m] = sumPaymentsByMethod(transactions, m);
+    return acc;
+  }, {} as Record<string, number>);
 
   const totalCollected = Object.values(paymentsByMethod).reduce((s, a) => s + a, 0);
 

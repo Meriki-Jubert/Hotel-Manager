@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, PaymentMethod } from '../types/hms';
+import { getFolioTotals } from '../utils/folio';
 import {
   X,
   AlertTriangle,
@@ -33,11 +34,9 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
   const [refundMethod, setRefundMethod] = useState<PaymentMethod>('momo');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Live calculation of deposit / payments received
-  const reservationTxs = transactions.filter((t) => t.reservationId === reservation.id && !t.voided);
-  const depositPaid = reservationTxs
-    .filter((t) => t.type === 'payment' || t.category === 'payment' || t.category === 'deposit')
-    .reduce((s, t) => s + t.amount, 0);
+  // Live calculation of deposit / payments received using shared getFolioTotals
+  const totals = getFolioTotals(transactions, reservation.id);
+  const depositPaid = totals.netPaid;
 
   const refundDue = depositPaid > fee ? depositPaid - fee : 0;
   const balanceDue = fee > depositPaid ? fee - depositPaid : 0;

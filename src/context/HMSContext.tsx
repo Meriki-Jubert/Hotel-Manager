@@ -43,6 +43,7 @@ import {
   isValidDateString
 } from '../utils/dateUtils';
 import { checkAvailability } from '../utils/availability';
+import { getFolioTotals, sumPaymentsByMethod } from '../utils/folio';
 import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
 
 export type NavTab =
@@ -1568,15 +1569,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const rawFee = typeof cancellationFee === 'number' && cancellationFee > 0 ? cancellationFee : 0;
     const fee = Math.min(rawFee, res.totalAmount);
 
-    // Sum non-voided payments/deposits on this folio
-    const paid = allTransactions
-      .filter(
-        (t) =>
-          t.reservationId === res.id &&
-          !t.voided &&
-          (t.type === 'payment' || t.category === 'payment' || t.category === 'deposit')
-      )
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Sum non-voided payments/deposits on this folio using shared getFolioTotals
+    const paid = getFolioTotals(allTransactions, res.id).netPaid;
 
     const newTransactions: FolioTransaction[] = [];
 
@@ -2047,27 +2041,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const adr = occupied > 0 ? roomRevenue / occupied : 0;
     const revPar = totalRooms > 0 ? roomRevenue / totalRooms : 0;
 
-    const cashCollected = allTransactions
-      .filter((t) => t.branchId === targetBranchId && !t.voided && t.type === 'payment' && t.paymentMethod === 'cash')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const momoCollected = allTransactions
-      .filter((t) => t.branchId === targetBranchId && !t.voided && t.type === 'payment' && t.paymentMethod === 'momo')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const orangeMoneyCollected = allTransactions
-      .filter((t) => t.branchId === targetBranchId && !t.voided && t.type === 'payment' && t.paymentMethod === 'orange_money')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const cardCollected = allTransactions
-      .filter(
-        (t) =>
-          t.branchId === targetBranchId &&
-          !t.voided &&
-          t.type === 'payment' &&
-          (t.paymentMethod === 'card' || t.paymentMethod === 'bank_transfer')
-      )
-      .reduce((sum, t) => sum + t.amount, 0);
+    const cashCollected = sumPaymentsByMethod(allTransactions, 'cash', (t) => t.branchId === targetBranchId);
+    const momoCollected = sumPaymentsByMethod(allTransactions, 'momo', (t) => t.branchId === targetBranchId);
+    const orangeMoneyCollected = sumPaymentsByMethod(allTransactions, 'orange_money', (t) => t.branchId === targetBranchId);
+    const cardCollected =
+      sumPaymentsByMethod(allTransactions, 'card', (t) => t.branchId === targetBranchId) +
+      sumPaymentsByMethod(allTransactions, 'bank_transfer', (t) => t.branchId === targetBranchId);
 
     const discrepancy = actualCash - expectedCash;
     const branchCurrentDate = branchBusinessDates[targetBranchId] || getLocalDateString();

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Room, RoomStatus } from '../types/hms';
+import { getFolioTotals } from '../utils/folio';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   Bed,
@@ -271,13 +272,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
 
           let folioBalance = 0;
           if (currentRes) {
-            const charges = transactions
-              .filter((t) => !t.voided && t.reservationId === currentRes.id && t.type === 'charge')
-              .reduce((s, t) => s + t.amount, 0);
-            const payments = transactions
-              .filter((t) => !t.voided && t.reservationId === currentRes.id && t.type === 'payment')
-              .reduce((s, t) => s + t.amount, 0);
-            folioBalance = charges - payments;
+            folioBalance = getFolioTotals(transactions, currentRes.id).balance;
           }
 
           return (

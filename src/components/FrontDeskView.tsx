@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, BookingStatus } from '../types/hms';
+import { getFolioTotals } from '../utils/folio';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import { NewReservationModal } from './NewReservationModal';
 import { EditReservationModal } from './EditReservationModal';
@@ -335,18 +336,12 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                 const isArrivingToday = res.checkInDate === businessDate && res.bookingStatus === 'reserved';
                 const isDepartingToday = res.checkOutDate === businessDate && res.bookingStatus === 'checked_in';
 
-                // Calculate accurate folio transactions balance
-                const charges = transactions
-                  .filter((t) => !t.voided && t.reservationId === res.id && t.type === 'charge')
-                  .reduce((sum, t) => sum + t.amount, 0);
-                const resPayments = transactions
-                  .filter((t) => !t.voided && t.reservationId === res.id && t.type === 'payment');
-                const netPayments = resPayments.length > 0
-                  ? resPayments.reduce((sum, t) => sum + t.amount, 0)
-                  : res.amountPaid;
-                const totalCharged = charges > 0 ? charges : (res.bookingStatus === 'cancelled' ? (res.cancellationFee || 0) : res.totalAmount);
-                const actualBalanceDue = Math.max(0, totalCharged - netPayments);
-                const isCredit = netPayments > totalCharged;
+                // Calculate accurate folio transactions balance using shared getFolioTotals
+                const totals = getFolioTotals(transactions, res.id);
+                const totalCharged = totals.charges > 0 ? totals.charges : (res.bookingStatus === 'cancelled' ? (res.cancellationFee || 0) : res.totalAmount);
+                const netPayments = totals.netPaid !== 0 || totals.charges > 0 ? totals.netPaid : res.amountPaid;
+                const actualBalanceDue = Math.max(0, totals.balance);
+                const isCredit = totals.balance < 0;
 
                 const typeObj = roomTypes.find((t) => t.id === res.roomTypeId);
 

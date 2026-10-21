@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, FolioTransaction, PaymentMethod } from '../types/hms';
+import { getFolioTotals } from '../utils/folio';
 import {
   X,
   Printer,
@@ -65,9 +66,10 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
   const activeCharges = folioTxs.filter((t) => !t.voided && t.type === 'charge');
   const activePayments = folioTxs.filter((t) => !t.voided && t.type === 'payment');
 
-  const totalCharges = activeCharges.reduce((s, t) => s + t.amount, 0);
-  const totalPaid = activePayments.reduce((s, t) => s + t.amount, 0);
-  const balance = totalCharges - totalPaid;
+  const totals = getFolioTotals(transactions, reservation.id);
+  const totalCharges = totals.charges;
+  const totalPaid = totals.netPaid;
+  const balance = totals.balance;
 
   const handleCreateCharge = (e: React.FormEvent) => {
     e.preventDefault();

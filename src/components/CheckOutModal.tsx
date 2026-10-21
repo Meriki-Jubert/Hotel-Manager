@@ -15,6 +15,8 @@ import {
   Building
 } from 'lucide-react';
 
+import { getFolioTotals } from '../utils/folio';
+
 interface CheckOutModalProps {
   reservation: Reservation;
   onClose: () => void;
@@ -30,17 +32,11 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
 }) => {
   const { transactions, checkOutGuest, formatMoney } = useHMS();
 
-  // Calculate charges & payments
-  const resCharges = transactions.filter(
-    (t) => t.reservationId === reservation.id && t.type === 'charge'
-  );
-  const resPayments = transactions.filter(
-    (t) => t.reservationId === reservation.id && t.type === 'payment'
-  );
-
-  const totalCharges = resCharges.reduce((s, t) => s + t.amount, 0);
-  const totalPaid = resPayments.reduce((s, t) => s + t.amount, 0);
-  const remainingBalance = Math.max(0, totalCharges - totalPaid);
+  // Calculate charges & payments using shared getFolioTotals
+  const totals = getFolioTotals(transactions, reservation.id);
+  const totalCharges = totals.charges;
+  const totalPaid = totals.netPaid;
+  const remainingBalance = Math.max(0, totals.balance);
 
   const [settlementMethod, setSettlementMethod] = useState<PaymentMethod>('momo');
   const [keyReturned, setKeyReturned] = useState(true);
