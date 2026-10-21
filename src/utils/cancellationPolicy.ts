@@ -56,7 +56,11 @@ export function calculateCancellationFee({
   isNoShow
 }: CalculateCancellationFeeArgs): CancellationFeeResult {
   const total = typeof booking.totalAmount === 'number' ? booking.totalAmount : 0;
-  const nightly = typeof booking.nightlyRate === 'number' ? booking.nightlyRate : 0;
+  const nights = typeof booking.totalNights === 'number' && booking.totalNights > 0 ? booking.totalNights : 1;
+  const nightly =
+    typeof booking.nightlyRate === 'number' && booking.nightlyRate > 0
+      ? booking.nightlyRate
+      : total / Math.max(1, nights);
   const rateType = booking.rateType || 'flexible';
 
   if (rateType === 'non_refundable') {
@@ -87,6 +91,13 @@ export function calculateCancellationFee({
   const daysBefore = wholeDaysBetween(businessDate, booking.checkInDate);
   const tiers = Array.isArray(safePolicy.tiers) ? safePolicy.tiers : [];
 
+  const timingText =
+    daysBefore === 0
+      ? 'Cancelled on the arrival day'
+      : daysBefore < 0
+      ? 'Cancelled after the arrival date'
+      : `Cancelled ${daysBefore} day${daysBefore === 1 ? '' : 's'} before arrival`;
+
   const matching = tiers.filter(
     (t) => typeof t.daysBeforeArrival === 'number' && t.daysBeforeArrival >= daysBefore
   );
@@ -94,10 +105,7 @@ export function calculateCancellationFee({
   if (matching.length === 0) {
     return {
       suggestedFee: 0,
-      ruleText:
-        daysBefore <= 0
-          ? 'Free cancellation (no matching policy tier)'
-          : `Cancelled ${daysBefore} day${daysBefore === 1 ? '' : 's'} before arrival: free cancellation`
+      ruleText: `${timingText}: free cancellation`
     };
   }
 
@@ -111,7 +119,7 @@ export function calculateCancellationFee({
       ? `${tier.value}% of booking total`
       : `${tier.value} night${tier.value === 1 ? '' : 's'} charge`;
 
-  const ruleText = `Cancelled ${daysBefore} day${daysBefore === 1 ? '' : 's'} before arrival: ${feeDesc}`;
+  const ruleText = `${timingText}: ${feeDesc}`;
 
   return { suggestedFee: fee, ruleText };
 }

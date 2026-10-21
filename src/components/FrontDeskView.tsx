@@ -349,7 +349,14 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                   <tr key={res.id} className="hover:bg-slate-50/90 transition-colors">
                     {/* Booking Code */}
                     <td className="py-3.5 px-4">
-                      <div className="font-mono font-bold text-slate-900">{res.bookingCode}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono font-bold text-slate-900">{res.bookingCode}</span>
+                        {res.rateType === 'non_refundable' && (
+                          <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-200">
+                            Non-refundable
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-500 capitalize flex items-center gap-1 mt-0.5">
                         <span className="font-semibold">{res.source}</span>
                       </div>

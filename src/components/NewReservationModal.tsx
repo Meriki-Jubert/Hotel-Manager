@@ -4,6 +4,7 @@ import { RoomType, Room, PaymentMethod, BookingSource } from '../types/hms';
 import { getNextLocalDateString, calculateStayNights, isValidDateString } from '../utils/dateUtils';
 import { checkAvailability, getAvailableRoomCount } from '../utils/availability';
 import { getGuestStats } from '../utils/guestStats';
+import { getCancellationPolicySummary } from '../utils/cancellationPolicy';
 import {
   X,
   Calendar,
@@ -19,7 +20,8 @@ import {
   BookmarkCheck,
   Search,
   Sparkles,
-  Users
+  Users,
+  ShieldCheck
 } from 'lucide-react';
 
 interface NewReservationModalProps {
@@ -44,7 +46,8 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     businessDate,
     formatMoney,
     createReservation,
-    activeBranchId
+    activeBranchId,
+    hotelConfig
   } = useHMS();
 
   // Active room types in current branch
@@ -68,6 +71,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   const [selectedRoomId, setSelectedRoomId] = useState<string>(initialRoom ? initialRoom.id : '');
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
+  const [rateType, setRateType] = useState<'flexible' | 'non_refundable'>('flexible');
   const [source, setSource] = useState<BookingSource>('Phone');
   const [specialRequests, setSpecialRequests] = useState('');
   
@@ -223,6 +227,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
       adults,
       children,
       source,
+      rateType,
       specialRequests: specialRequests.trim() || undefined,
       depositAmount: depositAmount > 0 ? depositAmount : undefined,
       depositMethod: depositAmount > 0 ? depositMethod : undefined
@@ -600,6 +605,39 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Cancellation Policy Terms & Non-Refundable Toggle */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5 shrink-0">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                Cancellation Terms:
+              </span>
+              <span className="text-slate-600 font-medium text-right">
+                {getCancellationPolicySummary(hotelConfig.cancellationPolicy)}
+              </span>
+            </div>
+
+            {hotelConfig.cancellationPolicy?.allowNonRefundable && (
+              <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between gap-3">
+                <div>
+                  <label htmlFor="newResNonRefundable" className="font-bold text-slate-800 cursor-pointer block">
+                    Non-refundable Rate
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    If cancelled or no-show, full stay amount applies as cancellation fee
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  id="newResNonRefundable"
+                  checked={rateType === 'non_refundable'}
+                  onChange={(e) => setRateType(e.target.checked ? 'non_refundable' : 'flexible')}
+                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
+                />
+              </div>
+            )}
           </div>
 
           {/* Special Requests */}

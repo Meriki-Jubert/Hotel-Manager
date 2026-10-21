@@ -44,7 +44,7 @@ import {
 } from '../utils/dateUtils';
 import { checkAvailability } from '../utils/availability';
 import { getFolioTotals, sumPaymentsByMethod } from '../utils/folio';
-import { DEFAULT_CANCELLATION_POLICY } from '../utils/cancellationPolicy';
+import { DEFAULT_CANCELLATION_POLICY, calculateCancellationFee } from '../utils/cancellationPolicy';
 import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
 
 export type NavTab =
@@ -1594,21 +1594,33 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const staffName = currentUser?.name || 'Staff';
     const fullReason = isNoShow ? `No-Show: ${reason.trim()}` : reason.trim();
 
+    // Calculate suggested fee directly from stored hotelConfig and the reservation
+    const feeCalculation = calculateCancellationFee({
+      policy: hotelConfig.cancellationPolicy || DEFAULT_CANCELLATION_POLICY,
+      booking: res,
+      businessDate,
+      isNoShow
+    });
+    const calculatedSuggestedFee = feeCalculation.suggestedFee;
+    const calculatedRuleText = feeCalculation.ruleText;
+
     // Cap the fee at the booking's original total
     const rawFee = typeof cancellationFee === 'number' && cancellationFee > 0 ? cancellationFee : 0;
     const fee = Math.min(rawFee, res.totalAmount);
     
-    let feeOverrideReason = feeMeta?.feeOverrideReason;
+    let feeOverrideReason: string | undefined;
     let feeOverriddenBy: string | undefined;
 
-    if (feeMeta && fee < feeMeta.suggestedFee) {
+    if (fee < calculatedSuggestedFee) {
       if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-        return { success: false, error: 'Only managers can override cancellation fees.' };
+        return { success: false, error: 'Only managers and owners can override cancellation fees.' };
       }
-      if (!feeOverrideReason || feeOverrideReason.trim().length < 5) {
-        return { success: false, error: 'A valid reason is required for fee overrides.' };
+      const overrideReason = feeMeta?.feeOverrideReason?.trim() || '';
+      if (overrideReason.length < 5) {
+        return { success: false, error: 'A valid reason of at least 5 characters is required for fee overrides.' };
       }
-      feeOverriddenBy = currentUser?.name;
+      feeOverrideReason = overrideReason;
+      feeOverriddenBy = currentUser?.name || 'Manager';
     }
 
     // Sum non-voided payments/deposits on this folio using shared getFolioTotals
@@ -1692,8 +1704,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               settlement: finalSettlement,
               refundAmount: actualRefundAmount,
               refundMethod: chosenRefundMethod,
-              suggestedFee: feeMeta?.suggestedFee,
-              policyRuleText: feeMeta?.policyRuleText,
+              suggestedFee: calculatedSuggestedFee,
+              policyRuleText: calculatedRuleText,
               feeOverrideReason,
               feeOverriddenBy
             }
@@ -1716,7 +1728,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logStaffActivity(
       isNoShow ? 'Reservation No-Show' : 'Cancel Reservation',
-      `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${fee}${feeOverriddenBy ? ` (Override: ${feeOverrideReason})` : ''}`
+      `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${formatMoney(fee)} (Suggested: ${formatMoney(calculatedSuggestedFee)}).${feeOverriddenBy ? ` Fee Overridden by ${feeOverriddenBy}: "${feeOverrideReason}".` : ''}${finalSettlement ? ` Settlement: ${finalSettlement}.` : ''}`
     );
 
     showNotification(
