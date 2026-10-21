@@ -73,7 +73,7 @@ export const HotelSettingsView: React.FC = () => {
     resetStaffPassword
   } = useHMS();
 
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'branches' | 'room_types' | 'rooms' | 'staff'>('profile');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'branches' | 'room_types' | 'rooms' | 'staff' | 'cancellation'>('profile');
 
   // --- HOTEL PROFILE FORM STATE ---
   const [name, setName] = useState(hotelConfig.name);
@@ -745,6 +745,17 @@ export const HotelSettingsView: React.FC = () => {
           >
             <Users className="w-3.5 h-3.5 text-blue-600" />
             <span>Staff Management ({staffUsers.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveSettingsTab('cancellation')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeSettingsTab === 'cancellation'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-rose-600" />
+            <span>Cancellation Policy</span>
           </button>
         </div>
       </div>

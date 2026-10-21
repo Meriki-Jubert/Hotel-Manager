@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { HotelConfig } from '../types/hms';
+import { DEFAULT_CANCELLATION_POLICY } from '../utils/cancellationPolicy';
 
 export const appConfig: HotelConfig = {
   name: (import.meta.env as any).VITE_HOTEL_NAME || 'My Hotel',
@@ -13,7 +14,8 @@ export const appConfig: HotelConfig = {
   defaultCurrency: ((import.meta.env as any).VITE_DEFAULT_CURRENCY === 'USD' ? 'USD' : 'FCFA') as 'FCFA' | 'USD',
   usdExchangeRate: 600,
   checkInTime: '14:00',
-  checkOutTime: '12:00'
+  checkOutTime: '12:00',
+  cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } }
 };
 
 export const isDemoMode = (import.meta.env as any).VITE_DEMO_MODE === 'true';

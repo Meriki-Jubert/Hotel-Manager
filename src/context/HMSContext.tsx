@@ -44,6 +44,7 @@ import {
 } from '../utils/dateUtils';
 import { checkAvailability } from '../utils/availability';
 import { getFolioTotals, sumPaymentsByMethod } from '../utils/folio';
+import { DEFAULT_CANCELLATION_POLICY } from '../utils/cancellationPolicy';
 import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
 
 export type NavTab =
@@ -142,7 +143,12 @@ interface HMSContextType {
     cancellationFee?: number,
     isNoShow?: boolean,
     settlement?: 'refund' | 'credit',
-    refundMethod?: PaymentMethod
+    refundMethod?: PaymentMethod,
+    feeMeta?: {
+      suggestedFee: number;
+      policyRuleText?: string;
+      feeOverrideReason?: string;
+    }
   ) => { success: boolean; error?: string };
   convertReservationToCheckIn: (payload: ConvertToCheckInPayload) => { success: boolean; error?: string };
   getAvailableRoomsForDateRange: (checkInDate: string, checkOutDate: string, roomTypeId?: string, excludeReservationId?: string) => Room[];
@@ -198,7 +204,31 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Active hotel config
   const [hotelConfig, setHotelConfig] = useState<HotelConfig>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_config`);
-    return saved ? JSON.parse(saved) : DEFAULT_HOTEL_CONFIG;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_HOTEL_CONFIG,
+          ...parsed,
+          cancellationPolicy: parsed.cancellationPolicy
+            ? {
+                tiers: Array.isArray(parsed.cancellationPolicy.tiers) ? parsed.cancellationPolicy.tiers : [],
+                noShow: parsed.cancellationPolicy.noShow || DEFAULT_CANCELLATION_POLICY.noShow,
+                allowNonRefundable: !!parsed.cancellationPolicy.allowNonRefundable
+              }
+            : { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } }
+        };
+      } catch {
+        return {
+          ...DEFAULT_HOTEL_CONFIG,
+          cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } }
+        };
+      }
+    }
+    return {
+      ...DEFAULT_HOTEL_CONFIG,
+      cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } }
+    };
   });
 
   // Branches state - app must always have at least one branch
@@ -1364,6 +1394,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       source: payload.source,
       specialRequests: payload.specialRequests,
       keyReturned: false,
+      rateType: payload.rateType === 'non_refundable' ? 'non_refundable' : 'flexible',
       createdAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
@@ -1496,7 +1527,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               totalAmount: newTotalAmount,
               paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid',
               source: payload.source || r.source,
-              specialRequests: payload.specialRequests !== undefined ? payload.specialRequests : r.specialRequests
+              specialRequests: payload.specialRequests !== undefined ? payload.specialRequests : r.specialRequests,
+              rateType: payload.rateType !== undefined
+                ? (payload.rateType === 'non_refundable' ? 'non_refundable' : 'flexible')
+                : (r.rateType || 'flexible')
             }
           : r
       )
@@ -1531,7 +1565,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     cancellationFee?: number,
     isNoShow?: boolean,
     settlement?: 'refund' | 'credit',
-    refundMethod?: PaymentMethod
+    refundMethod?: PaymentMethod,
+    feeMeta?: {
+      suggestedFee: number;
+      policyRuleText?: string;
+      feeOverrideReason?: string;
+    }
   ): { success: boolean; error?: string } => {
     const res = allReservations.find((r) => r.id === reservationId);
     if (!res) return { success: false, error: 'Reservation not found.' };
@@ -1558,6 +1597,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Cap the fee at the booking's original total
     const rawFee = typeof cancellationFee === 'number' && cancellationFee > 0 ? cancellationFee : 0;
     const fee = Math.min(rawFee, res.totalAmount);
+    
+    let feeOverrideReason = feeMeta?.feeOverrideReason;
+    let feeOverriddenBy: string | undefined;
+
+    if (feeMeta && fee < feeMeta.suggestedFee) {
+      if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
+        return { success: false, error: 'Only managers can override cancellation fees.' };
+      }
+      if (!feeOverrideReason || feeOverrideReason.trim().length < 5) {
+        return { success: false, error: 'A valid reason is required for fee overrides.' };
+      }
+      feeOverriddenBy = currentUser?.name;
+    }
 
     // Sum non-voided payments/deposits on this folio using shared getFolioTotals
     const paid = getFolioTotals(allTransactions, res.id).netPaid;
@@ -1620,12 +1672,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAllTransactions((prev) => {
       const updated = prev.map((tx) =>
         tx.reservationId === res.id && tx.category === 'room_charge' && !tx.voided
-          ? {
-              ...tx,
-              voided: true,
-              voidedBy: staffName,
-              voidReason: 'Reservation cancelled'
-            }
+          ? { ...tx, voided: true, voidedBy: staffName, voidReason: 'Reservation cancelled' }
           : tx
       );
       return [...newTransactions, ...updated];
@@ -1644,7 +1691,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               cancellationFee: fee,
               settlement: finalSettlement,
               refundAmount: actualRefundAmount,
-              refundMethod: chosenRefundMethod
+              refundMethod: chosenRefundMethod,
+              suggestedFee: feeMeta?.suggestedFee,
+              policyRuleText: feeMeta?.policyRuleText,
+              feeOverrideReason,
+              feeOverriddenBy
             }
           : r
       )
@@ -1665,7 +1716,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logStaffActivity(
       isNoShow ? 'Reservation No-Show' : 'Cancel Reservation',
-      `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${formatMoney(fee)}.${finalSettlement ? ` Settlement: ${finalSettlement}.` : ''}`
+      `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${fee}${feeOverriddenBy ? ` (Override: ${feeOverrideReason})` : ''}`
     );
 
     showNotification(

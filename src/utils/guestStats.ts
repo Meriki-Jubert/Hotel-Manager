@@ -9,7 +9,8 @@ export interface GuestStats {
 /**
  * Derives guest statistics dynamically from reservations and transactions:
  * - visits: number of reservations with status 'checked_in' or 'checked_out' (never 'reserved' or 'cancelled')
- * - totalSpent: sum of getFolioTotals(...).netPaid over the guest's non-cancelled reservations, plus kept cancellation fees
+ * - totalSpent: sum of getFolioTotals(...).netPaid over non-cancelled reservations;
+ *   for cancelled reservations, only the fee kept: min(netPaid, cancellationFee)
  */
 export function getGuestStats(
   guestId: string,
@@ -25,8 +26,9 @@ export function getGuestStats(
   let totalSpent = 0;
   for (const r of guestReservations) {
     const totals = getFolioTotals(transactions, r.id);
-    if (r.bookingStatus !== 'cancelled') {
-      totalSpent += Math.max(0, totals.netPaid);
+    if (r.bookingStatus === 'cancelled') {
+      const fee = typeof r.cancellationFee === 'number' && r.cancellationFee > 0 ? r.cancellationFee : 0;
+      totalSpent += Math.min(Math.max(0, totals.netPaid), fee);
     } else {
       totalSpent += Math.max(0, totals.netPaid);
     }

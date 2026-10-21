@@ -6,6 +6,23 @@ export type PaymentMethod = 'cash' | 'momo' | 'orange_money' | 'card' | 'bank_tr
 
 export type BookingStatus = 'reserved' | 'checked_in' | 'checked_out' | 'cancelled';
 
+export type CancellationFeeType = 'percent' | 'nights';
+
+export interface CancellationPolicyTier {
+  daysBeforeArrival: number;
+  feeType: CancellationFeeType;
+  value: number;
+}
+
+export interface CancellationPolicy {
+  tiers: CancellationPolicyTier[];
+  noShow: {
+    feeType: CancellationFeeType;
+    value: number;
+  };
+  allowNonRefundable: boolean;
+}
+
 export interface HotelConfig {
   name: string;
   tagline: string;
@@ -19,6 +36,7 @@ export interface HotelConfig {
   usdExchangeRate: number;
   checkInTime: string;
   checkOutTime: string;
+  cancellationPolicy?: CancellationPolicy;
 }
 
 export interface Branch {
@@ -118,6 +136,11 @@ export interface Reservation {
   settlement?: 'refund' | 'credit';
   refundAmount?: number;
   refundMethod?: PaymentMethod;
+  rateType?: 'flexible' | 'non_refundable';
+  suggestedFee?: number;
+  feeOverrideReason?: string;
+  feeOverriddenBy?: string;
+  policyRuleText?: string;
 }
 
 export interface CreateReservationPayload {
@@ -137,6 +160,7 @@ export interface CreateReservationPayload {
   specialRequests?: string;
   depositAmount?: number;
   depositMethod?: PaymentMethod;
+  rateType?: 'flexible' | 'non_refundable';
 }
 
 export interface UpdateReservationPayload {
@@ -148,6 +172,7 @@ export interface UpdateReservationPayload {
   children: number;
   source?: BookingSource;
   specialRequests?: string;
+  rateType?: 'flexible' | 'non_refundable';
 }
 
 export interface ConvertToCheckInPayload {

@@ -557,7 +557,6 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
       {cancellingReservation && (
         <CancelReservationModal
           reservation={cancellingReservation}
-          initialIsNoShow={cancelIsNoShow}
           onClose={() => setCancellingReservation(null)}
         />
       )}
