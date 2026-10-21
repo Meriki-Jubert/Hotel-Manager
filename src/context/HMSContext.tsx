@@ -1058,8 +1058,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    if (room.status === 'occupied') return { success: false, error: 'Room is already occupied!' };
-    if (room.status === 'maintenance') return { success: false, error: 'Room is blocked for maintenance!' };
+    if (['occupied', 'dirty', 'cleaning', 'maintenance'].includes(room.status)) {
+      return { success: false, error: `Room #${room.roomNumber} is ${room.status} and cannot be checked into.` };
+    }
+
+    const effectiveIdCard = payload.idCardNumber || '';
+    if (!effectiveIdCard.trim()) {
+      return { success: false, error: 'Guest ID card number is required at check-in.' };
+    }
 
     const targetBranchId = room.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
 
@@ -1067,7 +1073,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (g) =>
         g.phone === payload.phone ||
         (payload.email && g.email === payload.email) ||
-        g.idCardNumber === payload.idCardNumber
+        g.idCardNumber === effectiveIdCard
     );
 
     if (!guest) {
@@ -1075,24 +1081,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: `gst-${Date.now()}`,
         fullName: payload.guestName,
         phone: payload.phone,
-        email: payload.email || `${payload.guestName.toLowerCase().replace(/\s+/g, '.')}@guest.com`,
-        idCardNumber: payload.idCardNumber,
+        email: payload.email || '',
+        idCardNumber: effectiveIdCard,
         nationality: payload.nationality || 'Cameroonian',
         vipTier: 'Standard',
         notes: payload.specialRequests || '',
-        totalVisits: 1,
-        totalSpent: payload.amountPaid,
+        totalVisits: 0,
+        totalSpent: 0,
         createdAt: businessDate
       };
       setGuests((prev) => [guest!, ...prev]);
-    } else {
-      setGuests((prev) =>
-        prev.map((g) =>
-          g.id === guest!.id
-            ? { ...g, totalVisits: g.totalVisits + 1, totalSpent: g.totalSpent + payload.amountPaid }
-            : g
-        )
-      );
     }
 
     const start = new Date(payload.checkInDate).getTime();
@@ -1323,24 +1321,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: `gst-${Date.now()}`,
         fullName: payload.guestName,
         phone: payload.phone,
-        email: payload.email || `${payload.guestName.toLowerCase().replace(/\s+/g, '.')}@guest.com`,
-        idCardNumber: payload.idCardNumber || 'PENDING',
+        email: payload.email || '',
+        idCardNumber: payload.idCardNumber || '',
         nationality: payload.nationality || 'Cameroonian',
         vipTier: 'Standard',
         notes: payload.specialRequests || '',
-        totalVisits: 1,
-        totalSpent: deposit,
+        totalVisits: 0,
+        totalSpent: 0,
         createdAt: businessDate
       };
       setGuests((prev) => [guest!, ...prev]);
-    } else {
-      setGuests((prev) =>
-        prev.map((g) =>
-          g.id === guest!.id
-            ? { ...g, totalVisits: g.totalVisits + 1, totalSpent: g.totalSpent + deposit }
-            : g
-        )
-      );
     }
 
     const nights = calculateStayNights(payload.checkInDate, payload.checkOutDate);
@@ -1705,7 +1695,21 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const room = allRooms.find((r) => r.id === payload.roomId);
     if (!room) return { success: false, error: 'Selected room not found.' };
     if (room.isActive === false) return { success: false, error: `Room #${room.roomNumber} is deactivated.` };
-    if (room.status === 'occupied') return { success: false, error: `Room #${room.roomNumber} is currently occupied!` };
+    if (['occupied', 'dirty', 'cleaning', 'maintenance'].includes(room.status)) {
+      return { success: false, error: `Room #${room.roomNumber} is ${room.status} and cannot be checked into.` };
+    }
+    if (!isRoomAvailableForDateRange(room.id, res.checkInDate, res.checkOutDate, res.id)) {
+      return { success: false, error: `Room #${room.roomNumber} is not available for these dates.` };
+    }
+
+    const guest = guests.find((g) => g.id === res.guestId);
+    const effectiveIdCard = payload.idCardNumber || guest?.idCardNumber || '';
+    if (!effectiveIdCard.trim()) {
+      return { success: false, error: 'Guest ID card number is required at check-in.' };
+    }
+    if (payload.idCardNumber && payload.idCardNumber.trim()) {
+      setGuests((prev) => prev.map((g) => g.id === res.guestId ? { ...g, idCardNumber: payload.idCardNumber!.trim() } : g));
+    }
 
     const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
     const staffName = currentUser?.name || 'Staff';

@@ -155,6 +155,7 @@ export interface ConvertToCheckInPayload {
   roomId: string;
   paymentMethod?: PaymentMethod;
   additionalDeposit?: number;
+  idCardNumber?: string;
 }
 
 export interface FolioTransaction {

@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { RoomType, Room, PaymentMethod, BookingSource } from '../types/hms';
 import { getNextLocalDateString, calculateStayNights, isValidDateString } from '../utils/dateUtils';
 import { checkAvailability, getAvailableRoomCount } from '../utils/availability';
+import { getGuestStats } from '../utils/guestStats';
 import {
   X,
   Calendar,
@@ -37,6 +38,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     rooms,
     allRooms,
     allReservations,
+    allTransactions,
     branches,
     guests,
     businessDate,
@@ -318,7 +320,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                         <div className="text-[10px] text-slate-500 font-mono">{g.phone} • {g.nationality}</div>
                       </div>
                       <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-semibold text-slate-700">
-                        {g.vipTier} ({g.totalVisits} visits)
+                        {g.vipTier} ({getGuestStats(g.id, allReservations, allTransactions).visits} visits)
                       </span>
                     </button>
                   ))}

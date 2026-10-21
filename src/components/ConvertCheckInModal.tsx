@@ -13,7 +13,8 @@ import {
   DollarSign,
   AlertCircle,
   Sparkles,
-  ShieldAlert
+  ShieldAlert,
+  FileText
 } from 'lucide-react';
 
 interface ConvertCheckInModalProps {
@@ -33,8 +34,11 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
     formatMoney,
     convertReservationToCheckIn,
     getAvailableRoomsForDateRange,
-    businessDate
+    businessDate,
+    guests
   } = useHMS();
+
+  const guest = guests.find((g) => g.id === reservation.guestId);
 
   // Find room type
   const targetRoomTypeId =
@@ -45,14 +49,23 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
 
   const isFutureArrival = reservation.checkInDate > businessDate;
 
-  // Available rooms for this stay
+  // Available rooms for this stay (clean and bookable)
   const availableCandidateRooms = useMemo(() => {
     if (!targetRoomTypeId) return [];
-    return getAvailableRoomsForDateRange(
+    const candidateRooms = getAvailableRoomsForDateRange(
       targetRoomTypeId,
       reservation.checkInDate,
       reservation.checkOutDate,
       reservation.id
+    );
+    // Filter for switch room: clean, available today, not taken tonight, active, and status not occupied/dirty/cleaning/maintenance
+    return candidateRooms.filter(
+      (r) =>
+        r.isActive !== false &&
+        r.status !== 'occupied' &&
+        r.status !== 'dirty' &&
+        r.status !== 'cleaning' &&
+        r.status !== 'maintenance'
     );
   }, [targetRoomTypeId, reservation, getAvailableRoomsForDateRange]);
 
@@ -62,18 +75,23 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
       const current = rooms.find((r) => r.id === reservation.roomId);
       if (current) return current.id;
     }
-    return availableCandidateRooms[0]?.id || '';
-  }, [reservation.roomId, rooms, availableCandidateRooms]);
+    return availableCandidateRooms[0]?.id || rooms.find((r) => r.roomTypeId === targetRoomTypeId)?.id || '';
+  }, [reservation.roomId, rooms, availableCandidateRooms, targetRoomTypeId]);
 
   const [selectedRoomId, setSelectedRoomId] = useState<string>(initialRoomId);
+  const [idCardNumber, setIdCardNumber] = useState<string>(
+    guest?.idCardNumber || ''
+  );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [additionalPayment, setAdditionalPayment] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
-  const isRoomDirty = selectedRoom && (selectedRoom.status === 'dirty' || selectedRoom.status === 'cleaning');
-  const isRoomMaintenance = selectedRoom && selectedRoom.status === 'maintenance';
-  const isRoomOccupied = selectedRoom && selectedRoom.status === 'occupied';
+  const isRoomOccupied = selectedRoom ? selectedRoom.status === 'occupied' : false;
+  const isRoomDirty = selectedRoom ? (selectedRoom.status === 'dirty' || selectedRoom.status === 'cleaning') : false;
+  const isRoomMaintenance = selectedRoom ? selectedRoom.status === 'maintenance' : false;
+  const isRoomDeactivated = selectedRoom ? selectedRoom.isActive === false : false;
+  const isRoomBlocked = isRoomOccupied || isRoomDirty || isRoomMaintenance || isRoomDeactivated;
 
   const balanceDue = Math.max(0, reservation.totalAmount - reservation.amountPaid);
 
@@ -91,8 +109,19 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
       return;
     }
 
-    if (isRoomOccupied) {
-      setErrorMsg('The selected room is currently occupied by another guest.');
+    if (isRoomBlocked) {
+      setErrorMsg(
+        isRoomDeactivated
+          ? `Selected Room #${selectedRoom?.roomNumber} is deactivated. Please switch to an active room.`
+          : isRoomOccupied
+          ? `Selected Room #${selectedRoom?.roomNumber} is currently occupied.`
+          : `Selected Room #${selectedRoom?.roomNumber} is ${selectedRoom?.status} and cannot be checked into.`
+      );
+      return;
+    }
+
+    if (!idCardNumber.trim()) {
+      setErrorMsg('Guest ID card number is required at check-in.');
       return;
     }
 
@@ -100,7 +129,8 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
       reservationId: reservation.id,
       roomId: selectedRoomId,
       paymentMethod: additionalPayment > 0 ? paymentMethod : undefined,
-      additionalDeposit: additionalPayment > 0 ? additionalPayment : undefined
+      additionalDeposit: additionalPayment > 0 ? additionalPayment : undefined,
+      idCardNumber: idCardNumber.trim()
     });
 
     if (!res.success) {
@@ -111,6 +141,20 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
     if (onSuccess) onSuccess();
     onClose();
   };
+
+  // All rooms of same type in same branch for switch room selection when assigned room is blocked
+  const branchId = reservation.branchId || rooms.find((r) => r.id === reservation.roomId)?.branchId || '';
+  const switchRoomCandidates = rooms.filter(
+    (r) =>
+      (r.branchId || branchId) === branchId &&
+      r.roomTypeId === targetRoomTypeId &&
+      r.isActive !== false &&
+      r.status !== 'occupied' &&
+      r.status !== 'dirty' &&
+      r.status !== 'cleaning' &&
+      r.status !== 'maintenance' &&
+      getAvailableRoomsForDateRange(targetRoomTypeId, reservation.checkInDate, reservation.checkOutDate, reservation.id).some((cand) => cand.id === r.id)
+  );
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
@@ -188,15 +232,31 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
             </div>
           </div>
 
-          {/* Room Selection & Cleanliness Warning */}
+          {/* Required ID Card Input */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-slate-500" />
+              <span>National ID Card / Passport # <span className="text-rose-600">*Required at Check-In</span></span>
+            </label>
+            <input
+              type="text"
+              required
+              value={idCardNumber}
+              onChange={(e) => setIdCardNumber(e.target.value)}
+              placeholder="e.g. LT-10928374-B or Passport #"
+              className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 placeholder-slate-400"
+            />
+          </div>
+
+          {/* Room Selection & Cleanliness / Status Blockers */}
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Bed className="w-4 h-4 text-slate-500" />
-                Assign Physical Room
+                Assign Physical Room (Switch Room if Occupied / Dirty / Maintenance / Deactivated)
               </label>
               <span className="text-[10px] text-emerald-700 font-bold">
-                {availableCandidateRooms.length} of type available
+                {switchRoomCandidates.length} clean rooms available
               </span>
             </div>
 
@@ -205,20 +265,45 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               onChange={(e) => setSelectedRoomId(e.target.value)}
               className="w-full px-3 py-2 text-xs font-mono font-semibold bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
             >
-              {availableCandidateRooms.map((r) => (
-                <option key={r.id} value={r.id} className="text-slate-900 font-semibold">
-                  Room #{r.roomNumber} (Floor {r.floor} • Status: {r.status.toUpperCase()} • {formatMoney(r.pricePerNight)}/nt)
-                </option>
-              ))}
+              {rooms
+                .filter((r) => (r.branchId || branchId) === branchId && r.roomTypeId === targetRoomTypeId)
+                .map((r) => {
+                  const isBlocked = r.status === 'occupied' || r.status === 'dirty' || r.status === 'cleaning' || r.status === 'maintenance' || r.isActive === false;
+                  return (
+                    <option key={r.id} value={r.id} disabled={isBlocked} className={`font-semibold ${isBlocked ? 'text-slate-400 bg-slate-100' : 'text-slate-900'}`}>
+                      Room #{r.roomNumber} (Floor {r.floor} • Status: {r.isActive === false ? 'DEACTIVATED' : r.status.toUpperCase()} • {formatMoney(r.pricePerNight)}/nt) {isBlocked ? '[BLOCKED]' : ''}
+                    </option>
+                  );
+                })}
             </select>
 
-            {/* Cleanliness / Maintenance Alert */}
+            {/* Room Status Blockers & Switch Room Warnings */}
+            {isRoomDeactivated && (
+              <div className="p-3 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block font-bold">Room #{selectedRoom?.roomNumber} is Deactivated!</strong>
+                  <span>Check-in is strictly blocked. Please switch to an active room from the list above.</span>
+                </div>
+              </div>
+            )}
+
+            {isRoomOccupied && (
+              <div className="p-3 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block font-bold">Room #{selectedRoom?.roomNumber} is Occupied!</strong>
+                  <span>Check-in is blocked because this room is currently occupied by another guest. Please switch to another room.</span>
+                </div>
+              </div>
+            )}
+
             {isRoomDirty && (
               <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block font-bold">Room #{selectedRoom?.roomNumber} is {selectedRoom?.status.toUpperCase()}!</strong>
-                  <span>Housekeeping turnover is recommended before key handover, or you may choose another clean room of the same type above.</span>
+                  <span>Check-in is blocked until housekeeping turnover is completed or you switch to a clean room.</span>
                 </div>
               </div>
             )}
@@ -228,7 +313,7 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
                 <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block font-bold">Maintenance in Progress!</strong>
-                  <span>Room #{selectedRoom?.roomNumber} is currently under maintenance. Please assign an alternative room.</span>
+                  <span>Room #{selectedRoom?.roomNumber} is under maintenance. Please assign an alternative clean room.</span>
                 </div>
               </div>
             )}
@@ -296,13 +381,17 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!selectedRoomId || isRoomOccupied || isFutureArrival}
+              disabled={!selectedRoomId || isRoomBlocked || isFutureArrival || !idCardNumber.trim()}
               className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <LogIn className="w-4 h-4" />
               <span>
                 {isFutureArrival
                   ? `Check-In Blocked Until ${reservation.checkInDate}`
+                  : isRoomBlocked
+                  ? 'Switch Room Required'
+                  : !idCardNumber.trim()
+                  ? 'Guest ID Required'
                   : 'Complete Check-In & Issue Key'}
               </span>
             </button>
