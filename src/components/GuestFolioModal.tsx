@@ -246,6 +246,26 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                 </div>
               </div>
 
+              {/* Room Moves Transfer History Note */}
+              {reservation.roomMoves && reservation.roomMoves.length > 0 && (
+                <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200 text-xs space-y-1.5 animate-in fade-in">
+                  <span className="font-bold text-blue-900 block text-[11px] uppercase tracking-wider">
+                    Room Transfer History
+                  </span>
+                  {reservation.roomMoves.map((m, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-slate-700 flex-wrap">
+                      <span className="font-semibold text-blue-900">
+                        Room moved from #{m.fromRoom} to #{m.toRoom}
+                      </span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-600">Reason: <em className="font-medium text-slate-800">{m.reason}</em></span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-[11px] text-slate-500 font-mono">By {m.by}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Action Buttons (Restricted if Read Only) */}
               {!isReadOnly && (
                 <div className="flex flex-wrap items-center gap-2">
@@ -437,6 +457,8 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                                   ? 'bg-blue-100 text-blue-800 border border-blue-200'
                                   : t.category === 'cancellation_fee' || t.category === 'no_show_fee'
                                   ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                  : t.category === 'room_charge_void'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                   : 'bg-slate-100 text-slate-700'
                               }`}
                             >
@@ -448,6 +470,8 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                                 ? 'No-Show Fee'
                                 : t.category === 'room_charge'
                                 ? 'Room Charge'
+                                : t.category === 'room_charge_void'
+                                ? 'Stay Adjustment'
                                 : t.category.replace(/_/g, ' ')}
                             </span>
                           </td>
@@ -598,6 +622,13 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <div className="font-bold text-slate-900 mt-1">Room #{reservation.roomNumber}</div>
                   <div className="text-slate-600 mt-0.5 font-mono">{reservation.checkInDate} ➔ {reservation.checkOutDate}</div>
                   <div className="text-slate-500 mt-0.5">Duration: {reservation.totalNights} Night(s)</div>
+                  {reservation.roomMoves && reservation.roomMoves.length > 0 && (
+                    <div className="text-[11px] text-blue-700 font-semibold mt-1">
+                      {reservation.roomMoves.map((m, idx) => (
+                        <div key={idx}>• Room moved from #{m.fromRoom} to #{m.toRoom} ({m.reason})</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

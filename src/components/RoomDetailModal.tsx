@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Room } from '../types/hms';
+import { ExtendStayModal } from './ExtendStayModal';
+import { ShortenStayModal } from './ShortenStayModal';
+import { ChangeRoomModal } from './ChangeRoomModal';
 import {
   X,
   Bed,
@@ -15,7 +18,10 @@ import {
   Clock,
   ShieldAlert,
   Layers,
-  Tag
+  Tag,
+  PlusCircle,
+  MinusCircle,
+  Shuffle
 } from 'lucide-react';
 
 interface RoomDetailModalProps {
@@ -35,7 +41,12 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
   onOpenFolio,
   onReportMaintenance
 }) => {
-  const { roomTypes, reservations, updateRoomStatus, formatMoney, maintenanceTickets, getNextUpcomingReservationForRoom } = useHMS();
+  const { roomTypes, reservations, updateRoomStatus, formatMoney, maintenanceTickets, getNextUpcomingReservationForRoom, currentUser } = useHMS();
+  const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
+
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [showShortenModal, setShowShortenModal] = useState(false);
+  const [showChangeRoomModal, setShowChangeRoomModal] = useState(false);
 
   const type = roomTypes.find((t) => t.id === room.roomTypeId);
   const currentRes = reservations.find((r) => r.id === room.currentReservationId);
@@ -138,6 +149,43 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               {currentRes.specialRequests && (
                 <div className="text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 italic">
                   Note: "{currentRes.specialRequests}"
+                </div>
+              )}
+
+              {/* In-House Stay Management Actions */}
+              {currentRes.bookingStatus === 'checked_in' && (
+                <div className="pt-2.5 border-t border-slate-200 flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowExtendModal(true)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 transition-colors cursor-pointer"
+                    title="Extend Stay"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Extend Stay</span>
+                  </button>
+
+                  {isManager && (
+                    <button
+                      type="button"
+                      onClick={() => setShowShortenModal(true)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 transition-colors cursor-pointer"
+                      title="Shorten Stay"
+                    >
+                      <MinusCircle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Shorten Stay</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowChangeRoomModal(true)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-300 transition-colors cursor-pointer"
+                    title="Change Room"
+                  >
+                    <Shuffle className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Change Room</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -305,6 +353,28 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
         </div>
 
       </div>
+
+      {/* Stay Management Sub-Modals */}
+      {showExtendModal && currentRes && (
+        <ExtendStayModal
+          reservation={currentRes}
+          onClose={() => setShowExtendModal(false)}
+        />
+      )}
+
+      {showShortenModal && currentRes && (
+        <ShortenStayModal
+          reservation={currentRes}
+          onClose={() => setShowShortenModal(false)}
+        />
+      )}
+
+      {showChangeRoomModal && currentRes && (
+        <ChangeRoomModal
+          reservation={currentRes}
+          onClose={() => setShowChangeRoomModal(false)}
+        />
+      )}
     </div>
   );
 };

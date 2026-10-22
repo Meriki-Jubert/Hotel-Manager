@@ -145,6 +145,11 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
                     <span className="font-mono font-bold text-sm text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                       #{res.roomNumber}
                     </span>
+                    {res.roomMoves && res.roomMoves.length > 0 && (
+                      <div className="text-[10px] text-blue-700 font-semibold mt-0.5">
+                        Moved from #{res.roomMoves[res.roomMoves.length - 1].fromRoom}
+                      </div>
+                    )}
                   </td>
 
                   <td className="py-3 px-4 text-slate-600">

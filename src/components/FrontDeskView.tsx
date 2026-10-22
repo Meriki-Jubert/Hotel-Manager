@@ -7,6 +7,9 @@ import { NewReservationModal } from './NewReservationModal';
 import { EditReservationModal } from './EditReservationModal';
 import { CancelReservationModal } from './CancelReservationModal';
 import { ConvertCheckInModal } from './ConvertCheckInModal';
+import { ExtendStayModal } from './ExtendStayModal';
+import { ShortenStayModal } from './ShortenStayModal';
+import { ChangeRoomModal } from './ChangeRoomModal';
 import {
   CalendarCheck2,
   Search,
@@ -20,6 +23,8 @@ import {
   LogOut,
   LogIn,
   PlusCircle,
+  MinusCircle,
+  Shuffle,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -75,6 +80,11 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
   const [cancellingReservation, setCancellingReservation] = useState<Reservation | null>(null);
   const [cancelIsNoShow, setCancelIsNoShow] = useState(false);
   const [checkInReservation, setCheckInReservation] = useState<Reservation | null>(null);
+  const [extendingReservation, setExtendingReservation] = useState<Reservation | null>(null);
+  const [shorteningReservation, setShorteningReservation] = useState<Reservation | null>(null);
+  const [movingReservation, setMovingReservation] = useState<Reservation | null>(null);
+
+  const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
   // Filters state
   const [activeTabFilter, setActiveTabFilter] = useState<ReservationTab>('all');
@@ -508,6 +518,40 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                           </span>
                         ) : null}
 
+                        {/* In-House Stay Management Actions */}
+                        {res.bookingStatus === 'checked_in' && (
+                          <>
+                            <button
+                              onClick={() => setExtendingReservation(res)}
+                              className="px-2 py-1 text-xs font-semibold bg-white hover:bg-emerald-50 border border-slate-300 hover:border-emerald-300 text-emerald-800 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
+                              title="Extend Stay"
+                            >
+                              <PlusCircle className="w-3 h-3 text-emerald-600" />
+                              <span>Extend Stay</span>
+                            </button>
+
+                            {isManager && (
+                              <button
+                                onClick={() => setShorteningReservation(res)}
+                                className="px-2 py-1 text-xs font-semibold bg-white hover:bg-amber-50 border border-slate-300 hover:border-amber-300 text-amber-800 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
+                                title="Shorten Stay (Early Departure)"
+                              >
+                                <MinusCircle className="w-3 h-3 text-amber-600" />
+                                <span>Shorten Stay</span>
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => setMovingReservation(res)}
+                              className="px-2 py-1 text-xs font-semibold bg-white hover:bg-blue-50 border border-slate-300 hover:border-blue-300 text-blue-800 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
+                              title="Change Room"
+                            >
+                              <Shuffle className="w-3 h-3 text-blue-600" />
+                              <span>Change Room</span>
+                            </button>
+                          </>
+                        )}
+
                         {/* In-House Check-Out */}
                         {res.bookingStatus === 'checked_in' && (
                           <button
@@ -572,6 +616,27 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
         <ConvertCheckInModal
           reservation={checkInReservation}
           onClose={() => setCheckInReservation(null)}
+        />
+      )}
+
+      {extendingReservation && (
+        <ExtendStayModal
+          reservation={extendingReservation}
+          onClose={() => setExtendingReservation(null)}
+        />
+      )}
+
+      {shorteningReservation && (
+        <ShortenStayModal
+          reservation={shorteningReservation}
+          onClose={() => setShorteningReservation(null)}
+        />
+      )}
+
+      {movingReservation && (
+        <ChangeRoomModal
+          reservation={movingReservation}
+          onClose={() => setMovingReservation(null)}
         />
       )}
     </div>

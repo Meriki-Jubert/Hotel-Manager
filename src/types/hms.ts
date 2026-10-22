@@ -141,6 +141,13 @@ export interface Reservation {
   feeOverrideReason?: string;
   feeOverriddenBy?: string;
   policyRuleText?: string;
+  roomMoves?: Array<{
+    fromRoom: string;
+    toRoom: string;
+    at: string;
+    by: string;
+    reason: string;
+  }>;
 }
 
 export interface CreateReservationPayload {

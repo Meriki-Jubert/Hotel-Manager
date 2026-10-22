@@ -40,12 +40,18 @@ import {
   getLocalTimestampString,
   doDateRangesOverlap,
   calculateStayNights,
-  isValidDateString
+  isValidDateString,
+  listNights
 } from '../utils/dateUtils';
 import { checkAvailability } from '../utils/availability';
 import { getFolioTotals, sumPaymentsByMethod } from '../utils/folio';
 import { DEFAULT_CANCELLATION_POLICY, calculateCancellationFee } from '../utils/cancellationPolicy';
 import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
+import {
+  calculateExtension,
+  calculateShortening,
+  calculateRoomMoveAdjustment
+} from '../utils/stayChanges';
 
 export type NavTab =
   | 'matrix'
@@ -151,6 +157,9 @@ interface HMSContextType {
     }
   ) => { success: boolean; error?: string };
   convertReservationToCheckIn: (payload: ConvertToCheckInPayload) => { success: boolean; error?: string };
+  extendStay: (reservationId: string, newCheckOutDate: string) => { success: boolean; error?: string };
+  shortenStay: (reservationId: string, newCheckOutDate: string, reason: string) => { success: boolean; error?: string };
+  changeRoom: (reservationId: string, newRoomId: string, reason: string, keepCurrentRate: boolean) => { success: boolean; error?: string };
   getAvailableRoomsForDateRange: (checkInDate: string, checkOutDate: string, roomTypeId?: string, excludeReservationId?: string) => Room[];
   isRoomAvailableForDateRange: (roomId: string, checkInDate: string, checkOutDate: string, excludeReservationId?: string) => boolean;
   getNextUpcomingReservationForRoom: (roomId: string) => Reservation | undefined;
@@ -1895,6 +1904,337 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
+  const extendStay = (reservationId: string, newCheckOutDate: string): { success: boolean; error?: string } => {
+    if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
+      return { success: false, error: 'Unauthorized: Only Front Desk, Managers, and Owners can extend a stay.' };
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return { success: false, error: 'Reservation not found.' };
+    }
+
+    if (res.bookingStatus !== 'checked_in') {
+      return { success: false, error: 'Only checked-in reservations can be extended.' };
+    }
+
+    const { addedNights, addedAmount } = calculateExtension({
+      nightlyRate: res.nightlyRate,
+      currentCheckOut: res.checkOutDate,
+      newCheckOut: newCheckOutDate
+    });
+
+    if (addedNights <= 0) {
+      return { success: false, error: 'New check-out date must be after current check-out date.' };
+    }
+
+    const targetBranchId = res.branchId || defaultBranchId;
+    const room = allRooms.find((r) => r.id === res.roomId);
+    if (!room) {
+      return { success: false, error: 'Assigned room not found.' };
+    }
+
+    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+
+    const availCheck = checkAvailability({
+      branchId: targetBranchId,
+      roomTypeId: room.roomTypeId,
+      checkInDate: res.checkOutDate,
+      checkOutDate: newCheckOutDate,
+      rooms: branchRooms,
+      reservations: branchReservations,
+      excludeReservationId: res.id,
+      requestedRoomId: res.roomId
+    });
+
+    if (!availCheck.available) {
+      return { success: false, error: availCheck.reason || 'Room is not available for the requested extension.' };
+    }
+
+    const tx: FolioTransaction = {
+      id: `tx-${Date.now()}-ext`,
+      branchId: targetBranchId,
+      reservationId: res.id,
+      guestId: res.guestId,
+      roomNumber: res.roomNumber,
+      category: 'room_charge',
+      description: `Stay extension: ${addedNights} night(s) to ${newCheckOutDate}`,
+      amount: addedAmount,
+      type: 'charge',
+      timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      recordedBy: currentUser.name
+    };
+
+    setAllTransactions((prev) => [tx, ...prev]);
+
+    const newTotalAmount = res.totalAmount + addedAmount;
+    const newTotalNights = res.totalNights + addedNights;
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === res.id
+          ? {
+              ...r,
+              checkOutDate: newCheckOutDate,
+              totalNights: newTotalNights,
+              totalAmount: newTotalAmount,
+              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+            }
+          : r
+      )
+    );
+
+    logStaffActivity(
+      'Extend Stay',
+      `Extended stay for reservation ${res.bookingCode} (Room #${res.roomNumber}) by ${addedNights} night(s) to ${newCheckOutDate}. Added amount: ${formatMoney(addedAmount)}.`
+    );
+
+    showNotification(`Extended stay for Room #${res.roomNumber} to ${newCheckOutDate} (+${addedNights} nights)`, 'success');
+    return { success: true };
+  };
+
+  const shortenStay = (
+    reservationId: string,
+    newCheckOutDate: string,
+    reason: string
+  ): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      return { success: false, error: 'Unauthorized: Only Managers and Owners can shorten a stay.' };
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      return { success: false, error: 'A valid reason of at least 5 characters is required.' };
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return { success: false, error: 'Reservation not found.' };
+    }
+
+    if (res.bookingStatus !== 'checked_in') {
+      return { success: false, error: 'Only checked-in reservations can be shortened.' };
+    }
+
+    const targetBranchId = res.branchId || defaultBranchId;
+    const branchCurrentDate = (targetBranchId && branchBusinessDates[targetBranchId]) || businessDate || getLocalDateString();
+
+    if (newCheckOutDate <= branchCurrentDate) {
+      return {
+        success: false,
+        error: `New check-out date must be at least one night after branch business date (${branchCurrentDate}). If guest is leaving today, please use Check-Out.`
+      };
+    }
+
+    const { removedNights, creditAmount } = calculateShortening({
+      nightlyRate: res.nightlyRate,
+      currentCheckOut: res.checkOutDate,
+      newCheckOut: newCheckOutDate
+    });
+
+    if (removedNights <= 0) {
+      return { success: false, error: 'New check-out date must be before current check-out date.' };
+    }
+
+    const tx: FolioTransaction = {
+      id: `tx-${Date.now()}-shrt`,
+      branchId: targetBranchId,
+      reservationId: res.id,
+      guestId: res.guestId,
+      roomNumber: res.roomNumber,
+      category: 'room_charge_void',
+      description: `Early departure: ${removedNights} night(s) removed`,
+      amount: -creditAmount,
+      type: 'charge',
+      timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      recordedBy: currentUser.name
+    };
+
+    setAllTransactions((prev) => [tx, ...prev]);
+
+    const newTotalAmount = Math.max(0, res.totalAmount - creditAmount);
+    const newTotalNights = Math.max(1, res.totalNights - removedNights);
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === res.id
+          ? {
+              ...r,
+              checkOutDate: newCheckOutDate,
+              totalNights: newTotalNights,
+              totalAmount: newTotalAmount,
+              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+            }
+          : r
+      )
+    );
+
+    logStaffActivity(
+      'Shorten Stay',
+      `Shortened stay for reservation ${res.bookingCode} (Room #${res.roomNumber}) by ${removedNights} night(s) to ${newCheckOutDate}. Credit: ${formatMoney(creditAmount)}. Reason: ${reason.trim()}`
+    );
+
+    showNotification(`Shortened stay for Room #${res.roomNumber} to ${newCheckOutDate} (-${removedNights} nights)`, 'success');
+    return { success: true };
+  };
+
+  const changeRoom = (
+    reservationId: string,
+    newRoomId: string,
+    reason: string,
+    keepCurrentRate: boolean
+  ): { success: boolean; error?: string } => {
+    if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
+      return { success: false, error: 'Unauthorized: Only Front Desk, Managers, and Owners can change rooms.' };
+    }
+
+    if (!reason || reason.trim().length === 0) {
+      return { success: false, error: 'Reason for room move is required.' };
+    }
+
+    if (!keepCurrentRate && !['manager', 'owner'].includes(currentUser.role)) {
+      return { success: false, error: 'Unauthorized: Changing the nightly rate requires Manager or Owner privileges.' };
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return { success: false, error: 'Reservation not found.' };
+    }
+
+    if (res.bookingStatus !== 'checked_in') {
+      return { success: false, error: 'Only checked-in reservations can change rooms.' };
+    }
+
+    const newRoom = allRooms.find((r) => r.id === newRoomId);
+    if (!newRoom) {
+      return { success: false, error: 'Target room not found.' };
+    }
+
+    if (newRoom.id === res.roomId) {
+      return { success: false, error: 'Reservation is already in this room.' };
+    }
+
+    const targetBranchId = res.branchId || defaultBranchId;
+
+    if ((newRoom.branchId || defaultBranchId) !== targetBranchId) {
+      return { success: false, error: 'Target room must be in the same branch.' };
+    }
+
+    if (newRoom.isActive === false) {
+      return { success: false, error: 'Target room is not active.' };
+    }
+
+    if (newRoom.status !== 'available') {
+      return { success: false, error: `Target room is currently ${newRoom.status}. Only clean, available rooms can be selected.` };
+    }
+
+    const branchCurrentDate = (targetBranchId && branchBusinessDates[targetBranchId]) || businessDate || getLocalDateString();
+    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+
+    const availCheck = checkAvailability({
+      branchId: targetBranchId,
+      roomTypeId: newRoom.roomTypeId,
+      checkInDate: branchCurrentDate,
+      checkOutDate: res.checkOutDate,
+      rooms: branchRooms,
+      reservations: branchReservations,
+      excludeReservationId: res.id,
+      requestedRoomId: newRoom.id
+    });
+
+    if (!availCheck.available) {
+      return { success: false, error: availCheck.reason || 'Target room is not available for the remaining nights.' };
+    }
+
+    const remainingNightsList = listNights(branchCurrentDate, res.checkOutDate);
+    const remainingNights = Math.max(1, remainingNightsList.length);
+    const oldRate = res.nightlyRate;
+    const newRate = keepCurrentRate ? oldRate : newRoom.pricePerNight;
+
+    const { adjustmentAmount } = calculateRoomMoveAdjustment({
+      remainingNights,
+      oldRate,
+      newRate,
+      keepCurrentRate
+    });
+
+    if (adjustmentAmount !== 0) {
+      const isPositive = adjustmentAmount > 0;
+      const tx: FolioTransaction = {
+        id: `tx-${Date.now()}-mv-adj`,
+        branchId: targetBranchId,
+        reservationId: res.id,
+        guestId: res.guestId,
+        roomNumber: newRoom.roomNumber,
+        category: isPositive ? 'room_charge' : 'room_charge_void',
+        description: `Room move rate adjustment: #${res.roomNumber} -> #${newRoom.roomNumber} (${remainingNights} night(s) @ ${newRate - oldRate > 0 ? '+' : ''}${newRate - oldRate} FCFA)`,
+        amount: adjustmentAmount,
+        type: 'charge',
+        timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+        recordedBy: currentUser.name
+      };
+
+      setAllTransactions((prev) => [tx, ...prev]);
+    }
+
+    setAllRooms((prev) =>
+      prev.map((r) => {
+        if (r.id === res.roomId) {
+          return {
+            ...r,
+            status: 'dirty',
+            currentReservationId: undefined,
+            maintenanceNote: `Turnover cleaning required after room move to #${newRoom.roomNumber}.`
+          };
+        }
+        if (r.id === newRoom.id) {
+          return {
+            ...r,
+            status: 'occupied',
+            currentReservationId: res.id
+          };
+        }
+        return r;
+      })
+    );
+
+    const moveEntry = {
+      fromRoom: res.roomNumber,
+      toRoom: newRoom.roomNumber,
+      at: new Date().toISOString(),
+      by: currentUser.name,
+      reason: reason.trim()
+    };
+
+    const newTotalAmount = res.totalAmount + adjustmentAmount;
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === res.id
+          ? {
+              ...r,
+              roomId: newRoom.id,
+              roomNumber: newRoom.roomNumber,
+              roomTypeId: newRoom.roomTypeId,
+              nightlyRate: newRate,
+              totalAmount: newTotalAmount,
+              roomMoves: [...(r.roomMoves || []), moveEntry],
+              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+            }
+          : r
+      )
+    );
+
+    logStaffActivity(
+      'Change Room',
+      `Moved reservation ${res.bookingCode} from Room #${res.roomNumber} to Room #${newRoom.roomNumber}. Rate: ${oldRate} -> ${newRate} FCFA (Adj: ${formatMoney(adjustmentAmount)}). Reason: ${reason.trim()}`
+    );
+
+    showNotification(`Moved guest ${res.guestName} from Room #${res.roomNumber} to Room #${newRoom.roomNumber}!`, 'success');
+    return { success: true };
+  };
+
   const addFolioCharge = (charge: Omit<FolioTransaction, 'id' | 'timestamp'>) => {
     if (isReadOnly) {
       showNotification('Owner account cannot add charges.', 'warning');
@@ -2653,6 +2993,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateReservation,
         cancelReservation,
         convertReservationToCheckIn,
+        extendStay,
+        shortenStay,
+        changeRoom,
         getAvailableRoomsForDateRange,
         isRoomAvailableForDateRange,
         getNextUpcomingReservationForRoom,
