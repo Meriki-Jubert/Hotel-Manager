@@ -35,6 +35,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     transactions,
     addFolioCharge,
     recordFolioPayment,
+    recordSplitPayment,
     voidTransaction,
     formatMoney,
     businessDate,
@@ -137,55 +138,37 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     }
 
     if (isSplitPayment) {
-      const validation = validateSplitPayment({
-        totalAmount: Number(payAmount),
-        lines: splitLines.map((l) => ({ method: l.method, amount: Number(l.amount) }))
-      });
+      const res = recordSplitPayment(
+        reservation.id,
+        splitLines.map((l) => ({ method: l.method, amount: Number(l.amount) })),
+        payRef.trim() || undefined
+      );
 
-      if (!validation.valid) {
-        setSplitError(validation.error || 'Split lines do not equal total payment amount.');
+      if (!res.success) {
+        setSplitError(res.error || 'Failed to record split payment.');
         return;
       }
-
-      const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const operatorName = currentUser?.name || 'Front Desk Operator';
-      const createdTxs: FolioTransaction[] = [];
-
-      splitLines.forEach((line, idx) => {
-        const txRef = payRef.trim()
-          ? `${payRef.trim()}-${idx + 1}`
-          : `${line.method.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
-
-        const txPayload = {
-          reservationId: reservation.id,
-          guestId: reservation.guestId,
-          roomNumber: reservation.roomNumber,
-          category: 'payment' as const,
-          description: `Folio Payment (${line.method.toUpperCase()} - Split ${idx + 1}/${splitLines.length})`,
-          amount: Number(line.amount),
-          paymentMethod: line.method,
-          reference: txRef,
-          splitGroupId,
-          recordedBy: operatorName
-        };
-
-        recordFolioPayment(txPayload);
-        createdTxs.push({
-          ...txPayload,
-          id: `tx-${Date.now()}-${idx}`,
-          timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-          type: 'payment'
-        });
-      });
 
       setPayAmount(0);
       setPayRef('');
       setShowAddPayment(false);
       setSplitError(null);
 
-      if (createdTxs.length > 0) {
-        setSelectedReceiptTx(createdTxs[0]);
-      }
+      setSelectedReceiptTx({
+        id: `tx-split-${res.splitGroupId || Date.now()}`,
+        reservationId: reservation.id,
+        guestId: reservation.guestId,
+        roomNumber: reservation.roomNumber,
+        category: 'payment',
+        description: `Split Payment (${splitLines.length} methods)`,
+        amount: Number(payAmount),
+        paymentMethod: splitLines[0]?.method || 'cash',
+        reference: payRef.trim() || `SPLIT-${res.splitGroupId || Date.now()}`,
+        splitGroupId: res.splitGroupId,
+        timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+        recordedBy: currentUser?.name || 'Front Desk',
+        type: 'payment'
+      });
       return;
     }
 

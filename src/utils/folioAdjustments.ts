@@ -75,6 +75,10 @@ export function validateSplitPayment({
     return { valid: false, error: 'Total payment amount must be greater than zero.' };
   }
 
+  if (!Number.isInteger(totalAmount)) {
+    return { valid: false, error: 'Amounts must be whole numbers (FCFA has no decimals).' };
+  }
+
   if (!Array.isArray(lines) || lines.length === 0) {
     return { valid: false, error: 'At least one payment line is required.' };
   }
@@ -87,6 +91,12 @@ export function validateSplitPayment({
         error: `Line ${i + 1} amount must be greater than zero.`
       };
     }
+    if (!Number.isInteger(line.amount)) {
+      return {
+        valid: false,
+        error: 'Amounts must be whole numbers (FCFA has no decimals).'
+      };
+    }
     if (!line.method) {
       return {
         valid: false,
@@ -96,8 +106,7 @@ export function validateSplitPayment({
   }
 
   const sum = lines.reduce((acc, curr) => acc + curr.amount, 0);
-  // Using 0.001 tolerance for any floating point arithmetic
-  if (Math.abs(sum - totalAmount) > 0.001) {
+  if (sum !== totalAmount) {
     return {
       valid: false,
       error: `Sum of split lines (${sum}) must equal the total amount (${totalAmount}).`

@@ -52,7 +52,7 @@ import {
   calculateShortening,
   calculateRoomMoveAdjustment
 } from '../utils/stayChanges';
-import { calculateDiscount } from '../utils/folioAdjustments';
+import { calculateDiscount, validateSplitPayment } from '../utils/folioAdjustments';
 
 export type NavTab =
   | 'matrix'
@@ -178,6 +178,11 @@ interface HMSContextType {
   updateRoomStatus: (roomId: string, status: RoomStatus, note?: string) => void;
   addFolioCharge: (charge: Omit<FolioTransaction, 'id' | 'timestamp'>) => void;
   recordFolioPayment: (payment: Omit<FolioTransaction, 'id' | 'timestamp' | 'type'>) => void;
+  recordSplitPayment: (
+    reservationId: string,
+    lines: Array<{ method: PaymentMethod; amount: number }>,
+    reference?: string
+  ) => { success: boolean; error?: string; splitGroupId?: string };
   voidTransaction: (txId: string, reason: string) => boolean;
   createMaintenanceTicket: (ticket: Omit<MaintenanceTicket, 'id' | 'ticketNumber' | 'reportedAt'>) => void;
   updateMaintenanceStatus: (ticketId: string, status: MaintenanceTicket['status'], cost?: number) => void;
@@ -1701,10 +1706,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // Void the reservation's room_charge transactions using the existing voided flag
+    // Void the reservation's room_charge and discount transactions using the existing voided flag
     setAllTransactions((prev) => {
       const updated = prev.map((tx) =>
-        tx.reservationId === res.id && tx.category === 'room_charge' && !tx.voided
+        tx.reservationId === res.id && (tx.category === 'room_charge' || tx.category === 'discount') && !tx.voided
           ? { ...tx, voided: true, voidedBy: staffName, voidReason: 'Reservation cancelled' }
           : tx
       );
@@ -1871,8 +1876,27 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let totalSettled = 0;
 
     if (splitLines && splitLines.length > 0) {
+      const totals = getFolioTotals(allTransactions, res.id);
+      const balanceDue = Math.max(0, totals.balance);
+      totalSettled = splitLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+
+      const validation = validateSplitPayment({
+        totalAmount: totalSettled,
+        lines: splitLines
+      });
+
+      if (!validation.valid) {
+        return { success: false, error: validation.error || 'Invalid split payment configuration.' };
+      }
+
+      if (totalSettled > balanceDue) {
+        return {
+          success: false,
+          error: `Payment amount (${formatMoney(totalSettled)}) cannot exceed folio balance due (${formatMoney(balanceDue)}).`
+        };
+      }
+
       const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      totalSettled = splitLines.reduce((s, l) => s + l.amount, 0);
       const splitTxs: FolioTransaction[] = splitLines.map((line, idx) => ({
         id: `tx-${Date.now()}-stl-${idx}`,
         branchId: targetBranchId,
@@ -2425,6 +2449,93 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     showNotification(`Payment of ${formatMoney(payment.amount)} recorded via ${payment.paymentMethod?.toUpperCase()}`, 'success');
+  };
+
+  const recordSplitPayment = (
+    reservationId: string,
+    lines: Array<{ method: PaymentMethod; amount: number }>,
+    reference?: string
+  ): { success: boolean; error?: string; splitGroupId?: string } => {
+    if (isReadOnly) {
+      showNotification('Owner account cannot record payments.', 'warning');
+      return { success: false, error: 'Owner account cannot record payments.' };
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return { success: false, error: 'Reservation not found.' };
+    }
+
+    const totals = getFolioTotals(allTransactions, res.id);
+    const balanceDue = Math.max(0, totals.balance);
+
+    const totalLinesAmount = Array.isArray(lines)
+      ? lines.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
+      : 0;
+
+    const validation = validateSplitPayment({
+      totalAmount: totalLinesAmount,
+      lines: lines || []
+    });
+
+    if (!validation.valid) {
+      return { success: false, error: validation.error || 'Invalid split payment configuration.' };
+    }
+
+    if (totalLinesAmount > balanceDue) {
+      return {
+        success: false,
+        error: `Payment amount (${formatMoney(totalLinesAmount)}) cannot exceed folio balance due (${formatMoney(balanceDue)}).`
+      };
+    }
+
+    const targetBranchId = res.branchId || defaultBranchId;
+    const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const staffName = currentUser?.name || 'Front Desk';
+    const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+
+    const newTransactions: FolioTransaction[] = lines.map((line, idx) => ({
+      id: `tx-${Date.now()}-${idx}-${Math.floor(100 + Math.random() * 900)}`,
+      branchId: targetBranchId,
+      reservationId: res.id,
+      guestId: res.guestId,
+      roomNumber: res.roomNumber,
+      category: 'payment',
+      description: `Folio Payment (${line.method.toUpperCase()} - Split ${idx + 1}/${lines.length})${reference ? ` - Ref: ${reference}` : ''}`,
+      amount: line.amount,
+      type: 'payment',
+      paymentMethod: line.method,
+      reference: reference ? `${reference}-${idx + 1}` : `SPLIT-${Math.floor(100000 + Math.random() * 900000)}`,
+      splitGroupId,
+      timestamp,
+      recordedBy: staffName
+    }));
+
+    setAllTransactions((prev) => [...newTransactions, ...prev]);
+
+    setAllReservations((prev) =>
+      prev.map((r) => {
+        if (r.id !== res.id) return r;
+        const newPaid = r.amountPaid + totalLinesAmount;
+        return {
+          ...r,
+          amountPaid: newPaid,
+          paymentStatus: newPaid >= r.totalAmount ? 'paid' : 'partial'
+        };
+      })
+    );
+
+    logStaffActivity(
+      'Record Split Payment',
+      `Recorded split payment of ${formatMoney(totalLinesAmount)} across ${lines.length} lines for ${res.guestName} (${res.bookingCode})`
+    );
+
+    showNotification(
+      `Split payment of ${formatMoney(totalLinesAmount)} recorded successfully.`,
+      'success'
+    );
+
+    return { success: true, splitGroupId };
   };
 
   const voidTransaction = (txId: string, reason: string): boolean => {
@@ -3128,6 +3239,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateRoomStatus,
         addFolioCharge,
         recordFolioPayment,
+        recordSplitPayment,
         voidTransaction,
         createMaintenanceTicket,
         updateMaintenanceStatus,
