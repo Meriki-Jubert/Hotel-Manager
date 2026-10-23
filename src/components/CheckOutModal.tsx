@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, PaymentMethod } from '../types/hms';
+import { validateSplitPayment } from '../utils/folioAdjustments';
 import {
   X,
   LogOut,
@@ -12,7 +13,10 @@ import {
   FileCheck,
   User,
   Calendar,
-  Building
+  Building,
+  Split,
+  PlusCircle,
+  Trash2
 } from 'lucide-react';
 
 import { getFolioTotals } from '../utils/folio';
@@ -39,13 +43,66 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
   const remainingBalance = Math.max(0, totals.balance);
 
   const [settlementMethod, setSettlementMethod] = useState<PaymentMethod>('momo');
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [splitLines, setSplitLines] = useState<Array<{ id: string; method: PaymentMethod; amount: number }>>(() => {
+    const half = Math.round(remainingBalance / 2);
+    return [
+      { id: '1', method: 'momo', amount: half },
+      { id: '2', method: 'cash', amount: remainingBalance - half }
+    ];
+  });
   const [keyReturned, setKeyReturned] = useState(true);
   const [minibarChecked, setMinibarChecked] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const handleAddSplitLine = () => {
+    setSplitLines((prev) => [
+      ...prev,
+      { id: String(Date.now() + Math.random()), method: 'cash', amount: 0 }
+    ]);
+  };
+
+  const handleRemoveSplitLine = (id: string) => {
+    if (splitLines.length <= 1) return;
+    setSplitLines((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  const handleUpdateSplitLine = (id: string, field: 'method' | 'amount', val: any) => {
+    setSplitLines((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, [field]: val } : l))
+    );
+  };
+
   const handleCheckout = () => {
+    setErrorMsg(null);
     if (!keyReturned) {
       setErrorMsg('Please confirm physical room key/keycard return before checking out.');
+      return;
+    }
+
+    if (remainingBalance > 0 && isSplitPayment) {
+      const validation = validateSplitPayment({
+        totalAmount: remainingBalance,
+        lines: splitLines.map((l) => ({ method: l.method, amount: Number(l.amount) }))
+      });
+
+      if (!validation.valid) {
+        setErrorMsg(validation.error || 'Invalid split payment configuration.');
+        return;
+      }
+
+      const res = checkOutGuest(
+        reservation.id,
+        undefined,
+        remainingBalance,
+        splitLines.map((l) => ({ method: l.method, amount: Number(l.amount) }))
+      );
+
+      if (res.success) {
+        onSuccess();
+      } else {
+        setErrorMsg(res.error || 'Failed to complete check out');
+      }
       return;
     }
 
@@ -156,32 +213,154 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
 
             {/* Settlement payment selection if balance > 0 */}
             {remainingBalance > 0 && (
-              <div className="pt-3 border-t border-slate-200 space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Select Settlement Payment Method for Balance ({formatMoney(remainingBalance)}):
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                  {[
-                    { id: 'momo', label: 'MTN MoMo' },
-                    { id: 'orange_money', label: 'Orange Money' },
-                    { id: 'cash', label: 'Cash' },
-                    { id: 'card', label: 'Card' },
-                    { id: 'bank_transfer', label: 'Transfer' }
-                  ].map((m) => (
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Settlement for Balance ({formatMoney(remainingBalance)}):
+                  </label>
+                  <div className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-0.5 text-xs">
                     <button
-                      key={m.id}
                       type="button"
-                      onClick={() => setSettlementMethod(m.id as PaymentMethod)}
-                      className={`px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        settlementMethod === m.id
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                          : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setErrorMsg(null);
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                        !isSplitPayment
+                          ? 'bg-slate-900 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      {m.label}
+                      Single Payment
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(true);
+                        setErrorMsg(null);
+                        const half = Math.round(remainingBalance / 2);
+                        setSplitLines([
+                          { id: '1', method: 'momo', amount: half },
+                          { id: '2', method: 'cash', amount: remainingBalance - half }
+                        ]);
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                        isSplitPayment
+                          ? 'bg-slate-900 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Split className="w-3.5 h-3.5" />
+                      <span>Split Payment</span>
+                    </button>
+                  </div>
                 </div>
+
+                {!isSplitPayment ? (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                    {[
+                      { id: 'momo', label: 'MTN MoMo' },
+                      { id: 'orange_money', label: 'Orange Money' },
+                      { id: 'cash', label: 'Cash' },
+                      { id: 'card', label: 'Card' },
+                      { id: 'bank_transfer', label: 'Transfer' }
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setSettlementMethod(m.id as PaymentMethod)}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          settlementMethod === m.id
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700">
+                        Split Allocation ({splitLines.length} methods):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddSplitLine}
+                        className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>Add Method</span>
+                      </button>
+                    </div>
+
+                    {splitLines.map((line, idx) => (
+                      <div key={line.id} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-300">
+                        <span className="text-[10px] font-bold text-slate-400 w-5">#{idx + 1}</span>
+                        <div className="flex-1">
+                          <select
+                            value={line.method}
+                            onChange={(e) => handleUpdateSplitLine(line.id, 'method', e.target.value as PaymentMethod)}
+                            className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded text-slate-900 font-medium"
+                          >
+                            <option value="momo">MTN MoMo</option>
+                            <option value="orange_money">Orange Money</option>
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                          </select>
+                        </div>
+                        <div className="w-28">
+                          <input
+                            type="number"
+                            min="100"
+                            step="100"
+                            value={line.amount}
+                            onChange={(e) => handleUpdateSplitLine(line.id, 'amount', Number(e.target.value))}
+                            className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-900"
+                            placeholder="Amount"
+                            required
+                          />
+                        </div>
+                        {splitLines.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSplitLine(line.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Remove split line"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Reconciliation summary */}
+                    {(() => {
+                      const allocated = splitLines.reduce((acc, l) => acc + (Number(l.amount) || 0), 0);
+                      const diff = remainingBalance - allocated;
+                      return (
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
+                          <span className="text-slate-600">
+                            Allocated: <strong className="text-slate-900 font-mono">{formatMoney(allocated)}</strong> / {formatMoney(remainingBalance)}
+                          </span>
+                          <span
+                            className={`font-semibold font-mono ${
+                              diff === 0
+                                ? 'text-emerald-700'
+                                : diff > 0
+                                ? 'text-amber-700'
+                                : 'text-rose-700'
+                            }`}
+                          >
+                            {diff === 0 ? '✓ Balanced' : diff > 0 ? `Remaining: ${formatMoney(diff)}` : `Over: ${formatMoney(Math.abs(diff))}`}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             )}
           </div>

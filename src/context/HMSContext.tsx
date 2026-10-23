@@ -52,6 +52,7 @@ import {
   calculateShortening,
   calculateRoomMoveAdjustment
 } from '../utils/stayChanges';
+import { calculateDiscount } from '../utils/folioAdjustments';
 
 export type NavTab =
   | 'matrix'
@@ -140,7 +141,18 @@ interface HMSContextType {
 
   // Actions
   checkInGuest: (payload: CheckInPayload) => { success: boolean; reservationId?: string; error?: string };
-  checkOutGuest: (reservationId: string, paymentMethod?: PaymentMethod, settlementAmount?: number) => { success: boolean; error?: string };
+  checkOutGuest: (
+    reservationId: string,
+    paymentMethod?: PaymentMethod,
+    settlementAmount?: number,
+    splitLines?: Array<{ method: PaymentMethod; amount: number }>
+  ) => { success: boolean; error?: string };
+  applyDiscount: (
+    reservationId: string,
+    type: 'percent' | 'fixed',
+    value: number,
+    reason: string
+  ) => { success: boolean; error?: string };
   createReservation: (payload: CreateReservationPayload) => { success: boolean; reservationId?: string; error?: string };
   updateReservation: (reservationId: string, payload: UpdateReservationPayload) => { success: boolean; error?: string };
   cancelReservation: (
@@ -1842,7 +1854,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
-  const checkOutGuest = (reservationId: string, paymentMethod?: PaymentMethod, settlementAmount?: number) => {
+  const checkOutGuest = (
+    reservationId: string,
+    paymentMethod?: PaymentMethod,
+    settlementAmount?: number,
+    splitLines?: Array<{ method: PaymentMethod; amount: number }>
+  ) => {
     if (!canCheckOut) {
       return { success: false, error: 'Unauthorized: Your role does not have check-out permissions.' };
     }
@@ -1851,8 +1868,30 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!res) return { success: false, error: 'Reservation not found' };
 
     const targetBranchId = res.branchId || defaultBranchId;
+    let totalSettled = 0;
 
-    if (settlementAmount && settlementAmount > 0 && paymentMethod) {
+    if (splitLines && splitLines.length > 0) {
+      const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      totalSettled = splitLines.reduce((s, l) => s + l.amount, 0);
+      const splitTxs: FolioTransaction[] = splitLines.map((line, idx) => ({
+        id: `tx-${Date.now()}-stl-${idx}`,
+        branchId: targetBranchId,
+        reservationId: res.id,
+        guestId: res.guestId,
+        roomNumber: res.roomNumber,
+        category: 'payment',
+        description: `Check-Out Settlement (${line.method.toUpperCase()} - Split ${idx + 1}/${splitLines.length})`,
+        amount: line.amount,
+        type: 'payment',
+        paymentMethod: line.method,
+        reference: `STL-${Math.floor(100000 + Math.random() * 900000)}`,
+        splitGroupId,
+        timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+        recordedBy: currentUser?.name || 'Front Desk'
+      }));
+      setAllTransactions((prev) => [...splitTxs, ...prev]);
+    } else if (settlementAmount && settlementAmount > 0 && paymentMethod) {
+      totalSettled = settlementAmount;
       const settlementTx: FolioTransaction = {
         id: `tx-${Date.now()}-stl`,
         branchId: targetBranchId,
@@ -1878,7 +1917,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...r,
               bookingStatus: 'checked_out',
               keyReturned: true,
-              amountPaid: r.amountPaid + (settlementAmount || 0),
+              amountPaid: r.amountPaid + totalSettled,
               paymentStatus: 'paid',
               checkedOutAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
             }
@@ -1901,6 +1940,92 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     showNotification(`Room ${res.roomNumber} checked out! Status flipped to DIRTY for Housekeeping turnover.`, 'success');
+    return { success: true };
+  };
+
+  const applyDiscount = (
+    reservationId: string,
+    type: 'percent' | 'fixed',
+    value: number,
+    reason: string
+  ): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      return { success: false, error: 'Unauthorized: Only Managers and Owners can apply discounts.' };
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      return { success: false, error: 'A valid reason of at least 5 characters is required.' };
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return { success: false, error: 'Reservation not found.' };
+    }
+
+    if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') {
+      return { success: false, error: 'Discounts can only be applied to reserved or checked-in reservations.' };
+    }
+
+    const totals = getFolioTotals(allTransactions, res.id);
+    const baseCharges = totals.charges;
+
+    if (baseCharges <= 0) {
+      return { success: false, error: 'Cannot apply discount: folio has no active charges.' };
+    }
+
+    const { discountAmount } = calculateDiscount({
+      type,
+      value,
+      chargesTotal: baseCharges
+    });
+
+    if (discountAmount <= 0) {
+      return { success: false, error: 'Discount amount must be greater than zero.' };
+    }
+
+    if (baseCharges - discountAmount < 0) {
+      return { success: false, error: 'Discount cannot exceed current folio charges.' };
+    }
+
+    const descPrefix = type === 'percent' ? `Discount (${value}%)` : `Discount (fixed)`;
+    const description = `${descPrefix}: ${reason.trim()}`;
+    const targetBranchId = res.branchId || defaultBranchId;
+
+    const tx: FolioTransaction = {
+      id: `tx-${Date.now()}-disc`,
+      branchId: targetBranchId,
+      reservationId: res.id,
+      guestId: res.guestId,
+      roomNumber: res.roomNumber,
+      category: 'discount',
+      description,
+      amount: -discountAmount, // NEGATIVE charge!
+      type: 'charge',
+      timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      recordedBy: currentUser.name
+    };
+
+    setAllTransactions((prev) => [tx, ...prev]);
+
+    const newTotalAmount = Math.max(0, res.totalAmount - discountAmount);
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === res.id
+          ? {
+              ...r,
+              totalAmount: newTotalAmount,
+              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+            }
+          : r
+      )
+    );
+
+    logStaffActivity(
+      'Apply Discount',
+      `Applied ${descPrefix} of ${formatMoney(discountAmount)} to reservation ${res.bookingCode} (Room #${res.roomNumber}). Reason: ${reason.trim()}`
+    );
+
+    showNotification(`Applied discount of ${formatMoney(discountAmount)} to folio.`, 'success');
     return { success: true };
   };
 
@@ -2993,6 +3118,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateReservation,
         cancelReservation,
         convertReservationToCheckIn,
+        applyDiscount,
         extendStay,
         shortenStay,
         changeRoom,

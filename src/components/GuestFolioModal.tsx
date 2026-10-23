@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, FolioTransaction, PaymentMethod } from '../types/hms';
 import { getFolioTotals } from '../utils/folio';
+import { validateSplitPayment } from '../utils/folioAdjustments';
+import { DiscountModal } from './DiscountModal';
+import { PaymentReceiptModal } from './PaymentReceiptModal';
 import {
   X,
   Printer,
@@ -16,7 +19,10 @@ import {
   ShieldCheck,
   CheckCircle2,
   Ban,
-  AlertTriangle
+  AlertTriangle,
+  Tag,
+  Split,
+  Trash2
 } from 'lucide-react';
 
 interface GuestFolioModalProps {
@@ -36,8 +42,21 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     isReadOnly,
     hotelConfig,
     branches,
-    activeBranch
+    activeBranch,
+    currentUser
   } = useHMS();
+
+  const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [selectedReceiptTx, setSelectedReceiptTx] = useState<FolioTransaction | null>(null);
+
+  // Split payment state
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [splitLines, setSplitLines] = useState<Array<{ id: string; method: PaymentMethod; amount: number }>>([
+    { id: '1', method: 'momo', amount: 5000 },
+    { id: '2', method: 'cash', amount: 5000 }
+  ]);
+  const [splitError, setSplitError] = useState<string | null>(null);
 
   const resBranch = branches.find((b) => b.id === reservation.branchId) || activeBranch || branches[0];
   const invName = (resBranch?.name && resBranch.name.trim()) || hotelConfig.name;
@@ -90,25 +109,115 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     setShowAddCharge(false);
   };
 
+  const handleAddSplitLine = () => {
+    setSplitLines((prev) => [
+      ...prev,
+      { id: String(Date.now() + Math.random()), method: 'cash', amount: 0 }
+    ]);
+  };
+
+  const handleRemoveSplitLine = (id: string) => {
+    if (splitLines.length <= 1) return;
+    setSplitLines((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  const handleUpdateSplitLine = (id: string, field: 'method' | 'amount', val: any) => {
+    setSplitLines((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, [field]: val } : l))
+    );
+  };
+
   const handleCreatePayment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (payAmount <= 0) return;
+    setSplitError(null);
 
-    recordFolioPayment({
+    if (payAmount <= 0) {
+      setSplitError('Payment amount must be greater than zero.');
+      return;
+    }
+
+    if (isSplitPayment) {
+      const validation = validateSplitPayment({
+        totalAmount: Number(payAmount),
+        lines: splitLines.map((l) => ({ method: l.method, amount: Number(l.amount) }))
+      });
+
+      if (!validation.valid) {
+        setSplitError(validation.error || 'Split lines do not equal total payment amount.');
+        return;
+      }
+
+      const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const operatorName = currentUser?.name || 'Front Desk Operator';
+      const createdTxs: FolioTransaction[] = [];
+
+      splitLines.forEach((line, idx) => {
+        const txRef = payRef.trim()
+          ? `${payRef.trim()}-${idx + 1}`
+          : `${line.method.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        const txPayload = {
+          reservationId: reservation.id,
+          guestId: reservation.guestId,
+          roomNumber: reservation.roomNumber,
+          category: 'payment' as const,
+          description: `Folio Payment (${line.method.toUpperCase()} - Split ${idx + 1}/${splitLines.length})`,
+          amount: Number(line.amount),
+          paymentMethod: line.method,
+          reference: txRef,
+          splitGroupId,
+          recordedBy: operatorName
+        };
+
+        recordFolioPayment(txPayload);
+        createdTxs.push({
+          ...txPayload,
+          id: `tx-${Date.now()}-${idx}`,
+          timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+          type: 'payment'
+        });
+      });
+
+      setPayAmount(0);
+      setPayRef('');
+      setShowAddPayment(false);
+      setSplitError(null);
+
+      if (createdTxs.length > 0) {
+        setSelectedReceiptTx(createdTxs[0]);
+      }
+      return;
+    }
+
+    // Single payment mode
+    const singleRef =
+      payRef.trim() || `${payMethod.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const operatorName = currentUser?.name || 'Front Desk Operator';
+
+    const txPayload = {
       reservationId: reservation.id,
       guestId: reservation.guestId,
       roomNumber: reservation.roomNumber,
-      category: 'payment',
+      category: 'payment' as const,
       description: `Folio Payment (${payMethod.toUpperCase()})`,
       amount: Number(payAmount),
       paymentMethod: payMethod,
-      reference: payRef.trim() || `${payMethod.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`,
-      recordedBy: 'Front Desk Operator'
-    });
+      reference: singleRef,
+      recordedBy: operatorName
+    };
+
+    recordFolioPayment(txPayload);
 
     setPayAmount(0);
     setPayRef('');
     setShowAddPayment(false);
+
+    setSelectedReceiptTx({
+      ...txPayload,
+      id: `tx-${Date.now()}`,
+      timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      type: 'payment'
+    });
   };
 
   const handleConfirmVoid = (txId: string) => {
@@ -274,7 +383,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       setShowAddCharge(!showAddCharge);
                       setShowAddPayment(false);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors cursor-pointer"
                   >
                     <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Post Incidental Charge</span>
@@ -285,12 +394,33 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       setShowAddPayment(!showAddPayment);
                       setShowAddCharge(false);
                       setPayAmount(balance > 0 ? balance : 10000);
+                      const initialAmt = balance > 0 ? balance : 10000;
+                      const half = Math.round(initialAmt / 2);
+                      setSplitLines([
+                        { id: '1', method: 'momo', amount: half },
+                        { id: '2', method: 'cash', amount: initialAmt - half }
+                      ]);
+                      setSplitError(null);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Record Payment</span>
                   </button>
+
+                  {isManager && (
+                    <button
+                      onClick={() => {
+                        setShowDiscountModal(true);
+                        setShowAddCharge(false);
+                        setShowAddPayment(false);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition-colors cursor-pointer"
+                    >
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>Give Discount</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -316,7 +446,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       <select
                         value={chargeCategory}
                         onChange={(e: any) => setChargeCategory(e.target.value)}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
+                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900"
                       >
                         <option value="restaurant">Restaurant / Dining</option>
                         <option value="beverage">Bar & Minibar</option>
@@ -360,66 +490,239 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                 </form>
               )}
 
-              {/* Collapsible Add Payment Form */}
+              {/* Collapsible Add Payment Form (with Split Payment Support) */}
               {showAddPayment && (
                 <form
                   onSubmit={handleCreatePayment}
-                  className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-300 space-y-3 animate-in fade-in"
+                  className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-300 space-y-3.5 animate-in fade-in"
                 >
                   <div className="font-bold text-xs text-emerald-900 flex items-center justify-between">
-                    <span>Record Guest Payment / MoMo Settlement</span>
+                    <span>Record Guest Payment / Settlement</span>
                     <button
                       type="button"
                       onClick={() => setShowAddPayment(false)}
-                      className="text-emerald-700 hover:text-emerald-900"
+                      className="text-emerald-700 hover:text-emerald-900 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Payment Method</label>
-                      <select
-                        value={payMethod}
-                        onChange={(e: any) => setPayMethod(e.target.value)}
-                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-medium text-slate-900"
+
+                  {/* Single vs Split Toggle */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-emerald-900">Payment Mode:</span>
+                    <div className="inline-flex rounded-lg border border-emerald-300 bg-white p-0.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSplitPayment(false);
+                          setSplitError(null);
+                        }}
+                        className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                          !isSplitPayment
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
                       >
-                        <option value="momo" className="text-slate-900">MTN Mobile Money</option>
-                        <option value="orange_money" className="text-slate-900">Orange Money</option>
-                        <option value="cash" className="text-slate-900">Cash (FCFA)</option>
-                        <option value="card" className="text-slate-900">Credit / Debit Card</option>
-                        <option value="bank_transfer" className="text-slate-900">Bank Wire Transfer</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Amount Received</label>
-                      <input
-                        type="number"
-                        min="500"
-                        step="500"
-                        value={payAmount}
-                        onChange={(e) => setPayAmount(Number(e.target.value))}
-                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono font-bold text-slate-900"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Reference / Receipt #</label>
-                      <input
-                        type="text"
-                        placeholder="MOMO-982143"
-                        value={payRef}
-                        onChange={(e) => setPayRef(e.target.value)}
-                        className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono text-slate-900 placeholder-slate-400 font-medium"
-                      />
+                        Single Payment
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSplitPayment(true);
+                          setSplitError(null);
+                          const amt = Number(payAmount) > 0 ? Number(payAmount) : (balance > 0 ? balance : 10000);
+                          const half = Math.round(amt / 2);
+                          setSplitLines([
+                            { id: '1', method: 'momo', amount: half },
+                            { id: '2', method: 'cash', amount: amt - half }
+                          ]);
+                        }}
+                        className={`px-3 py-1 rounded-md font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                          isSplitPayment
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Split className="w-3.5 h-3.5" />
+                        <span>Split Payment</span>
+                      </button>
                     </div>
                   </div>
-                  <div className="flex justify-end">
+
+                  {splitError && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{splitError}</span>
+                    </div>
+                  )}
+
+                  {!isSplitPayment ? (
+                    /* Single Payment Mode */
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Payment Method</label>
+                        <select
+                          value={payMethod}
+                          onChange={(e: any) => setPayMethod(e.target.value)}
+                          className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-medium text-slate-900"
+                        >
+                          <option value="momo">MTN Mobile Money</option>
+                          <option value="orange_money">Orange Money</option>
+                          <option value="cash">Cash (FCFA)</option>
+                          <option value="card">Credit / Debit Card</option>
+                          <option value="bank_transfer">Bank Wire Transfer</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Amount Received</label>
+                        <input
+                          type="number"
+                          min="100"
+                          step="100"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(Number(e.target.value))}
+                          className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono font-bold text-slate-900"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Reference / Receipt #</label>
+                        <input
+                          type="text"
+                          placeholder="MOMO-982143"
+                          value={payRef}
+                          onChange={(e) => setPayRef(e.target.value)}
+                          className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono text-slate-900 placeholder-slate-400 font-medium"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Split Payment Mode */
+                    <div className="space-y-3 bg-white/80 p-3.5 rounded-xl border border-emerald-200">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Total Payment Amount to Collect
+                          </label>
+                          <input
+                            type="number"
+                            min="100"
+                            step="100"
+                            value={payAmount}
+                            onChange={(e) => setPayAmount(Number(e.target.value))}
+                            className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Group Receipt Reference (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. SPLIT-REC-01"
+                            value={payRef}
+                            onChange={(e) => setPayRef(e.target.value)}
+                            className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-900 placeholder-slate-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-bold text-slate-700">
+                            Split Lines ({splitLines.length} methods):
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleAddSplitLine}
+                            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
+                          >
+                            <PlusCircle className="w-3 h-3" />
+                            <span>Add Split Line</span>
+                          </button>
+                        </div>
+
+                        {splitLines.map((line, idx) => (
+                          <div key={line.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                            <span className="text-[10px] font-bold text-slate-400 w-5">#{idx + 1}</span>
+                            <div className="flex-1">
+                              <select
+                                value={line.method}
+                                onChange={(e) => handleUpdateSplitLine(line.id, 'method', e.target.value as PaymentMethod)}
+                                className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded-md font-medium text-slate-900"
+                              >
+                                <option value="momo">MTN Mobile Money</option>
+                                <option value="orange_money">Orange Money</option>
+                                <option value="cash">Cash (FCFA)</option>
+                                <option value="card">Credit / Debit Card</option>
+                                <option value="bank_transfer">Bank Wire Transfer</option>
+                              </select>
+                            </div>
+                            <div className="w-32">
+                              <input
+                                type="number"
+                                min="100"
+                                step="100"
+                                placeholder="Amount"
+                                value={line.amount || ''}
+                                onChange={(e) => handleUpdateSplitLine(line.id, 'amount', Number(e.target.value))}
+                                className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900"
+                                required
+                              />
+                            </div>
+                            {splitLines.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSplitLine(line.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                                title="Remove Line"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Split Reconciliation Status */}
+                        {(() => {
+                          const currentSum = splitLines.reduce((s, l) => s + Number(l.amount || 0), 0);
+                          const diff = Number(payAmount) - currentSum;
+                          const matches = Math.abs(diff) < 0.001 && Number(payAmount) > 0;
+                          return (
+                            <div className="flex items-center justify-between text-xs pt-1 px-1">
+                              <span className="text-slate-500">
+                                Lines Allocated: <strong>{formatMoney(currentSum)}</strong> / {formatMoney(Number(payAmount))}
+                              </span>
+                              {matches ? (
+                                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Sum Balanced
+                                </span>
+                              ) : (
+                                <span className="text-rose-600 font-bold">
+                                  {diff > 0 ? `Unallocated: ${formatMoney(diff)}` : `Over by: ${formatMoney(Math.abs(diff))}`}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPayment(false)}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                    >
+                      Cancel
+                    </button>
                     <button
                       type="submit"
-                      className="px-4 py-1.5 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 shadow-xs"
+                      className="px-4 py-1.5 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 shadow-xs cursor-pointer"
                     >
-                      Record Payment
+                      {isSplitPayment ? 'Record Split Payment' : 'Record Payment'}
                     </button>
                   </div>
                 </form>
@@ -436,7 +739,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         <th className="py-2.5 px-3">Description</th>
                         <th className="py-2.5 px-3 text-right">Debit (Charge)</th>
                         <th className="py-2.5 px-3 text-right">Credit (Payment)</th>
-                        {canVoidTransactions && <th className="py-2.5 px-3 text-right">Action</th>}
+                        <th className="py-2.5 px-3 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
@@ -459,6 +762,8 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                                   ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                   : t.category === 'room_charge_void'
                                   ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : t.category === 'discount'
+                                  ? 'bg-purple-100 text-purple-800 border border-purple-200'
                                   : 'bg-slate-100 text-slate-700'
                               }`}
                             >
@@ -468,6 +773,8 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                                 ? 'Cancellation Fee'
                                 : t.category === 'no_show_fee'
                                 ? 'No-Show Fee'
+                                : t.category === 'discount'
+                                ? 'Discount'
                                 : t.category === 'room_charge'
                                 ? 'Room Charge'
                                 : t.category === 'room_charge_void'
@@ -496,19 +803,31 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                           >
                             {t.type === 'payment' ? formatMoney(t.amount) : '-'}
                           </td>
-                          {canVoidTransactions && (
-                            <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                              {!t.voided && (
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {(t.type === 'payment' || t.category === 'refund') && !t.voided && (
                                 <button
+                                  type="button"
+                                  onClick={() => setSelectedReceiptTx(t)}
+                                  className="text-[10px] text-slate-700 hover:text-slate-900 font-semibold px-2 py-0.5 rounded border border-slate-300 hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+                                  title="Print Payment Receipt"
+                                >
+                                  <Printer className="w-3 h-3 text-slate-500" />
+                                  <span>Receipt</span>
+                                </button>
+                              )}
+                              {canVoidTransactions && !t.voided && (
+                                <button
+                                  type="button"
                                   onClick={() => setVoidingTxId(t.id)}
-                                  className="text-[10px] text-rose-600 hover:text-rose-800 font-semibold px-2 py-0.5 rounded border border-rose-200 hover:bg-rose-50"
+                                  className="text-[10px] text-rose-600 hover:text-rose-800 font-semibold px-2 py-0.5 rounded border border-rose-200 hover:bg-rose-50 cursor-pointer"
                                   title="Manager Void Authorization"
                                 >
                                   Void
                                 </button>
                               )}
-                            </td>
-                          )}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -650,15 +969,21 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                           <span className="font-semibold text-slate-900">{t.description}</span>
                         </td>
                         <td className="py-2 px-3 capitalize text-slate-600 text-[11px]">
-                          {t.category === 'cancellation_fee'
+                          {t.category === 'discount'
+                            ? 'Discount'
+                            : t.category === 'cancellation_fee'
                             ? 'Cancellation Fee'
                             : t.category === 'no_show_fee'
                             ? 'No-Show Fee'
                             : t.category === 'room_charge'
                             ? 'Room Charge'
+                            : t.category === 'room_charge_void'
+                            ? 'Stay Adjustment'
                             : t.category.replace(/_/g, ' ')}
                         </td>
-                        <td className="py-2 px-3 text-right font-mono text-slate-900 font-medium">{formatMoney(t.amount)}</td>
+                        <td className="py-2 px-3 text-right font-mono text-slate-900 font-medium">
+                          {t.amount < 0 ? `-${formatMoney(Math.abs(t.amount))}` : formatMoney(t.amount)}
+                        </td>
                         <td className="py-2 px-3 text-right font-mono text-slate-400">-</td>
                       </tr>
                     ))}
@@ -742,6 +1067,24 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
         </div>
 
       </div>
+
+      {/* Manager Discount Modal */}
+      {showDiscountModal && (
+        <DiscountModal
+          reservation={reservation}
+          chargesTotal={totalCharges}
+          onClose={() => setShowDiscountModal(false)}
+        />
+      )}
+
+      {/* Payment Receipt Modal */}
+      {selectedReceiptTx && (
+        <PaymentReceiptModal
+          transaction={selectedReceiptTx}
+          reservation={reservation}
+          onClose={() => setSelectedReceiptTx(null)}
+        />
+      )}
     </div>
   );
 };

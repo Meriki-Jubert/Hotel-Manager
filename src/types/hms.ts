@@ -196,12 +196,13 @@ export interface FolioTransaction {
   reservationId: string;
   guestId: string;
   roomNumber: string;
-  category: 'room_charge' | 'restaurant' | 'beverage' | 'laundry' | 'maintenance_charge' | 'late_checkout' | 'cancellation_fee' | 'no_show_fee' | 'room_charge_void' | 'payment' | 'deposit' | 'tax' | 'refund';
+  category: 'room_charge' | 'restaurant' | 'beverage' | 'laundry' | 'maintenance_charge' | 'late_checkout' | 'cancellation_fee' | 'no_show_fee' | 'room_charge_void' | 'discount' | 'payment' | 'deposit' | 'tax' | 'refund';
   description: string;
   amount: number;
   type: 'charge' | 'payment';
   paymentMethod?: PaymentMethod;
   reference?: string;
+  splitGroupId?: string;
   timestamp: string;
   recordedBy: string;
   voided?: boolean;
