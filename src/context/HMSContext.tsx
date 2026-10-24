@@ -249,7 +249,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 noShow: parsed.cancellationPolicy.noShow || DEFAULT_CANCELLATION_POLICY.noShow,
                 allowNonRefundable: !!parsed.cancellationPolicy.allowNonRefundable
               }
-            : { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } }
+            : { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } },
+          taxSettings: parsed.taxSettings
+            ? {
+                enabled: !!parsed.taxSettings.enabled,
+                label: typeof parsed.taxSettings.label === 'string' && parsed.taxSettings.label.trim() ? parsed.taxSettings.label.trim() : 'VAT',
+                ratePercent: typeof parsed.taxSettings.ratePercent === 'number' && !isNaN(parsed.taxSettings.ratePercent) ? parsed.taxSettings.ratePercent : 0
+              }
+            : { enabled: false, label: 'VAT', ratePercent: 0 }
         };
       } catch {
         return {

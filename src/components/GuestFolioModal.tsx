@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { Reservation, FolioTransaction, PaymentMethod } from '../types/hms';
 import { getFolioTotals } from '../utils/folio';
 import { validateSplitPayment } from '../utils/folioAdjustments';
+import { calculateTaxBreakdown } from '../utils/tax';
 import { DiscountModal } from './DiscountModal';
 import { PaymentReceiptModal } from './PaymentReceiptModal';
 import {
@@ -90,6 +91,15 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
   const totalCharges = totals.charges;
   const totalPaid = totals.netPaid;
   const balance = totals.balance;
+
+  const taxSettings = hotelConfig.taxSettings;
+  const hasTax = Boolean(taxSettings?.enabled && taxSettings.ratePercent > 0);
+  const taxLabel = taxSettings?.label?.trim() || 'VAT';
+  const taxRate = taxSettings?.ratePercent || 0;
+  const taxBreakdown = calculateTaxBreakdown({
+    totalIncludingTax: totalCharges,
+    ratePercent: taxRate
+  });
 
   const handleCreateCharge = (e: React.FormEvent) => {
     e.preventDefault();
@@ -892,11 +902,15 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       {[invPhone ? `Tel: ${invPhone}` : '', hotelConfig.email ? `Email: ${hotelConfig.email}` : ''].filter(Boolean).join(' • ')}
                     </p>
                   )}
-                  {(hotelConfig.taxId || hotelConfig.registryNumber) && (
+                  {hotelConfig.taxId ? (
                     <p className="text-[10px] font-mono text-slate-400 mt-1">
-                      {[hotelConfig.taxId ? `Tax ID (NIU): ${hotelConfig.taxId}` : '', hotelConfig.registryNumber ? `Registry: ${hotelConfig.registryNumber}` : ''].filter(Boolean).join(' • ')}
+                      {[hotelConfig.taxId ? `Tax ID: ${hotelConfig.taxId}` : '', hotelConfig.registryNumber ? `Registry: ${hotelConfig.registryNumber}` : ''].filter(Boolean).join(' • ')}
                     </p>
-                  )}
+                  ) : hotelConfig.registryNumber ? (
+                    <p className="text-[10px] font-mono text-slate-400 mt-1">
+                      Registry: {hotelConfig.registryNumber}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="text-right">
@@ -994,20 +1008,39 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
               {/* Total Calculation */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-2 border-t border-slate-200">
                 <div className="space-y-2 max-w-xs text-xs text-slate-500">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span>Includes Cameroon 19.25% TVA & Tourism Tax</span>
-                  </div>
+                  {hasTax && (
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Prices include {taxLabel} ({taxRate}%)</span>
+                    </div>
+                  )}
                   <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-[11px]">
                     Thank you for choosing {invName}!
                   </div>
                 </div>
 
                 <div className="w-full sm:w-64 space-y-1.5 text-xs text-right">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Subtotal Charges:</span>
-                    <span className="font-mono">{formatMoney(totalCharges)}</span>
-                  </div>
+                  {hasTax ? (
+                    <>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Total excluding {taxLabel}:</span>
+                        <span className="font-mono">{formatMoney(taxBreakdown.net)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>{taxLabel} ({taxRate}%) included:</span>
+                        <span className="font-mono">{formatMoney(taxBreakdown.tax)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-900 font-semibold">
+                        <span>Total including {taxLabel}:</span>
+                        <span className="font-mono">{formatMoney(totalCharges)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Subtotal Charges:</span>
+                      <span className="font-mono">{formatMoney(totalCharges)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-emerald-700 font-medium">
                     <span>Payments / Deposits:</span>
                     <span className="font-mono">-{formatMoney(totalPaid)}</span>

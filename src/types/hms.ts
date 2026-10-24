@@ -37,6 +37,11 @@ export interface HotelConfig {
   checkInTime: string;
   checkOutTime: string;
   cancellationPolicy?: CancellationPolicy;
+  taxSettings?: {
+    enabled: boolean;
+    label: string;
+    ratePercent: number;
+  };
 }
 
 export interface Branch {

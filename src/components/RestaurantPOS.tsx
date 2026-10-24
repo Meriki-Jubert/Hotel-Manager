@@ -56,6 +56,10 @@ export const RestaurantPOS: React.FC = () => {
   });
 
   const addToCart = (item: PosItem) => {
+    if (item.available === false) {
+      showNotification(`"${item.name}" is currently out of stock.`, 'warning');
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.item.id === item.id);
       if (existing) {
@@ -87,6 +91,15 @@ export const RestaurantPOS: React.FC = () => {
 
   const handleProcessOrder = () => {
     if (cart.length === 0) return;
+
+    // Refuse any order containing an out-of-stock item
+    const outOfStockEntry = cart.find(
+      (entry) => entry.item.available === false || posItems.find((p) => p.id === entry.item.id)?.available === false
+    );
+    if (outOfStockEntry) {
+      showNotification(`Cannot place order: "${outOfStockEntry.item.name}" is currently out of stock.`, 'warning');
+      return;
+    }
 
     const orderDescription = cart
       .map((i) => `${i.quantity}x ${i.item.name}`)
@@ -196,46 +209,71 @@ export const RestaurantPOS: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {filteredItems.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => addToCart(item)}
-                className="bg-white rounded-xl border border-slate-200 hover:border-emerald-400 shadow-xs hover:shadow-sm cursor-pointer transition-all flex flex-col justify-between overflow-hidden group active:scale-[0.98]"
-              >
-                <div className="relative h-24 w-full bg-slate-900 overflow-hidden">
-                  <img
-                    src={item.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80'}
-                    alt={item.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                  <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider text-white bg-slate-900/80 backdrop-blur-xs px-2 py-0.5 rounded-md">
-                    {item.category}
-                  </span>
-                </div>
-
-                <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
-                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2">
-                    {item.name}
-                  </h4>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <span className="font-bold font-mono text-sm text-slate-900">
-                      {formatMoney(item.price)}
+            {filteredItems.map((item) => {
+              const isAvailable = item.available !== false;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => addToCart(item)}
+                  className={`bg-white rounded-xl border transition-all flex flex-col justify-between overflow-hidden group ${
+                    isAvailable
+                      ? 'border-slate-200 hover:border-emerald-400 shadow-xs hover:shadow-sm cursor-pointer active:scale-[0.98]'
+                      : 'border-slate-200 bg-slate-50 opacity-60 grayscale-[40%] cursor-not-allowed'
+                  }`}
+                >
+                  <div className="relative h-24 w-full bg-slate-900 overflow-hidden">
+                    <img
+                      src={item.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80'}
+                      alt={item.name}
+                      className={`w-full h-full object-cover transition-transform duration-500 ${isAvailable ? 'group-hover:scale-105' : ''}`}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+                    <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider text-white bg-slate-900/80 backdrop-blur-xs px-2 py-0.5 rounded-md">
+                      {item.category}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart(item);
-                      }}
-                      className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-600 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                    {!isAvailable && (
+                      <span className="absolute top-2 right-2 text-[10px] font-bold uppercase tracking-wider text-white bg-rose-600/90 backdrop-blur-xs px-2 py-0.5 rounded-md shadow-xs">
+                        Out of stock
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h4 className={`font-bold text-xs line-clamp-2 ${isAvailable ? 'text-slate-900 group-hover:text-emerald-700' : 'text-slate-500'}`}>
+                        {item.name}
+                      </h4>
+                      {!isAvailable && (
+                        <span className="text-[10px] text-rose-600 font-semibold block mt-0.5">
+                          Out of stock
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className={`font-bold font-mono text-sm ${isAvailable ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {formatMoney(item.price)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToCart(item);
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          isAvailable
+                            ? 'bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-600 cursor-pointer'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        }`}
+                        title={isAvailable ? 'Add to ticket' : 'Out of stock'}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

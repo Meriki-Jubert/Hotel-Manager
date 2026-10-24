@@ -15,7 +15,8 @@ export const appConfig: HotelConfig = {
   usdExchangeRate: 600,
   checkInTime: '14:00',
   checkOutTime: '12:00',
-  cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } }
+  cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } },
+  taxSettings: { enabled: false, label: 'VAT', ratePercent: 0 }
 };
 
 export const isDemoMode = (import.meta.env as any).VITE_DEMO_MODE === 'true';

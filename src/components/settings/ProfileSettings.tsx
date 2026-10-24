@@ -4,11 +4,14 @@ import {
   Building,
   Save,
   DollarSign,
-  Sparkles
+  Sparkles,
+  Percent,
+  Check
 } from 'lucide-react';
 
 export const ProfileSettings: React.FC = () => {
-  const { hotelConfig, updateHotelConfig } = useHMS();
+  const { hotelConfig, updateHotelConfig, currentUser } = useHMS();
+  const isManagerOrOwner = currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
   // --- HOTEL PROFILE FORM STATE ---
   const [name, setName] = useState(hotelConfig.name);
@@ -22,6 +25,50 @@ export const ProfileSettings: React.FC = () => {
   const [checkInTime, setCheckInTime] = useState(hotelConfig.checkInTime);
   const [checkOutTime, setCheckOutTime] = useState(hotelConfig.checkOutTime);
   const [usdExchangeRate, setUsdExchangeRate] = useState(hotelConfig.usdExchangeRate || 600);
+
+  // --- TAX SETTINGS STATE ---
+  const currentTax = hotelConfig.taxSettings || { enabled: false, label: 'VAT', ratePercent: 0 };
+  const [taxEnabled, setTaxEnabled] = useState(currentTax.enabled);
+  const [taxLabel, setTaxLabel] = useState(currentTax.label || 'VAT');
+  const [taxRate, setTaxRate] = useState<number | string>(currentTax.ratePercent ?? 0);
+  const [taxError, setTaxError] = useState<string | null>(null);
+  const [taxSavedNotice, setTaxSavedNotice] = useState(false);
+
+  const handleSaveTaxSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    setTaxError(null);
+    setTaxSavedNotice(false);
+
+    if (taxEnabled) {
+      if (!taxLabel.trim()) {
+        setTaxError('Tax label is required (e.g. VAT, TVA, GST).');
+        return;
+      }
+      const numRate = Number(taxRate);
+      if (isNaN(numRate) || numRate < 0 || numRate > 100) {
+        setTaxError('Tax rate must be between 0 and 100%.');
+        return;
+      }
+      // Check up to 2 decimal places
+      const decimals = String(taxRate).split('.')[1];
+      if (decimals && decimals.length > 2) {
+        setTaxError('Tax rate cannot have more than 2 decimal places.');
+        return;
+      }
+    }
+
+    const finalRate = taxEnabled ? Math.round(Number(taxRate) * 100) / 100 : 0;
+    updateHotelConfig({
+      taxSettings: {
+        enabled: taxEnabled,
+        label: taxLabel.trim() || 'VAT',
+        ratePercent: finalRate
+      }
+    });
+
+    setTaxSavedNotice(true);
+    setTimeout(() => setTaxSavedNotice(false), 4000);
+  };
 
   const handleSaveHotelProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,8 +231,9 @@ export const ProfileSettings: React.FC = () => {
         </form>
       </div>
 
-      {/* Currency Configuration */}
+      {/* Right Column: Currency & Taxes & Architecture */}
       <div className="lg:col-span-5 space-y-6">
+        {/* Currency Configuration */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div>
@@ -225,6 +273,99 @@ export const ProfileSettings: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Taxes Configuration Card (Manager & Owner Only) */}
+        {isManagerOrOwner && (
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <Percent className="w-4 h-4 text-indigo-600" />
+                  Taxes & Fiscal Settings
+                </h3>
+                <p className="text-[11px] text-slate-500">Configure tax-inclusive rate calculation on invoices</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={taxEnabled}
+                  onChange={(e) => {
+                    setTaxEnabled(e.target.checked);
+                    setTaxSavedNotice(false);
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+
+            <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
+              Prices are entered and charged tax-inclusive. The invoice shows the tax portion.
+            </p>
+
+            {taxError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+                {taxError}
+              </div>
+            )}
+
+            {taxSavedNotice && (
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-1.5 font-medium">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>Tax configuration saved successfully!</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tax Label (e.g. VAT, TVA, GST)</label>
+                <input
+                  type="text"
+                  value={taxLabel}
+                  onChange={(e) => {
+                    setTaxLabel(e.target.value);
+                    setTaxSavedNotice(false);
+                  }}
+                  disabled={!taxEnabled}
+                  placeholder="VAT"
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:bg-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tax Rate (0-100%, up to 2 decimal places)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={taxRate}
+                    onChange={(e) => {
+                      setTaxRate(e.target.value === '' ? '' : Number(e.target.value));
+                      setTaxSavedNotice(false);
+                    }}
+                    disabled={!taxEnabled}
+                    placeholder="19.25"
+                    className="w-full p-2 pr-8 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:bg-slate-100"
+                  />
+                  <span className="absolute right-3 top-2 text-xs font-bold text-slate-400 pointer-events-none">%</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveTaxSettings}
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Tax Settings</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Summary Card */}
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-xl shadow-md space-y-3 text-xs">

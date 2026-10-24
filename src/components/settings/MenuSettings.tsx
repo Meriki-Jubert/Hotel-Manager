@@ -31,6 +31,7 @@ export const MenuSettings: React.FC = () => {
   const [formCategory, setFormCategory] = useState<PosItem['category']>('Meals');
   const [formPrice, setFormPrice] = useState<number | ''>(5000);
   const [formAvailable, setFormAvailable] = useState(true);
+  const [formIsActive, setFormIsActive] = useState(true);
   const [formImage, setFormImage] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -43,6 +44,7 @@ export const MenuSettings: React.FC = () => {
     setFormCategory('Meals');
     setFormPrice(5000);
     setFormAvailable(true);
+    setFormIsActive(true);
     setFormImage('');
     setFormError(null);
     setIsModalOpen(true);
@@ -53,7 +55,8 @@ export const MenuSettings: React.FC = () => {
     setFormName(item.name);
     setFormCategory(item.category);
     setFormPrice(item.price);
-    setFormAvailable(item.available);
+    setFormAvailable(item.available !== false);
+    setFormIsActive(item.isActive !== false);
     setFormImage(item.image || '');
     setFormError(null);
     setIsModalOpen(true);
@@ -88,6 +91,7 @@ export const MenuSettings: React.FC = () => {
         category: formCategory,
         price: priceNum,
         available: formAvailable,
+        isActive: formIsActive,
         image: formImage.trim() || undefined
       });
       if (!res.success) {
@@ -100,7 +104,7 @@ export const MenuSettings: React.FC = () => {
         category: formCategory,
         price: priceNum,
         available: formAvailable,
-        isActive: true,
+        isActive: formIsActive,
         image: formImage.trim() || undefined
       });
       if (!res.success) {
@@ -237,8 +241,8 @@ export const MenuSettings: React.FC = () => {
                   <th className="py-3 px-4">Item Name</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4 text-right">Price</th>
-                  <th className="py-3 px-4 text-center">POS Kitchen Stock</th>
-                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">In stock today</th>
+                  <th className="py-3 px-4 text-center">On the menu</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -283,27 +287,31 @@ export const MenuSettings: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => updatePosItem(item.id, { available: !item.available })}
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border cursor-pointer ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold border cursor-pointer ${
                             item.available
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
                               : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
                           }`}
-                          title="Click to toggle in-stock availability on POS terminal"
+                          title="Click to toggle: In stock today"
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${item.available ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                          {item.available ? 'In Stock' : 'Out of Stock'}
+                          {item.available ? 'In stock today' : 'Out of stock'}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        <button
+                          type="button"
+                          onClick={() => togglePosItemActive(item.id)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold border cursor-pointer ${
                             isActive
-                              ? 'bg-teal-50 text-teal-800 border border-teal-200'
-                              : 'bg-slate-200 text-slate-600 border border-slate-300'
+                              ? 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                              : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
                           }`}
+                          title="Click to toggle: On the menu"
                         >
-                          {isActive ? 'Active' : 'Deactivated'}
-                        </span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-teal-500' : 'bg-slate-400'}`} />
+                          {isActive ? 'On the menu' : 'Off the menu'}
+                        </button>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -434,15 +442,27 @@ export const MenuSettings: React.FC = () => {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formIsActive}
+                    onChange={(e) => setFormIsActive(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>On the menu</span>
+                  <span className="text-[10px] text-slate-400 font-normal">(Active catalog item)</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formAvailable}
                     onChange={(e) => setFormAvailable(e.target.checked)}
                     className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span>Currently available / in-stock at kitchen</span>
+                  <span>In stock today</span>
+                  <span className="text-[10px] text-slate-400 font-normal">(Available for ordering on POS)</span>
                 </label>
               </div>
 
