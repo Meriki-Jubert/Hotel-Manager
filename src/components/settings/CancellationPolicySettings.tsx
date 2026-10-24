@@ -201,9 +201,14 @@ export const CancellationPolicySettings: React.FC = () => {
       allowNonRefundable
     };
 
-    updateHotelConfig({
+    const res = updateHotelConfig({
       cancellationPolicy: updatedPolicy
     });
+    if (!res.success) {
+      setPolicySaveError(res.error || 'Failed to save cancellation policy.');
+      setPolicySaveSuccess(null);
+      return;
+    }
     setPolicySaveSuccess('Cancellation policy saved successfully and persisted across sessions.');
   };
 

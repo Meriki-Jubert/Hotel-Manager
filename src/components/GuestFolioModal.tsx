@@ -214,9 +214,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
   };
 
   const handleConfirmVoid = (txId: string) => {
-    if (!voidReason.trim()) return;
-    voidTransaction(txId, voidReason);
-    setVoidingTxId(null);
+    const success = voidTransaction(txId, voidReason);
+    if (success) {
+      setVoidingTxId(null);
+      setVoidReason('');
+    }
   };
 
   const handlePrint = () => {

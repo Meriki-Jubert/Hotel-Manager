@@ -126,7 +126,7 @@ interface HMSContextType {
   changeMyPassword: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
 
   // Config Setters
-  updateHotelConfig: (newConfig: Partial<HotelConfig>) => void;
+  updateHotelConfig: (newConfig: Partial<HotelConfig>) => { success: boolean; error?: string };
   updateRoomTypePricing: (roomTypeId: string, newBasePrice: number) => void;
 
   // General Setters
@@ -201,7 +201,7 @@ interface HMSContextType {
   addBranch: (branch: Omit<Branch, 'id'>) => { success: boolean; error?: string };
   updateBranch: (id: string, branch: Partial<Branch>) => { success: boolean; error?: string };
   deleteBranch: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
-  toggleBranchActive: (id: string, active: boolean) => void;
+  toggleBranchActive: (id: string, active: boolean) => { success: boolean; error?: string };
 
   // Master Unfiltered Collections (for multi-branch analytics and settings inventory)
   allRooms: Room[];
@@ -1041,9 +1041,27 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Property Config
-  const updateHotelConfig = (newConfig: Partial<HotelConfig>) => {
+  const updateHotelConfig = (newConfig: Partial<HotelConfig>): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can update hotel settings.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can update hotel settings.' };
+    }
+
+    const changedKeys = Object.keys(newConfig).filter((key) => {
+      const k = key as keyof HotelConfig;
+      return newConfig[k] !== undefined && JSON.stringify(newConfig[k]) !== JSON.stringify(hotelConfig[k]);
+    });
+
     setHotelConfig((prev) => ({ ...prev, ...newConfig }));
+
+    const changedFieldNames = changedKeys.length > 0 ? changedKeys.join(', ') : Object.keys(newConfig).join(', ');
+    logStaffActivity(
+      'Update Hotel Config',
+      `Staff member ${currentUser.name} (${currentUser.role}) updated hotel settings: ${changedFieldNames}`
+    );
+
     showNotification('Property profile & branding updated successfully!', 'success');
+    return { success: true };
   };
 
   const updateRoomTypePricing = (roomTypeId: string, newBasePrice: number) => {
@@ -2558,6 +2576,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    const trimmedReason = reason?.trim();
+    if (!trimmedReason || trimmedReason.length < 5) {
+      showNotification('A void reason of at least 5 characters is required.', 'warning');
+      return false;
+    }
+
     const tx = allTransactions.find((t) => t.id === txId);
     if (!tx || tx.voided) return false;
 
@@ -2568,7 +2592,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...t,
               voided: true,
               voidedBy: currentUser?.name || 'Manager',
-              voidReason: reason
+              voidReason: trimmedReason
             }
           : t
       )
@@ -2593,7 +2617,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     }
 
-    showNotification(`Transaction voided by Manager approval: ${reason}`, 'info');
+    logStaffActivity(
+      'Void Transaction',
+      `Staff member ${currentUser?.name || 'Manager'} voided transaction #${tx.id} (${tx.description || tx.category}, ${formatMoney(tx.amount)}). Reason: ${trimmedReason}`
+    );
+
+    showNotification(`Transaction voided by Manager approval: ${trimmedReason}`, 'info');
     return true;
   };
 
@@ -2760,7 +2789,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Branch Management (Manager / Owner)
-  const addBranch = (branchData: Omit<Branch, 'id'>) => {
+  const addBranch = (branchData: Omit<Branch, 'id'>): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can add branches.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can add branches.' };
+    }
+
     const name = branchData.name.trim();
     const city = branchData.city.trim();
     if (!name) return { success: false, error: 'Branch name is required.' };
@@ -2784,11 +2818,26 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       [newId]: today
     }));
 
+    logStaffActivity(
+      'Add Branch',
+      `Staff member ${currentUser.name} (${currentUser.role}) added branch "${name}" in ${city}.`
+    );
+
     showNotification(`Branch "${name}" added successfully!`, 'success');
     return { success: true };
   };
 
-  const updateBranch = (id: string, branchData: Partial<Branch>) => {
+  const updateBranch = (id: string, branchData: Partial<Branch>): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can update branches.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can update branches.' };
+    }
+
+    const targetBranch = branches.find((b) => b.id === id);
+    if (!targetBranch) {
+      return { success: false, error: 'Branch not found.' };
+    }
+
     if (branchData.name !== undefined && !branchData.name.trim()) {
       return { success: false, error: 'Branch name cannot be empty.' };
     }
@@ -2810,18 +2859,35 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : b
       )
     );
+
+    logStaffActivity(
+      'Update Branch',
+      `Staff member ${currentUser.name} (${currentUser.role}) updated branch "${targetBranch.name}".`
+    );
+
     showNotification('Branch updated successfully.', 'success');
     return { success: true };
   };
 
-  const toggleBranchActive = (id: string, active: boolean) => {
+  const toggleBranchActive = (id: string, active: boolean): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can modify branch status.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can modify branch status.' };
+    }
+
+    const targetBranch = branches.find((b) => b.id === id);
+    if (!targetBranch) {
+      return { success: false, error: 'Branch not found.' };
+    }
+
     if (!active) {
       const activeCount = branches.filter((b) => b.isActive).length;
       if (activeCount <= 1) {
         showNotification('Cannot deactivate the only active branch. The system must always have at least one active branch.', 'warning');
-        return;
+        return { success: false, error: 'Cannot deactivate the only active branch. The system must always have at least one active branch.' };
       }
     }
+
     setBranches((prev) =>
       prev.map((b) => (b.id === id ? { ...b, isActive: active } : b))
     );
@@ -2831,10 +2897,27 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveBranchIdState(fallback.id);
       }
     }
+
+    logStaffActivity(
+      active ? 'Activate Branch' : 'Deactivate Branch',
+      `Staff member ${currentUser.name} (${currentUser.role}) ${active ? 'activated' : 'deactivated'} branch "${targetBranch.name}".`
+    );
+
     showNotification(`Branch ${active ? 'activated' : 'deactivated'}.`, 'info');
+    return { success: true };
   };
 
-  const deleteBranch = (id: string) => {
+  const deleteBranch = (id: string): { success: boolean; error?: string; canDeactivateInstead?: boolean } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can delete branches.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can delete branches.' };
+    }
+
+    const targetBranch = branches.find((b) => b.id === id);
+    if (!targetBranch) {
+      return { success: false, error: 'Branch not found.' };
+    }
+
     if (branches.length <= 1) {
       return { success: false, error: 'Cannot delete the only branch in the system.' };
     }
@@ -2860,6 +2943,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveBranchIdState(fallback.id);
       }
     }
+
+    logStaffActivity(
+      'Delete Branch',
+      `Staff member ${currentUser.name} (${currentUser.role}) deleted branch "${targetBranch.name}".`
+    );
+
     showNotification('Branch deleted permanently.', 'info');
     return { success: true };
   };

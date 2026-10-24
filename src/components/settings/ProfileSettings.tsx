@@ -34,6 +34,11 @@ export const ProfileSettings: React.FC = () => {
   const [taxError, setTaxError] = useState<string | null>(null);
   const [taxSavedNotice, setTaxSavedNotice] = useState(false);
 
+  // --- PROFILE & CURRENCY NOTICES ---
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+
   const handleSaveTaxSettings = (e: React.FormEvent) => {
     e.preventDefault();
     setTaxError(null);
@@ -58,7 +63,7 @@ export const ProfileSettings: React.FC = () => {
     }
 
     const finalRate = taxEnabled ? Math.round(Number(taxRate) * 100) / 100 : 0;
-    updateHotelConfig({
+    const res = updateHotelConfig({
       taxSettings: {
         enabled: taxEnabled,
         label: taxLabel.trim() || 'VAT',
@@ -66,13 +71,21 @@ export const ProfileSettings: React.FC = () => {
       }
     });
 
+    if (!res.success) {
+      setTaxError(res.error || 'Failed to update tax settings.');
+      setTaxSavedNotice(false);
+      return;
+    }
+
     setTaxSavedNotice(true);
     setTimeout(() => setTaxSavedNotice(false), 4000);
   };
 
   const handleSaveHotelProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    updateHotelConfig({
+    setProfileError(null);
+    setProfileSuccess(null);
+    const res = updateHotelConfig({
       name: name.trim(),
       tagline: tagline.trim(),
       city: city.trim(),
@@ -85,6 +98,23 @@ export const ProfileSettings: React.FC = () => {
       checkOutTime,
       usdExchangeRate: Number(usdExchangeRate) || 600
     });
+
+    if (!res.success) {
+      setProfileError(res.error || 'Failed to save property profile.');
+      return;
+    }
+
+    setProfileSuccess('Property profile saved successfully.');
+    setTimeout(() => setProfileSuccess(null), 4000);
+  };
+
+  const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCurrencyError(null);
+    const newCurr = e.target.value as 'FCFA' | 'USD';
+    const res = updateHotelConfig({ defaultCurrency: newCurr });
+    if (!res.success) {
+      setCurrencyError(res.error || 'Failed to update default currency.');
+    }
   };
 
   return (
@@ -100,6 +130,17 @@ export const ProfileSettings: React.FC = () => {
         </div>
 
         <form onSubmit={handleSaveHotelProfile} className="space-y-4 text-xs">
+          {profileError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-semibold">
+              {profileError}
+            </div>
+          )}
+          {profileSuccess && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-semibold flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>{profileSuccess}</span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Hotel Property Name *</label>
@@ -246,11 +287,16 @@ export const ProfileSettings: React.FC = () => {
           </div>
 
           <div className="space-y-3 text-xs">
+            {currencyError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-semibold">
+                {currencyError}
+              </div>
+            )}
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Default Display Currency</label>
               <select
                 value={hotelConfig.defaultCurrency}
-                onChange={(e) => updateHotelConfig({ defaultCurrency: e.target.value as 'FCFA' | 'USD' })}
+                onChange={handleCurrencyChange}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="FCFA">Central African CFA Franc (FCFA)</option>
