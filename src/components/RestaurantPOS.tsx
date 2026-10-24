@@ -18,11 +18,13 @@ import {
 } from 'lucide-react';
 
 export const RestaurantPOS: React.FC = () => {
-  const { posItems, rooms, roomTypes, reservations, addFolioCharge, formatMoney, businessDate, showNotification, activeBranchId } = useHMS();
+  const { posItems, rooms, roomTypes, reservations, addFolioCharge, formatMoney, businessDate, showNotification, activeBranchId, currentUser, setActiveTab } = useHMS();
 
   if (activeBranchId === 'all') {
     return <SelectBranchNotice screenName="Restaurant & POS" />;
   }
+
+  const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +44,10 @@ export const RestaurantPOS: React.FC = () => {
 
   const categories = ['All', 'Meals', 'Beverages', 'Breakfast', 'Snacks', 'Laundry', 'Room Amenities'];
 
-  const filteredItems = posItems.filter((item) => {
+  // Only show active items (isActive !== false)
+  const activePosItems = posItems.filter((item) => item.isActive !== false);
+
+  const filteredItems = activePosItems.filter((item) => {
     if (activeCategory !== 'All' && item.category !== activeCategory) return false;
     if (searchQuery.trim() !== '') {
       if (!item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -150,49 +155,89 @@ export const RestaurantPOS: React.FC = () => {
           </div>
         </div>
 
-        {/* Menu Items Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => addToCart(item)}
-              className="bg-white rounded-xl border border-slate-200 hover:border-emerald-400 shadow-xs hover:shadow-sm cursor-pointer transition-all flex flex-col justify-between overflow-hidden group active:scale-[0.98]"
-            >
-              <div className="relative h-24 w-full bg-slate-900 overflow-hidden">
-                <img
-                  src={item.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80'}
-                  alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider text-white bg-slate-900/80 backdrop-blur-xs px-2 py-0.5 rounded-md">
-                  {item.category}
-                </span>
+        {/* Menu Items Grid or Empty State */}
+        {filteredItems.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+              <UtensilsCrossed className="w-7 h-7" />
+            </div>
+
+            {activePosItems.length === 0 ? (
+              <div className="max-w-md mx-auto space-y-3">
+                <h4 className="font-bold text-slate-900 text-sm">No Menu Items Available</h4>
+                {isManager ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-500">
+                      The restaurant menu is currently empty. Configure menu items and service catalog in hotel settings.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('settings')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    >
+                      <UtensilsCrossed className="w-4 h-4" />
+                      <span>Settings &gt; Menu &amp; Services</span>
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-600 font-medium">
+                    Ask your manager to add menu items.
+                  </p>
+                )}
               </div>
-
-              <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
-                <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2">
-                  {item.name}
-                </h4>
-
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="font-bold font-mono text-sm text-slate-900">
-                    {formatMoney(item.price)}
+            ) : (
+              <div className="max-w-md mx-auto space-y-1">
+                <h4 className="font-bold text-slate-900 text-sm">No Matching Menu Items</h4>
+                <p className="text-xs text-slate-500">
+                  No active menu items match your current search or category filter.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {filteredItems.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => addToCart(item)}
+                className="bg-white rounded-xl border border-slate-200 hover:border-emerald-400 shadow-xs hover:shadow-sm cursor-pointer transition-all flex flex-col justify-between overflow-hidden group active:scale-[0.98]"
+              >
+                <div className="relative h-24 w-full bg-slate-900 overflow-hidden">
+                  <img
+                    src={item.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80'}
+                    alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+                  <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider text-white bg-slate-900/80 backdrop-blur-xs px-2 py-0.5 rounded-md">
+                    {item.category}
                   </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addToCart(item);
-                    }}
-                    className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-600 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+                </div>
+
+                <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
+                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2">
+                    {item.name}
+                  </h4>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <span className="font-bold font-mono text-sm text-slate-900">
+                      {formatMoney(item.price)}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToCart(item);
+                      }}
+                      className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-600 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Cart & Billing Target (Right 1 col) */}

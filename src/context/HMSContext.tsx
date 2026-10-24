@@ -53,6 +53,7 @@ import {
   calculateRoomMoveAdjustment
 } from '../utils/stayChanges';
 import { calculateDiscount, validateSplitPayment } from '../utils/folioAdjustments';
+import { validatePosItem } from '../utils/posItems';
 
 export type NavTab =
   | 'matrix'
@@ -220,6 +221,12 @@ interface HMSContextType {
   updateRoom: (id: string, room: Partial<Room>) => { success: boolean; error?: string };
   deleteRoom: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
   toggleRoomActive: (id: string, active: boolean) => void;
+
+  // POS & Menu Items (Manager Scope)
+  addPosItem: (item: Omit<PosItem, 'id'>) => { success: boolean; item?: PosItem; error?: string };
+  updatePosItem: (id: string, item: Partial<Omit<PosItem, 'id'>>) => { success: boolean; error?: string };
+  togglePosItemActive: (id: string, active?: boolean) => { success: boolean; error?: string };
+  deletePosItem: (id: string) => { success: boolean; error?: string };
 }
 
 const HMSContext = createContext<HMSContextType | undefined>(undefined);
@@ -3161,6 +3168,144 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showNotification(`Room ${active ? 'activated' : 'deactivated'}.`, 'info');
   };
 
+  // POS & Menu Items Management (Manager and Owner Scope)
+  const addPosItem = (
+    item: Omit<PosItem, 'id'>
+  ): { success: boolean; item?: PosItem; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can add menu items.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can add menu items.' };
+    }
+
+    const validation = validatePosItem(
+      { name: item.name, category: item.category, price: item.price },
+      posItems
+    );
+
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
+    const newItem: PosItem = {
+      ...item,
+      id: `pos-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      name: item.name.trim(),
+      isActive: true,
+      available: item.available !== false
+    };
+
+    setPosItems((prev) => [newItem, ...prev]);
+
+    logStaffActivity(
+      'Add Menu Item',
+      `Added "${newItem.name}" (${newItem.category}, ${formatMoney(newItem.price)}) to POS menu.`
+    );
+
+    showNotification(`Menu item "${newItem.name}" added successfully.`, 'success');
+    return { success: true, item: newItem };
+  };
+
+  const updatePosItem = (
+    id: string,
+    updates: Partial<Omit<PosItem, 'id'>>
+  ): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can update menu items.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can update menu items.' };
+    }
+
+    const existing = posItems.find((i) => i.id === id);
+    if (!existing) {
+      return { success: false, error: 'Menu item not found.' };
+    }
+
+    const merged = {
+      name: updates.name !== undefined ? updates.name : existing.name,
+      category: updates.category !== undefined ? updates.category : existing.category,
+      price: updates.price !== undefined ? updates.price : existing.price
+    };
+
+    const validation = validatePosItem(merged, posItems, id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
+    setPosItems((prev) =>
+      prev.map((i) =>
+        i.id === id
+          ? {
+              ...i,
+              ...updates,
+              name: merged.name.trim(),
+              category: merged.category as PosItem['category'],
+              price: merged.price
+            }
+          : i
+      )
+    );
+
+    logStaffActivity(
+      'Update Menu Item',
+      `Updated "${merged.name}" (${merged.category}, ${formatMoney(merged.price)}) in POS menu.`
+    );
+
+    showNotification(`Menu item "${merged.name}" updated successfully.`, 'success');
+    return { success: true };
+  };
+
+  const togglePosItemActive = (
+    id: string,
+    active?: boolean
+  ): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can alter menu item status.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can alter menu item status.' };
+    }
+
+    const existing = posItems.find((i) => i.id === id);
+    if (!existing) {
+      return { success: false, error: 'Menu item not found.' };
+    }
+
+    const newActive = active !== undefined ? active : (existing.isActive === false ? true : false);
+
+    setPosItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, isActive: newActive } : i))
+    );
+
+    logStaffActivity(
+      newActive ? 'Activate Menu Item' : 'Deactivate Menu Item',
+      `${newActive ? 'Activated' : 'Deactivated'} "${existing.name}" in POS menu.`
+    );
+
+    showNotification(`Menu item "${existing.name}" ${newActive ? 'activated' : 'deactivated'}.`, 'info');
+    return { success: true };
+  };
+
+  const deletePosItem = (
+    id: string
+  ): { success: boolean; error?: string } => {
+    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+      showNotification('Unauthorized: Only managers and owners can delete menu items.', 'warning');
+      return { success: false, error: 'Unauthorized: Only managers and owners can delete menu items.' };
+    }
+
+    const existing = posItems.find((i) => i.id === id);
+    if (!existing) {
+      return { success: false, error: 'Menu item not found.' };
+    }
+
+    setPosItems((prev) => prev.filter((i) => i.id !== id));
+
+    logStaffActivity(
+      'Delete Menu Item',
+      `Deleted "${existing.name}" (${existing.category}) from POS menu.`
+    );
+
+    showNotification(`Menu item "${existing.name}" deleted.`, 'info');
+    return { success: true };
+  };
+
   return (
     <HMSContext.Provider
       value={{
@@ -3254,7 +3399,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bulkAddRooms,
         updateRoom,
         deleteRoom,
-        toggleRoomActive
+        toggleRoomActive,
+        addPosItem,
+        updatePosItem,
+        togglePosItemActive,
+        deletePosItem
       }}
     >
       {children}

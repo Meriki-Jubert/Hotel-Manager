@@ -6,6 +6,7 @@ import { RoomTypeSettings } from './settings/RoomTypeSettings';
 import { RoomSettings } from './settings/RoomSettings';
 import { StaffSettings } from './settings/StaffSettings';
 import { CancellationPolicySettings } from './settings/CancellationPolicySettings';
+import { MenuSettings } from './settings/MenuSettings';
 import {
   Settings,
   Building,
@@ -13,7 +14,8 @@ import {
   Layers,
   Bed,
   Users,
-  Clock
+  Clock,
+  UtensilsCrossed
 } from 'lucide-react';
 
 export const HotelSettingsView: React.FC = () => {
@@ -21,10 +23,11 @@ export const HotelSettingsView: React.FC = () => {
     branches,
     roomTypes,
     allRooms,
-    staffUsers
+    staffUsers,
+    posItems
   } = useHMS();
 
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'branches' | 'room_types' | 'rooms' | 'staff' | 'cancellation'>('profile');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'branches' | 'room_types' | 'rooms' | 'staff' | 'cancellation' | 'menu'>('profile');
 
   return (
     <div className="space-y-6">
@@ -112,6 +115,18 @@ export const HotelSettingsView: React.FC = () => {
             <Clock className="w-3.5 h-3.5 text-rose-600" />
             <span>Cancellation Policy</span>
           </button>
+
+          <button
+            onClick={() => setActiveSettingsTab('menu')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeSettingsTab === 'menu'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
+            <span>Menu & Services ({posItems.length})</span>
+          </button>
         </div>
       </div>
 
@@ -124,6 +139,7 @@ export const HotelSettingsView: React.FC = () => {
       )}
       {activeSettingsTab === 'staff' && <StaffSettings />}
       {activeSettingsTab === 'cancellation' && <CancellationPolicySettings />}
+      {activeSettingsTab === 'menu' && <MenuSettings />}
     </div>
   );
 };

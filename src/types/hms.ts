@@ -247,6 +247,7 @@ export interface PosItem {
   category: 'Meals' | 'Beverages' | 'Breakfast' | 'Snacks' | 'Laundry' | 'Room Amenities';
   price: number;
   available: boolean;
+  isActive?: boolean;
   image?: string;
 }
 
