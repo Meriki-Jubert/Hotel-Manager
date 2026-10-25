@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HMSProvider, useHMS } from './context/HMSContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import { LoginPage } from './components/LoginPage';
 import { Navbar } from './components/Navbar';
 import { NavigationTabs } from './components/NavigationTabs';
@@ -257,7 +258,9 @@ const AppContent: React.FC = () => {
 export function App() {
   return (
     <HMSProvider>
-      <AppContent />
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
     </HMSProvider>
   );
 }

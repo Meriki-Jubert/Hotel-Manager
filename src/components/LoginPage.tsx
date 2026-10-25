@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { STAFF_USERS } from '../data/mockData';
 import { UserRole } from '../types/hms';
 import { isDemoMode } from '../config/appConfig';
+import { useT } from '../i18n/LanguageContext';
 import {
   Hotel,
   KeyRound,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
+  const { t, lang, setLang } = useT();
   const {
     login,
     fastLogin,
@@ -73,7 +75,7 @@ export const LoginPage: React.FC = () => {
     setErrorMsg(null);
 
     if (lockoutRemaining > 0) {
-      setErrorMsg(`Sign-in is locked due to 5 consecutive failed attempts. Please wait ${lockoutRemaining}s.`);
+      setErrorMsg(t('login.lockedOut', { seconds: lockoutRemaining }));
       return;
     }
 
@@ -81,7 +83,7 @@ export const LoginPage: React.FC = () => {
     try {
       const result = await login(username, password);
       if (!result.success) {
-        setErrorMsg(result.error || 'Invalid credentials. Please verify your username and password.');
+        setErrorMsg(result.error || t('login.invalidCredentials'));
       }
     } finally {
       setIsSubmitting(false);
@@ -93,19 +95,19 @@ export const LoginPage: React.FC = () => {
     setOwnerError(null);
 
     if (!ownerFullName.trim()) {
-      setOwnerError('Full name is required.');
+      setOwnerError(t('ownerSetup.nameRequired'));
       return;
     }
     if (!ownerUsername.trim() || ownerUsername.trim().length < 3) {
-      setOwnerError('Username must be at least 3 characters.');
+      setOwnerError(t('ownerSetup.usernameLength'));
       return;
     }
     if (ownerPassword.length < 8) {
-      setOwnerError('Password must be at least 8 characters.');
+      setOwnerError(t('ownerSetup.passwordLength'));
       return;
     }
     if (ownerPassword !== ownerPasswordConfirm) {
-      setOwnerError('Passwords do not match. Please verify both fields.');
+      setOwnerError(t('ownerSetup.passwordMismatch'));
       return;
     }
 
@@ -119,7 +121,7 @@ export const LoginPage: React.FC = () => {
         phone: ownerPhone
       });
       if (!result.success) {
-        setOwnerError(result.error || 'Failed to create owner account.');
+        setOwnerError(result.error || t('ownerSetup.createFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -133,26 +135,26 @@ export const LoginPage: React.FC = () => {
     front_desk: {
       icon: UserCheck,
       badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      highlight: 'Front Desk Clerk',
-      permSummary: 'Room Matrix, Check-ins, Reservations, Deposits & Folio Billings.'
+      highlight: t('role.frontDeskTitle'),
+      permSummary: t('role.frontDeskDesc')
     },
     housekeeping: {
       icon: Sparkles,
       badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
-      highlight: 'Housekeeping Staff',
-      permSummary: 'Mobile room cleaning queue, status flip (Dirty ➔ Clean), maintenance alerts.'
+      highlight: t('role.housekeepingTitle'),
+      permSummary: t('role.housekeepingDesc')
     },
     manager: {
       icon: KeyRound,
       badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      highlight: 'Manager / Accountant',
-      permSummary: 'Full control: Night audit, folio voids, room pricing, cash drawer balance & settings.'
+      highlight: t('role.managerTitle'),
+      permSummary: t('role.managerDesc')
     },
     owner: {
       icon: BarChart3,
       badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
-      highlight: 'Owner (Read-Only)',
-      permSummary: 'Remote executive monitoring: RevPAR, ADR, Occupancy %, Cash Flow across branches.'
+      highlight: t('role.ownerTitle'),
+      permSummary: t('role.ownerDesc')
     }
   };
 
@@ -185,11 +187,43 @@ export const LoginPage: React.FC = () => {
               </p>
             </div>
           </div>
-          {isFirstRun && (
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              First-Run Setup Required
-            </span>
-          )}
+          
+          <div className="flex items-center gap-3">
+            {/* Language Switcher "EN | FR" */}
+            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setLang('en')}
+                className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                  lang === 'en'
+                    ? 'bg-emerald-600 text-white font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                aria-label="Switch to English"
+              >
+                EN
+              </button>
+              <span className="text-slate-600">|</span>
+              <button
+                type="button"
+                onClick={() => setLang('fr')}
+                className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                  lang === 'fr'
+                    ? 'bg-emerald-600 text-white font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                aria-label="Passer au français"
+              >
+                FR
+              </button>
+            </div>
+
+            {isFirstRun && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                {t('ownerSetup.firstRunBadge')}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Main Content Area */}
@@ -200,11 +234,11 @@ export const LoginPage: React.FC = () => {
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-champagne-gold-500/10 text-champagne-gold-400 border border-champagne-gold-500/30 mb-3">
                   <UserPlus className="w-3.5 h-3.5" />
-                  <span>First-Run Administrator Provisioning</span>
+                  <span>{t('ownerSetup.firstRunProvisioning')}</span>
                 </div>
-                <h2 className="text-2xl font-bold text-white tracking-tight">Create Owner Account</h2>
+                <h2 className="text-2xl font-bold text-white tracking-tight">{t('ownerSetup.header')}</h2>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  No staff accounts exist yet. Create your primary hotel owner account to initialize the system. This setup screen will not appear again once an owner exists.
+                  {t('ownerSetup.subtitle')}
                 </p>
               </div>
 
@@ -218,13 +252,13 @@ export const LoginPage: React.FC = () => {
               <form onSubmit={handleCreateOwner} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Owner Full Name <span className="text-rose-400">*</span>
+                    {t('ownerSetup.fullName')} <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="text"
                     value={ownerFullName}
                     onChange={(e) => setOwnerFullName(e.target.value)}
-                    placeholder="e.g., Dr. Martin Agbor"
+                    placeholder={t('ownerSetup.fullNamePlaceholder')}
                     className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
                     required
                   />
@@ -232,13 +266,13 @@ export const LoginPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Username <span className="text-rose-400">* (used to log in)</span>
+                    {t('ownerSetup.username')} <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="text"
                     value={ownerUsername}
                     onChange={(e) => setOwnerUsername(e.target.value)}
-                    placeholder="e.g., owner"
+                    placeholder={t('ownerSetup.usernamePlaceholder')}
                     className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
                     required
                   />
@@ -247,25 +281,25 @@ export const LoginPage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Email Address (Optional)
+                      {t('ownerSetup.email')}
                     </label>
                     <input
                       type="email"
                       value={ownerEmail}
                       onChange={(e) => setOwnerEmail(e.target.value)}
-                      placeholder="owner@hotel.com"
+                      placeholder={t('ownerSetup.emailPlaceholder')}
                       className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Phone Number (Optional)
+                      {t('ownerSetup.phone')}
                     </label>
                     <input
                       type="tel"
                       value={ownerPhone}
                       onChange={(e) => setOwnerPhone(e.target.value)}
-                      placeholder="+237 6..."
+                      placeholder={t('ownerSetup.phonePlaceholder')}
                       className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
                     />
                   </div>
@@ -273,14 +307,14 @@ export const LoginPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Password <span className="text-rose-400">* (minimum 8 characters)</span>
+                    {t('ownerSetup.password')} <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type={showOwnerPassword ? 'text' : 'password'}
                       value={ownerPassword}
                       onChange={(e) => setOwnerPassword(e.target.value)}
-                      placeholder="At least 8 characters"
+                      placeholder={t('ownerSetup.passwordPlaceholder')}
                       minLength={8}
                       className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
                       required
@@ -288,7 +322,7 @@ export const LoginPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowOwnerPassword(!showOwnerPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
                     >
                       {showOwnerPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -297,13 +331,13 @@ export const LoginPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Confirm Password <span className="text-rose-400">*</span>
+                    {t('ownerSetup.confirmPassword')} <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type={showOwnerPassword ? 'text' : 'password'}
                     value={ownerPasswordConfirm}
                     onChange={(e) => setOwnerPasswordConfirm(e.target.value)}
-                    placeholder="Re-enter password"
+                    placeholder={t('ownerSetup.confirmPasswordPlaceholder')}
                     minLength={8}
                     className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
                     required
@@ -313,7 +347,7 @@ export const LoginPage: React.FC = () => {
                 <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-700 text-[11px] text-slate-400 flex items-start gap-2">
                   <Lock className="w-4 h-4 text-champagne-gold-400 shrink-0 mt-0.5" />
                   <span>
-                    Your password will be encrypted using SHA-256 with a unique cryptographic salt. It is never stored in plain text.
+                    {t('ownerSetup.encryptedNotice')}
                   </span>
                 </div>
 
@@ -323,7 +357,7 @@ export const LoginPage: React.FC = () => {
                   className="w-full py-3 px-4 bg-champagne-gold-500 hover:bg-champagne-gold-400 text-slate-950 font-bold rounded-xl text-sm shadow-lg shadow-champagne-gold-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>{isSubmitting ? 'Creating Owner Account...' : 'Create Owner Account & Enter Terminal'}</span>
+                  <span>{isSubmitting ? t('ownerSetup.submitting') : t('ownerSetup.submitButton')}</span>
                 </button>
               </form>
             </div>
@@ -337,11 +371,11 @@ export const LoginPage: React.FC = () => {
               <div>
                 <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-3">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Role-Isolated Staff Access</span>
+                  <span>{t('login.staffPortalBadge')}</span>
                 </div>
-                <h2 className="text-2xl font-bold text-white tracking-tight">Staff Portal Sign-In</h2>
+                <h2 className="text-2xl font-bold text-white tracking-tight">{t('login.signInHeader')}</h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Authenticate with your assigned property terminal credentials.
+                  {t('login.welcomeBack')}
                 </p>
               </div>
 
@@ -350,9 +384,9 @@ export const LoginPage: React.FC = () => {
                 <div className="p-3.5 bg-rose-950/80 border border-rose-500/50 rounded-xl text-xs text-rose-200 flex items-start gap-2.5 animate-pulse">
                   <Clock className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
                   <div>
-                    <strong className="block font-bold">Sign-In Locked (5 Failed Attempts)</strong>
+                    <strong className="block font-bold">{t('login.lockedTitle')}</strong>
                     <span>
-                      Please wait <span className="font-mono font-bold text-white">{lockoutRemaining}s</span> before retrying.
+                      {t('login.lockedOut', { seconds: lockoutRemaining })}
                     </span>
                   </div>
                 </div>
@@ -368,13 +402,13 @@ export const LoginPage: React.FC = () => {
               <form onSubmit={handleStandardLogin} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Username or Staff Email
+                    {t('login.username')}
                   </label>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username or email"
+                    placeholder={t('login.usernamePlaceholder')}
                     disabled={lockoutRemaining > 0}
                     className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-medium disabled:opacity-50"
                     required
@@ -383,14 +417,14 @@ export const LoginPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Staff Password
+                    {t('login.password')}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter password"
+                      placeholder={t('login.passwordPlaceholder')}
                       disabled={lockoutRemaining > 0}
                       className="w-full px-3.5 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono disabled:opacity-50"
                       required
@@ -398,7 +432,7 @@ export const LoginPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -410,14 +444,14 @@ export const LoginPage: React.FC = () => {
                   disabled={isSubmitting || lockoutRemaining > 0}
                   className="w-full py-3 px-4 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 font-bold rounded-xl text-sm shadow-lg shadow-champagne-gold-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
-                  <span>{isSubmitting ? 'Authenticating...' : 'Sign In to Terminal'}</span>
+                  <span>{isSubmitting ? t('login.signingIn') : t('login.signInButton')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
 
               {isDemoMode && (
                 <div className="pt-2 text-[11px] text-slate-400 text-center border-t border-slate-750">
-                  Demo Mode: For rapid testing, select a quick-role tile on the right.
+                  {t('login.fastLoginDesc')}
                 </div>
               )}
             </div>
@@ -428,9 +462,9 @@ export const LoginPage: React.FC = () => {
                 <div className="flex items-center justify-between pb-1">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <KeyRound className="w-4 h-4 text-champagne-gold-400" />
-                    Demo Mode Role Switcher (VITE_DEMO_MODE=true)
+                    {t('login.quickDemo')}
                   </span>
-                  <span className="text-[11px] text-champagne-gold-400 font-medium">4 Sample Profiles</span>
+                  <span className="text-[11px] text-champagne-gold-400 font-medium">{t('login.sampleProfiles')}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -472,7 +506,7 @@ export const LoginPage: React.FC = () => {
                         </div>
 
                         <div className="pt-2 border-t border-slate-750 flex items-center justify-between text-xs text-champagne-gold-400 font-semibold group-hover:underline">
-                          <span>Enter as {user.name.split(' ')[0]}</span>
+                          <span>{t('login.enterAs', { name: user.name.split(' ')[0] })}</span>
                           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>

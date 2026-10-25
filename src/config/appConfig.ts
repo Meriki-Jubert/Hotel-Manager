@@ -12,6 +12,7 @@ export const appConfig: HotelConfig = {
   taxId: '',
   registryNumber: '',
   defaultCurrency: ((import.meta.env as any).VITE_DEFAULT_CURRENCY === 'USD' ? 'USD' : 'FCFA') as 'FCFA' | 'USD',
+  defaultLanguage: 'en',
   usdExchangeRate: 600,
   checkInTime: '14:00',
   checkOutTime: '12:00',

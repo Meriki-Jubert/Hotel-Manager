@@ -257,7 +257,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 label: typeof parsed.taxSettings.label === 'string' && parsed.taxSettings.label.trim() ? parsed.taxSettings.label.trim() : 'VAT',
                 ratePercent: typeof parsed.taxSettings.ratePercent === 'number' && !isNaN(parsed.taxSettings.ratePercent) ? parsed.taxSettings.ratePercent : 0
               }
-            : { enabled: false, label: 'VAT', ratePercent: 0 }
+            : { enabled: false, label: 'VAT', ratePercent: 0 },
+          defaultLanguage: parsed.defaultLanguage === 'fr' ? 'fr' : 'en'
         };
       } catch {
         return {

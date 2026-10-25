@@ -326,6 +326,23 @@ export const ProfileSettings: React.FC = () => {
                 Used when converting rates and folios to USD (e.g. 600 FCFA/USD). Click "Save Property Profile" to persist.
               </p>
             </div>
+
+            {isManagerOrOwner && (
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Default System Language</label>
+                <select
+                  value={hotelConfig.defaultLanguage || 'en'}
+                  onChange={(e) => updateHotelConfig({ defaultLanguage: e.target.value as 'en' | 'fr' })}
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="en">English (EN)</option>
+                  <option value="fr">Français (FR)</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Default language for new devices and unauthenticated visitor sessions.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

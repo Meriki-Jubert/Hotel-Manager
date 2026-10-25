@@ -33,6 +33,7 @@ export interface HotelConfig {
   taxId: string; // NIU in Cameroon / Central Africa
   registryNumber: string;
   defaultCurrency: 'FCFA' | 'USD';
+  defaultLanguage?: 'en' | 'fr';
   usdExchangeRate: number;
   checkInTime: string;
   checkOutTime: string;

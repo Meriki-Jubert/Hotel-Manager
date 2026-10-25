@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { STAFF_USERS } from '../data/mockData';
+import { useT } from '../i18n/LanguageContext';
 import {
   Hotel,
   Calendar,
@@ -33,6 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCheckIn,
   onOpenNightAudit
 }) => {
+  const { t, lang, setLang, formatDate, formatNumber } = useT();
   const {
     currentUser,
     logout,
@@ -92,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           <div className="flex items-center gap-2 max-w-7xl mx-auto w-full">
-            <span className="font-semibold">Notice:</span>
+            <span className="font-semibold">{t('common.notice')}</span>
             <span>{notification.message}</span>
             <button
               onClick={clearNotification}
@@ -109,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="bg-purple-950/80 border-b border-purple-800/60 px-4 py-1 text-center text-xs text-purple-200 flex items-center justify-center gap-2">
           <Eye className="w-3.5 h-3.5 text-purple-400" />
           <span>
-            <strong>Owner Read-Only Mode:</strong> Remote executive dashboard. Booking mutations and financial overrides are restricted.
+            {t('navbar.ownerReadOnly')}
           </span>
         </div>
       )}
@@ -146,11 +148,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
                 <span className="hidden xs:inline">•</span>
                 <span className="text-champagne-gold-400 font-semibold shrink-0">
-                  {occupancyPercent}% Occ. ({occupiedCount}/{activeRooms.length})
+                  {formatNumber(occupancyPercent)}% {t('navbar.occupancy')} ({formatNumber(occupiedCount)}/{formatNumber(activeRooms.length)})
                 </span>
                 {dirtyCount > 0 && (
                   <span className="hidden md:inline text-amber-400 font-medium">
-                    • {dirtyCount} Dirty
+                    • {formatNumber(dirtyCount)} {t('navbar.dirty')}
                   </span>
                 )}
               </p>
@@ -161,13 +163,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="hidden lg:flex items-center gap-4 text-xs text-slate-300 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700/60">
             <div className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Date:</span>
-              <strong className="text-white font-mono">{businessDate}</strong>
+              <span>{t('navbar.businessDate')}:</span>
+              <strong className="text-white font-mono">{formatDate(businessDate)}</strong>
             </div>
             <div className="h-3 w-px bg-slate-700" />
             <div className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-teal-400" />
-              <span className="text-emerald-400 font-medium">Single-Tenant Active</span>
+              <span className="text-emerald-400 font-medium">{t('navbar.singleTenantActive')}</span>
             </div>
           </div>
 
@@ -186,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   {currentUser?.role === 'owner' && (
                     <option value="all" className="bg-slate-900 text-white font-medium">
-                      All Branches (Consolidated)
+                      {t('common.allBranches')}
                     </option>
                   )}
                   {branches.filter((b) => b.isActive).map((b) => (
@@ -202,9 +204,38 @@ export const Navbar: React.FC<NavbarProps> = ({
             {hasMultipleActiveBranches && (currentUser?.role === 'front_desk' || currentUser?.role === 'housekeeping') && (
               <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700">
                 <Building className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="truncate max-w-[130px]">{activeBranch?.name || 'Assigned Branch'}</span>
+                <span className="truncate max-w-[130px]">{activeBranch?.name || t('navbar.assignedBranch')}</span>
               </div>
             )}
+
+            {/* Language Switcher "EN | FR" */}
+            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setLang('en')}
+                className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+                  lang === 'en'
+                    ? 'bg-emerald-600 text-white font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                aria-label="Switch to English"
+              >
+                EN
+              </button>
+              <span className="text-slate-600">|</span>
+              <button
+                type="button"
+                onClick={() => setLang('fr')}
+                className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+                  lang === 'fr'
+                    ? 'bg-emerald-600 text-white font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                aria-label="Passer au français"
+              >
+                FR
+              </button>
+            </div>
             
             {/* Currency Switcher */}
             <button
@@ -223,7 +254,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-700/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 <PlusCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">New Check-In</span>
+                <span className="hidden sm:inline">{t('navbar.checkIn')}</span>
               </button>
             )}
 
@@ -235,7 +266,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Run End-of-Day Night Audit & Ledger Rollover"
               >
                 <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Night Audit</span>
+                <span>{t('navbar.nightAudit')}</span>
               </button>
             )}
 
@@ -272,7 +303,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {roleDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-72 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 py-1.5 z-50 animate-in fade-in slide-in-from-top-2">
                     <div className="px-3 py-2 border-b border-slate-700 text-xs">
-                      <div className="text-slate-400">Current Operator:</div>
+                      <div className="text-slate-400">{t('navbar.currentOperator')}</div>
                       <div className="font-bold text-white text-sm mt-0.5">{currentUser.name}</div>
                       <div className="text-[11px] text-emerald-400 capitalize">{currentUser.title}</div>
                     </div>
@@ -280,7 +311,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {isDemoMode && (
                       <>
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Demo Role Switcher:
+                          {t('navbar.demoRoleSwitcher')}
                         </div>
 
                         {STAFF_USERS.map((user) => (
@@ -317,7 +348,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700/80 flex items-center gap-2 transition-colors font-medium cursor-pointer"
                       >
                         <KeyRound className="w-3.5 h-3.5 text-champagne-gold-400" />
-                        <span>Change My Password</span>
+                        <span>{t('navbar.changePassword')}</span>
                       </button>
 
                       <button
@@ -328,7 +359,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="w-full text-left px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors font-semibold cursor-pointer"
                       >
                         <LogOut className="w-3.5 h-3.5" />
-                        <span>Log Out & Exit Terminal</span>
+                        <span>{t('navbar.logout')}</span>
                       </button>
                     </div>
                   </div>
@@ -340,8 +371,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             {currentUser && (
               <button
                 onClick={logout}
-                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
-                title="Log Out"
+                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                title={t('navbar.logout')}
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -356,9 +387,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       {mobileMenuOpen && (
         <div className="md:hidden bg-slate-900 border-t border-slate-800 p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-xs">
-            <span className="text-slate-400">Allowed Staff Modules:</span>
+            <span className="text-slate-400">{t('navbar.allowedStaffModules')}</span>
             <span className="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
-              Role: {currentUser?.role.replace('_', ' ')}
+              {currentUser?.role.replace('_', ' ')}
             </span>
           </div>
 
@@ -377,24 +408,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 {tab === 'matrix'
-                  ? 'Room Matrix'
+                  ? t('nav.matrix')
                   : tab === 'reservations'
-                  ? 'Front Desk'
+                  ? t('nav.reservations')
                   : tab === 'folios'
-                  ? 'Folios & Billing'
+                  ? t('nav.folios')
                   : tab === 'pos'
-                  ? 'Restaurant POS'
+                  ? t('nav.pos')
                   : tab === 'housekeeping'
-                  ? 'Housekeeping'
+                  ? t('nav.housekeeping')
                   : tab === 'maintenance'
-                  ? 'Maintenance'
+                  ? t('nav.maintenance')
                   : tab === 'audit'
-                  ? 'Night Audit'
+                  ? t('nav.audit')
                   : tab === 'analytics'
-                  ? 'Owner BI'
+                  ? t('nav.analytics')
+                  : tab === 'reports'
+                  ? t('nav.reports')
                   : tab === 'guests'
-                  ? 'Guest CRM'
-                  : 'Property Settings'}
+                  ? t('nav.guests')
+                  : t('nav.settings')}
               </button>
             ))}
           </div>
@@ -408,13 +441,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
             >
               <Moon className="w-3.5 h-3.5" />
-              <span>Launch Night Audit Wizard</span>
+              <span>{t('navbar.launchAudit')}</span>
             </button>
           )}
 
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-            <span>Date: {businessDate}</span>
+            <span>{t('navbar.businessDate')}: {formatDate(businessDate)}</span>
             <div className="flex items-center gap-3">
+              <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setLang('en')}
+                  className={`px-2 py-0.5 rounded transition-colors ${
+                    lang === 'en' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400'
+                  }`}
+                >
+                  EN
+                </button>
+                <span className="text-slate-600">|</span>
+                <button
+                  type="button"
+                  onClick={() => setLang('fr')}
+                  className={`px-2 py-0.5 rounded transition-colors ${
+                    lang === 'fr' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400'
+                  }`}
+                >
+                  FR
+                </button>
+              </div>
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
@@ -424,14 +478,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setConfirmPasswordInput('');
                   setShowChangePasswordModal(true);
                 }}
-                className="text-slate-300 hover:text-white flex items-center gap-1 font-medium"
+                className="text-slate-300 hover:text-white flex items-center gap-1 font-medium cursor-pointer"
               >
                 <KeyRound className="w-3.5 h-3.5 text-champagne-gold-400" />
-                <span>Password</span>
+                <span>{t('navbar.changePassword')}</span>
               </button>
-              <button onClick={logout} className="text-rose-400 font-bold flex items-center gap-1">
+              <button onClick={logout} className="text-rose-400 font-bold flex items-center gap-1 cursor-pointer">
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
+                <span>{t('navbar.logout')}</span>
               </button>
             </div>
           </div>
@@ -448,8 +502,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">Change My Password</h3>
-                  <p className="text-[11px] text-slate-400">Account: {currentUser?.name} ({currentUser?.username})</p>
+                  <h3 className="font-bold text-sm text-white">{t('navbar.changePassword')}</h3>
+                  <p className="text-[11px] text-slate-400">{currentUser?.name} ({currentUser?.username})</p>
                 </div>
               </div>
               <button
@@ -498,14 +552,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Current Password <span className="text-rose-400">*</span>
+                  {t('navbar.currentPassword')} <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type={showPasswordText ? 'text' : 'password'}
                     value={currentPasswordInput}
                     onChange={(e) => setCurrentPasswordInput(e.target.value)}
-                    placeholder="Enter current password"
+                    placeholder="••••••••"
                     className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
                     required
                   />
@@ -521,13 +575,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  New Password <span className="text-rose-400">* (minimum 8 characters)</span>
+                  {t('navbar.newPassword')} <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type={showPasswordText ? 'text' : 'password'}
                   value={newPasswordInput}
                   onChange={(e) => setNewPasswordInput(e.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder="••••••••"
                   minLength={8}
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
                   required
@@ -536,13 +590,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Confirm New Password <span className="text-rose-400">*</span>
+                  {t('navbar.confirmNewPassword')} <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type={showPasswordText ? 'text' : 'password'}
                   value={confirmPasswordInput}
                   onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                  placeholder="Re-enter new password"
+                  placeholder="••••••••"
                   minLength={8}
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-mono"
                   required
@@ -555,14 +609,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setShowChangePasswordModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isChangingPassword}
                   className="px-5 py-2 text-xs font-bold bg-champagne-gold-500 hover:bg-champagne-gold-400 text-slate-950 rounded-lg shadow-md transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  {isChangingPassword ? 'Updating Password...' : 'Update Password'}
+                  {isChangingPassword ? t('navbar.updatingPassword') : t('navbar.updatePassword')}
                 </button>
               </div>
             </form>

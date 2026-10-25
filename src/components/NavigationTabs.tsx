@@ -1,5 +1,6 @@
 import React from 'react';
 import { useHMS, NavTab } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
 import {
   LayoutGrid,
   CalendarCheck2,
@@ -24,6 +25,7 @@ interface TabItem {
 
 export const NavigationTabs: React.FC = () => {
   const { activeTab, setActiveTab, rooms, reservations, maintenanceTickets, allowedTabs } = useHMS();
+  const { t } = useT();
 
   const dirtyRoomsCount = rooms.filter((r) => r.status === 'dirty' || r.status === 'cleaning').length;
   const activeReservationsCount = reservations.filter((r) => r.bookingStatus === 'checked_in').length;
@@ -32,63 +34,63 @@ export const NavigationTabs: React.FC = () => {
   const allTabsConfig: Record<NavTab, TabItem> = {
     matrix: {
       id: 'matrix',
-      label: 'Room Matrix',
+      label: t('nav.matrix'),
       icon: LayoutGrid,
     },
     reservations: {
       id: 'reservations',
-      label: 'Front Desk',
+      label: t('nav.reservations'),
       icon: CalendarCheck2,
       badge: activeReservationsCount,
       badgeColor: 'bg-emerald-500/20 text-emerald-700'
     },
     folios: {
       id: 'folios',
-      label: 'Folios & Billing',
+      label: t('nav.folios'),
       icon: Receipt,
     },
     pos: {
       id: 'pos',
-      label: 'Restaurant POS',
+      label: t('nav.pos'),
       icon: UtensilsCrossed,
     },
     housekeeping: {
       id: 'housekeeping',
-      label: 'Housekeeping',
+      label: t('nav.housekeeping'),
       icon: Sparkles,
       badge: dirtyRoomsCount > 0 ? dirtyRoomsCount : undefined,
       badgeColor: 'bg-amber-500/20 text-amber-700'
     },
     maintenance: {
       id: 'maintenance',
-      label: 'Maintenance',
+      label: t('nav.maintenance'),
       icon: Wrench,
       badge: activeTicketsCount > 0 ? activeTicketsCount : undefined,
       badgeColor: 'bg-rose-500/20 text-rose-700'
     },
     audit: {
       id: 'audit',
-      label: 'Night Audit',
+      label: t('nav.audit'),
       icon: Moon,
     },
     analytics: {
       id: 'analytics',
-      label: 'Executive Analytics',
+      label: t('nav.analytics'),
       icon: BarChart3,
     },
     reports: {
       id: 'reports',
-      label: 'Reports',
+      label: t('nav.reports'), // Reports
       icon: FileSpreadsheet,
     },
     guests: {
       id: 'guests',
-      label: 'Guest CRM',
+      label: t('nav.guests'),
       icon: Users,
     },
     settings: {
       id: 'settings',
-      label: 'Property Settings',
+      label: t('nav.settings'),
       icon: Settings,
     }
   };

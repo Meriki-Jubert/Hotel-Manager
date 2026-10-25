@@ -1,5 +1,6 @@
 import React from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
 import { Building2, ArrowRight } from 'lucide-react';
 
 interface SelectBranchNoticeProps {
@@ -12,6 +13,7 @@ export const SelectBranchNotice: React.FC<SelectBranchNoticeProps> = ({
   description
 }) => {
   const { branches, setActiveBranchId } = useHMS();
+  const { t } = useT();
   const activeBranches = branches.filter((b) => b.isActive);
 
   return (
@@ -20,34 +22,33 @@ export const SelectBranchNotice: React.FC<SelectBranchNoticeProps> = ({
         <Building2 className="w-7 h-7" />
       </div>
       <div>
-        <h3 className="text-lg sm:text-xl font-bold text-slate-900">Select a branch to use this screen</h3>
+        <h3 className="text-lg sm:text-xl font-bold text-slate-900">{t('branchNotice.title')}</h3>
         {screenName && (
           <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider mt-1">
             {screenName}
           </p>
         )}
         <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-          {description ||
-            "You are currently in 'All branches' consolidated mode (Owners only). Operational screens, room matrices, folios, reservations, and audits require an individual branch to be selected."}
+          {description || t('branchNotice.description')}
         </p>
       </div>
       <div className="pt-2">
         <label className="block text-xs font-semibold text-slate-700 mb-2">
-          Choose an Active Branch to Proceed:
+          {t('branchNotice.choosePrompt')}
         </label>
         <div className="grid grid-cols-1 gap-2.5 max-w-sm mx-auto">
           {activeBranches.map((branch) => (
             <button
               key={branch.id}
               onClick={() => setActiveBranchId(branch.id)}
-              className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-teal-500 bg-slate-50 hover:bg-teal-50/60 text-left transition-all group"
+              className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-teal-500 bg-slate-50 hover:bg-teal-50/60 text-left transition-all group cursor-pointer"
             >
               <div>
                 <div className="font-bold text-xs text-slate-900 group-hover:text-teal-700">
                   {branch.name}
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  {branch.city || 'Location unassigned'}
+                  {branch.city || t('branchNotice.unassigned')}
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 group-hover:translate-x-1 transition-all" />
