@@ -1757,6 +1757,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? {
               ...r,
               bookingStatus: 'cancelled',
+              isNoShow: Boolean(isNoShow),
               cancelledAt: timestamp,
               cancelledBy: staffName,
               cancellationReason: fullReason,

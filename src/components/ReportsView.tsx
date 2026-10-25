@@ -11,6 +11,12 @@ import {
   ReportRange
 } from '../utils/reports';
 import {
+  buildReportPdf,
+  downloadReportPdf,
+  formatPdfMoney,
+  ReportPdfSection
+} from '../utils/reportPdf';
+import {
   Printer,
   Download,
   Calendar,
@@ -23,7 +29,7 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Receipt,
-  Sparkles
+  FileText
 } from 'lucide-react';
 
 function formatCategoryLabel(cat: string): string {
@@ -207,6 +213,201 @@ export const ReportsView: React.FC = () => {
     downloadCsv(`cancellations-and-noshows-${range.from}-to-${range.to}`, csv);
   };
 
+  // PDF Section definitions for single & full export
+  const getRevenueSection = (): ReportPdfSection => ({
+    title: 'Revenue by Category',
+    note: "Charges posted during this period (a stay's room charge is posted at check-in)",
+    columns: [
+      { label: 'Category', key: 'category', align: 'left' },
+      { label: 'Type', key: 'type', align: 'left' },
+      { label: 'Amount (FCFA)', key: 'amount', align: 'right' }
+    ],
+    rows: revenueReport.rows.map((row) => ({
+      category: formatCategoryLabel(row.category),
+      type:
+        row.amount < 0 || row.category === 'discount' || row.category === 'room_charge_void'
+          ? 'Credit / Reduction'
+          : 'Charge',
+      amount: formatPdfMoney(row.amount)
+    })),
+    totalRow: {
+      category: 'Total Net Revenue',
+      type: '',
+      amount: formatPdfMoney(revenueReport.total)
+    }
+  });
+
+  const getPaymentsSection = (): ReportPdfSection => ({
+    title: 'Payments by Method',
+    note: 'Cash and electronic collections net of guest refunds',
+    columns: [
+      { label: 'Payment Method', key: 'method', align: 'left' },
+      { label: 'Net Collected (FCFA)', key: 'amount', align: 'right' }
+    ],
+    rows: paymentsReport.rows.map((row) => ({
+      method: formatMethodLabel(String(row.method)),
+      amount: formatPdfMoney(row.amount)
+    })),
+    totalRow: {
+      method: 'Total Collections (Net)',
+      amount: formatPdfMoney(paymentsReport.total)
+    }
+  });
+
+  const getOccupancySection = (): ReportPdfSection => ({
+    title: 'Occupancy and ADR',
+    note: 'Room revenue earned per night, from nightly rates. Uses the current number of active rooms.',
+    columns: [
+      { label: 'Night (Date)', key: 'date', align: 'left' },
+      { label: 'Occupied Rooms', key: 'occupied', align: 'right' },
+      { label: 'Active Rooms', key: 'total', align: 'right' },
+      { label: 'Occupancy (%)', key: 'percent', align: 'right' }
+    ],
+    rows: occupancyReport.rows.map((row) => ({
+      date: row.date,
+      occupied: String(row.occupiedRooms),
+      total: String(row.totalRooms),
+      percent: `${row.occupancyPercent}%`
+    })),
+    totalRow: {
+      date: 'Summary Period',
+      occupied: `${occupancyReport.totalOccupiedNights} nights`,
+      total: `${occupancyReport.totalRooms} rooms`,
+      percent: `Avg ${occupancyReport.averageOccupancyPercent}% | ADR: ${formatPdfMoney(occupancyReport.adr)} FCFA`
+    }
+  });
+
+  const getOutstandingSection = (): ReportPdfSection => ({
+    title: 'Outstanding In-House Balances',
+    note: 'Currently checked-in guests with unpaid charges and pending settlement',
+    columns: [
+      { label: 'Booking', key: 'booking', align: 'left' },
+      { label: 'Guest Name', key: 'guest', align: 'left' },
+      { label: 'Room #', key: 'room', align: 'left' },
+      { label: 'Stay Dates', key: 'stay', align: 'left' },
+      { label: 'Total Charges (FCFA)', key: 'charges', align: 'right' },
+      { label: 'Paid (FCFA)', key: 'paid', align: 'right' },
+      { label: 'Balance Due (FCFA)', key: 'balance', align: 'right' }
+    ],
+    rows: outstandingReport.rows.map((row) => ({
+      booking: row.bookingCode,
+      guest: row.guestName,
+      room: `Room #${row.roomNumber}`,
+      stay: `${row.checkInDate} to ${row.checkOutDate}`,
+      charges: formatPdfMoney(row.totalCharges),
+      paid: formatPdfMoney(row.totalPaid),
+      balance: formatPdfMoney(row.balance)
+    })),
+    totalRow: {
+      booking: 'Total Pending Receivables',
+      guest: '',
+      room: '',
+      stay: '',
+      charges: '',
+      paid: '',
+      balance: formatPdfMoney(outstandingReport.total)
+    }
+  });
+
+  const getCancellationsSection = (): ReportPdfSection => ({
+    title: 'Cancellations and No-Shows',
+    note: 'Cancelled reservations and no-shows within the date range, audited with penalties and refunds',
+    columns: [
+      { label: 'Booking', key: 'booking', align: 'left' },
+      { label: 'Guest Name', key: 'guest', align: 'left' },
+      { label: 'Room #', key: 'room', align: 'left' },
+      { label: 'Status', key: 'status', align: 'left' },
+      { label: 'Date', key: 'date', align: 'left' },
+      { label: 'Fee Kept (FCFA)', key: 'fee', align: 'right' },
+      { label: 'Refund (FCFA)', key: 'refund', align: 'right' },
+      { label: 'Reason / Override', key: 'reason', align: 'left' }
+    ],
+    rows: cancellationsReport.rows.map((row) => ({
+      booking: row.bookingCode,
+      guest: row.guestName,
+      room: `Room #${row.roomNumber}`,
+      status: row.isNoShow ? 'No-Show' : 'Cancelled',
+      date: row.cancelledAt ? row.cancelledAt.slice(0, 10) : row.checkInDate,
+      fee: formatPdfMoney(row.feeKept),
+      refund: formatPdfMoney(row.refund),
+      reason: [row.reason, row.feeOverrideReason ? `[Override: ${row.feeOverrideReason}]` : ''].filter(Boolean).join(' ')
+    })),
+    totalRow: {
+      booking: 'Total Retained / Refunded',
+      guest: '',
+      room: '',
+      status: '',
+      date: '',
+      fee: formatPdfMoney(cancellationsReport.totalFeeKept),
+      refund: formatPdfMoney(cancellationsReport.totalRefunded),
+      reason: ''
+    }
+  });
+
+  const getPdfMeta = (title: string) => ({
+    title,
+    hotelName: hotelConfig.name,
+    branchName: activeBranchName,
+    from: fromDate,
+    to: toDate,
+    generatedBy: currentUser?.name || 'Staff',
+    generatedAt: `${businessDate || new Date().toISOString().slice(0, 10)} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+  });
+
+  const handleDownloadFullPdf = () => {
+    const doc = buildReportPdf({
+      ...getPdfMeta('Hotel Management & Operations Report'),
+      sections: [
+        getRevenueSection(),
+        getPaymentsSection(),
+        getOccupancySection(),
+        getOutstandingSection(),
+        getCancellationsSection()
+      ]
+    });
+    downloadReportPdf(`full-report-${fromDate}-to-${toDate}.pdf`, doc);
+  };
+
+  const handleDownloadRevenuePdf = () => {
+    const doc = buildReportPdf({
+      ...getPdfMeta('Revenue by Category Report'),
+      sections: [getRevenueSection()]
+    });
+    downloadReportPdf(`revenue-by-category-${fromDate}-to-${toDate}.pdf`, doc);
+  };
+
+  const handleDownloadPaymentsPdf = () => {
+    const doc = buildReportPdf({
+      ...getPdfMeta('Payments by Method Report'),
+      sections: [getPaymentsSection()]
+    });
+    downloadReportPdf(`payments-by-method-${fromDate}-to-${toDate}.pdf`, doc);
+  };
+
+  const handleDownloadOccupancyPdf = () => {
+    const doc = buildReportPdf({
+      ...getPdfMeta('Occupancy and ADR Report'),
+      sections: [getOccupancySection()]
+    });
+    downloadReportPdf(`occupancy-and-adr-${fromDate}-to-${toDate}.pdf`, doc);
+  };
+
+  const handleDownloadOutstandingPdf = () => {
+    const doc = buildReportPdf({
+      ...getPdfMeta('Outstanding In-House Balances Report'),
+      sections: [getOutstandingSection()]
+    });
+    downloadReportPdf(`outstanding-balances-${fromDate}-to-${toDate}.pdf`, doc);
+  };
+
+  const handleDownloadCancellationsPdf = () => {
+    const doc = buildReportPdf({
+      ...getPdfMeta('Cancellations and No-Shows Report'),
+      sections: [getCancellationsSection()]
+    });
+    downloadReportPdf(`cancellations-and-noshows-${fromDate}-to-${toDate}.pdf`, doc);
+  };
+
   const setMonthPreset = (offsetMonths: number = 0) => {
     const now = new Date();
     const d = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1);
@@ -254,14 +455,22 @@ export const ReportsView: React.FC = () => {
               Financial auditing, revenue breakdown, room occupancy metrics, and debtor analysis.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleDownloadFullPdf}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              title="Download full PDF report with all five sections"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Download full report (PDF)</span>
+            </button>
             <button
               onClick={() => window.print()}
               className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
               title="Print entire report"
             >
               <Printer className="w-4 h-4 text-slate-300" />
-              <span>Print Report</span>
+              <span>Print</span>
             </button>
           </div>
         </div>
@@ -380,24 +589,35 @@ export const ReportsView: React.FC = () => {
 
       {/* SECTION 1: Revenue by Category */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print:border-slate-300 print:shadow-none">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 print:bg-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 print:bg-transparent">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-emerald-600" />
+            <DollarSign className="w-5 h-5 text-emerald-600 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-slate-900">Revenue by Category</h3>
               <p className="text-[11px] text-slate-500">
-                Detailed charges by department with discounts and room charge voids factored as reductions.
+                Charges posted during this period (a stay's room charge is posted at check-in)
               </p>
             </div>
           </div>
-          <button
-            onClick={handleDownloadRevenueCsv}
-            disabled={revenueReport.rows.length === 0}
-            className="no-print px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Download CSV</span>
-          </button>
+          <div className="flex items-center gap-2 no-print">
+            <button
+              onClick={handleDownloadRevenuePdf}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download Revenue by category as PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handleDownloadRevenueCsv}
+              disabled={revenueReport.rows.length === 0}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title="Download Revenue by category as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Download CSV</span>
+            </button>
+          </div>
         </div>
 
         {revenueReport.rows.length === 0 ? (
@@ -418,7 +638,8 @@ export const ReportsView: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {revenueReport.rows.map((row) => {
-                  const isNegative = row.amount < 0 || row.category === 'discount' || row.category === 'room_charge_void';
+                  const isNegative =
+                    row.amount < 0 || row.category === 'discount' || row.category === 'room_charge_void';
                   return (
                     <tr key={row.category} className="hover:bg-slate-50/70">
                       <td className="py-2.5 px-4 font-semibold text-slate-800">
@@ -463,24 +684,35 @@ export const ReportsView: React.FC = () => {
 
       {/* SECTION 2: Payments by Method */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print:border-slate-300 print:shadow-none">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 print:bg-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 print:bg-transparent">
           <div className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-indigo-600" />
+            <CreditCard className="w-5 h-5 text-indigo-600 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Payments by Payment Method</h3>
+              <h3 className="text-sm font-bold text-slate-900">Payments by Method</h3>
               <p className="text-[11px] text-slate-500">
                 Cash and digital payment collections. Guest refunds directly reduce the corresponding channel.
               </p>
             </div>
           </div>
-          <button
-            onClick={handleDownloadPaymentsCsv}
-            disabled={paymentsReport.rows.length === 0}
-            className="no-print px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Download CSV</span>
-          </button>
+          <div className="flex items-center gap-2 no-print">
+            <button
+              onClick={handleDownloadPaymentsPdf}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download Payments by method as PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handleDownloadPaymentsCsv}
+              disabled={paymentsReport.rows.length === 0}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title="Download Payments by method as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Download CSV</span>
+            </button>
+          </div>
         </div>
 
         {paymentsReport.rows.length === 0 ? (
@@ -528,24 +760,35 @@ export const ReportsView: React.FC = () => {
 
       {/* SECTION 3: Occupancy & ADR */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print:border-slate-300 print:shadow-none">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 print:bg-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 print:bg-transparent">
           <div className="flex items-center gap-2">
-            <BedDouble className="w-5 h-5 text-teal-600" />
+            <BedDouble className="w-5 h-5 text-teal-600 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Occupancy & Average Daily Rate (ADR)</h3>
+              <h3 className="text-sm font-bold text-slate-900">Occupancy and ADR</h3>
               <p className="text-[11px] text-slate-500">
-                Nightly room utilization for checked-in and completed stays across active inventory.
+                Room revenue earned per night, from nightly rates
               </p>
             </div>
           </div>
-          <button
-            onClick={handleDownloadOccupancyCsv}
-            disabled={occupancyReport.rows.length === 0}
-            className="no-print px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Download CSV</span>
-          </button>
+          <div className="flex items-center gap-2 no-print">
+            <button
+              onClick={handleDownloadOccupancyPdf}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download Occupancy and ADR as PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handleDownloadOccupancyCsv}
+              disabled={occupancyReport.rows.length === 0}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title="Download Occupancy and ADR as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Download CSV</span>
+            </button>
+          </div>
         </div>
 
         {/* Occupancy Summary Stats Bar */}
@@ -575,38 +818,44 @@ export const ReportsView: React.FC = () => {
             <p className="text-slate-400 mt-0.5">No nights found within the specified date range.</p>
           </div>
         ) : (
-          <div className="max-h-80 overflow-y-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200 sticky top-0">
-                <tr>
-                  <th className="py-2.5 px-4">Night (Date)</th>
-                  <th className="py-2.5 px-4 text-center">Occupied Rooms</th>
-                  <th className="py-2.5 px-4 text-center">Total Active Rooms</th>
-                  <th className="py-2.5 px-4 text-right">Occupancy Rate (%)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {occupancyReport.rows.map((row) => (
-                  <tr key={row.date} className="hover:bg-slate-50/70">
-                    <td className="py-2 px-4 font-mono font-medium text-slate-800">{row.date}</td>
-                    <td className="py-2 px-4 text-center font-bold text-teal-700">{row.occupiedRooms}</td>
-                    <td className="py-2 px-4 text-center text-slate-500">{row.totalRooms}</td>
-                    <td className="py-2 px-4 text-right font-mono font-semibold text-slate-900">
-                      {row.occupancyPercent}%
-                    </td>
+          <div>
+            <div className="max-h-80 overflow-y-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200 sticky top-0">
+                  <tr>
+                    <th className="py-2.5 px-4">Night (Date)</th>
+                    <th className="py-2.5 px-4 text-center">Occupied Rooms</th>
+                    <th className="py-2.5 px-4 text-center">Total Active Rooms</th>
+                    <th className="py-2.5 px-4 text-right">Occupancy Rate (%)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {occupancyReport.rows.map((row) => (
+                    <tr key={row.date} className="hover:bg-slate-50/70">
+                      <td className="py-2 px-4 font-mono font-medium text-slate-800">{row.date}</td>
+                      <td className="py-2 px-4 text-center font-bold text-teal-700">{row.occupiedRooms}</td>
+                      <td className="py-2 px-4 text-center text-slate-500">{row.totalRooms}</td>
+                      <td className="py-2 px-4 text-right font-mono font-semibold text-slate-900">
+                        {row.occupancyPercent}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Note under the Occupancy table */}
+            <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 font-medium">
+              Uses the current number of active rooms.
+            </div>
           </div>
         )}
       </section>
 
       {/* SECTION 4: Outstanding Balances */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print:border-slate-300 print:shadow-none">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 print:bg-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 print:bg-transparent">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-slate-900">Outstanding In-House Balances</h3>
               <p className="text-[11px] text-slate-500">
@@ -614,14 +863,25 @@ export const ReportsView: React.FC = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleDownloadOutstandingCsv}
-            disabled={outstandingReport.rows.length === 0}
-            className="no-print px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Download CSV</span>
-          </button>
+          <div className="flex items-center gap-2 no-print">
+            <button
+              onClick={handleDownloadOutstandingPdf}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download Outstanding Balances as PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handleDownloadOutstandingCsv}
+              disabled={outstandingReport.rows.length === 0}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title="Download Outstanding Balances as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Download CSV</span>
+            </button>
+          </div>
         </div>
 
         {outstandingReport.rows.length === 0 ? (
@@ -658,7 +918,7 @@ export const ReportsView: React.FC = () => {
                       {row.guestPhone}
                     </td>
                     <td className="py-2.5 px-4 text-slate-600 font-mono text-[11px]">
-                      {row.checkInDate} → {row.checkOutDate}
+                      {row.checkInDate} to {row.checkOutDate}
                     </td>
                     <td className="py-2.5 px-4 text-right font-mono text-slate-700">
                       {formatMoney(row.totalCharges)}
@@ -689,9 +949,9 @@ export const ReportsView: React.FC = () => {
 
       {/* SECTION 5: Cancellations and No-Shows */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print:border-slate-300 print:shadow-none">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 print:bg-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 print:bg-transparent">
           <div className="flex items-center gap-2">
-            <UserX className="w-5 h-5 text-rose-600" />
+            <UserX className="w-5 h-5 text-rose-600 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-slate-900">Cancellations & No-Shows</h3>
               <p className="text-[11px] text-slate-500">
@@ -699,14 +959,25 @@ export const ReportsView: React.FC = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleDownloadCancellationsCsv}
-            disabled={cancellationsReport.rows.length === 0}
-            className="no-print px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Download CSV</span>
-          </button>
+          <div className="flex items-center gap-2 no-print">
+            <button
+              onClick={handleDownloadCancellationsPdf}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download Cancellations and No-Shows as PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handleDownloadCancellationsCsv}
+              disabled={cancellationsReport.rows.length === 0}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title="Download Cancellations and No-Shows as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Download CSV</span>
+            </button>
+          </div>
         </div>
 
         {cancellationsReport.rows.length === 0 ? (

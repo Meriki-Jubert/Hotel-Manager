@@ -389,7 +389,9 @@ export function buildCancellations(
       continue;
     }
 
-    const isNoShow = (r.cancellationReason || '').toLowerCase().startsWith('no-show');
+    const isNoShow = typeof r.isNoShow === 'boolean'
+      ? r.isNoShow
+      : (r.cancellationReason || '').toLowerCase().startsWith('no-show');
 
     rows.push({
       reservationId: r.id,
@@ -431,11 +433,32 @@ export interface CsvColumnConfig<T = any> {
 export type CsvColumn<T = any> = string | CsvColumnConfig<T>;
 
 /**
- * Escapes CSV field per RFC 4180 (quotes commas, double quotes, and line breaks).
+ * Escapes CSV field per RFC 4180 with CSV injection (formula injection) protection.
+ * If a cell value is a STRING that starts with =, +, -, @, a tab or a carriage return,
+ * prefix it with a single quote (') before normal CSV escaping. Real numbers (typeof number)
+ * remain untouched.
  */
 export function escapeCsvValue(val: any): string {
   if (val === null || val === undefined) return '';
-  const str = String(val);
+
+  let str: string;
+  if (typeof val === 'number') {
+    str = String(val);
+  } else {
+    str = String(val);
+    const firstChar = str.charAt(0);
+    if (
+      firstChar === '=' ||
+      firstChar === '+' ||
+      firstChar === '-' ||
+      firstChar === '@' ||
+      firstChar === '\t' ||
+      firstChar === '\r'
+    ) {
+      str = `'${str}`;
+    }
+  }
+
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;
   }

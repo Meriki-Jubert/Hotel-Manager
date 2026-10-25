@@ -136,6 +136,7 @@ export interface Reservation {
   checkedInBy?: string;
   cancelledAt?: string;
   cancelledBy?: string;
+  isNoShow?: boolean;
   cancellationReason?: string;
   cancellationFee?: number;
   settlement?: 'refund' | 'credit';
