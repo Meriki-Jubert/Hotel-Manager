@@ -79,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const dirtyCount = activeRooms.filter((r) => r.status === 'dirty').length;
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
+    <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md no-print">
       {/* Toast Notification */}
       {notification && (
         <div

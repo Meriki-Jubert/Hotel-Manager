@@ -10,6 +10,7 @@ import { RestaurantPOS } from './components/RestaurantPOS';
 import { HousekeepingView } from './components/HousekeepingView';
 import { MaintenanceView } from './components/MaintenanceView';
 import { OwnerAnalytics } from './components/OwnerAnalytics';
+import { ReportsView } from './components/ReportsView';
 import { GuestsCRM } from './components/GuestsCRM';
 import { HotelSettingsView } from './components/HotelSettingsView';
 import { CheckInModal } from './components/CheckInModal';
@@ -148,6 +149,8 @@ const AuthenticatedDashboard: React.FC = () => {
         )}
 
         {activeTab === 'analytics' && <OwnerAnalytics />}
+
+        {activeTab === 'reports' && <ReportsView />}
 
         {activeTab === 'guests' && <GuestsCRM />}
 

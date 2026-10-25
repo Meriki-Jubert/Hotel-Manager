@@ -24,7 +24,7 @@ export const ProfileSettings: React.FC = () => {
   const [registryNumber, setRegistryNumber] = useState(hotelConfig.registryNumber);
   const [checkInTime, setCheckInTime] = useState(hotelConfig.checkInTime);
   const [checkOutTime, setCheckOutTime] = useState(hotelConfig.checkOutTime);
-  const [usdExchangeRate, setUsdExchangeRate] = useState(hotelConfig.usdExchangeRate || 600);
+  const [usdExchangeRate, setUsdExchangeRate] = useState<number | string>(hotelConfig.usdExchangeRate ?? 600);
 
   // --- TAX SETTINGS STATE ---
   const currentTax = hotelConfig.taxSettings || { enabled: false, label: 'VAT', ratePercent: 0 };
@@ -85,6 +85,13 @@ export const ProfileSettings: React.FC = () => {
     e.preventDefault();
     setProfileError(null);
     setProfileSuccess(null);
+
+    const numRate = Number(usdExchangeRate);
+    if (usdExchangeRate === '' || isNaN(numRate) || !Number.isInteger(numRate) || numRate <= 0) {
+      setProfileError('USD Exchange rate must be a whole number greater than 0.');
+      return;
+    }
+
     const res = updateHotelConfig({
       name: name.trim(),
       tagline: tagline.trim(),
@@ -96,7 +103,7 @@ export const ProfileSettings: React.FC = () => {
       registryNumber: registryNumber.trim(),
       checkInTime,
       checkOutTime,
-      usdExchangeRate: Number(usdExchangeRate) || 600
+      usdExchangeRate: numRate
     });
 
     if (!res.success) {
@@ -309,9 +316,11 @@ export const ProfileSettings: React.FC = () => {
               <input
                 type="number"
                 value={usdExchangeRate}
-                onChange={(e) => setUsdExchangeRate(Number(e.target.value))}
+                onChange={(e) => setUsdExchangeRate(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 required
+                min="1"
+                step="1"
               />
               <p className="text-[11px] text-slate-500 mt-1">
                 Used when converting rates and folios to USD (e.g. 600 FCFA/USD). Click "Save Property Profile" to persist.

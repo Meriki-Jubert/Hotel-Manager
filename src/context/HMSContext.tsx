@@ -64,6 +64,7 @@ export type NavTab =
   | 'maintenance'
   | 'audit'
   | 'analytics'
+  | 'reports'
   | 'guests'
   | 'settings';
 
@@ -566,11 +567,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'maintenance',
       'audit',
       'analytics',
+      'reports',
       'guests',
       'settings'
     ];
   } else if (role === 'owner') {
-    allowedTabs = ['analytics', 'matrix', 'settings'];
+    allowedTabs = ['analytics', 'reports', 'matrix', 'settings'];
   }
 
   const canEditRates = role === 'manager';

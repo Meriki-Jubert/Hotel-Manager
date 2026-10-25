@@ -9,6 +9,7 @@ import {
   Wrench,
   Moon,
   BarChart3,
+  FileSpreadsheet,
   Users,
   Settings
 } from 'lucide-react';
@@ -75,6 +76,11 @@ export const NavigationTabs: React.FC = () => {
       label: 'Executive Analytics',
       icon: BarChart3,
     },
+    reports: {
+      id: 'reports',
+      label: 'Reports',
+      icon: FileSpreadsheet,
+    },
     guests: {
       id: 'guests',
       label: 'Guest CRM',
@@ -91,7 +97,7 @@ export const NavigationTabs: React.FC = () => {
   const visibleTabs = allowedTabs.map((tabId) => allTabsConfig[tabId]).filter(Boolean);
 
   return (
-    <div className="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-xs">
+    <div className="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-xs no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2 no-scrollbar scroll-smooth">
           {visibleTabs.map((tab) => {
