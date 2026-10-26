@@ -42,6 +42,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [hotelConfig?.defaultLanguage]);
 
+  // Set html document lang attribute
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
+  }, [lang]);
+
   const setLang = useCallback((newLang: Language) => {
     setLangState(newLang);
     try {

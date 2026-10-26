@@ -3,6 +3,8 @@ import { useHMS } from '../context/HMSContext';
 import { Room, RoomStatus } from '../types/hms';
 import { getFolioTotals } from '../utils/folio';
 import { SelectBranchNotice } from './SelectBranchNotice';
+import { useT } from '../i18n/LanguageContext';
+import { tRoomStatus } from '../i18n/labels';
 import {
   Bed,
   User,
@@ -34,6 +36,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
   onOpenCheckOutForRes,
   onOpenFolioForRes
 }) => {
+  const { t, formatDate, formatNumber } = useT();
   const {
     rooms,
     roomTypes,
@@ -64,7 +67,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     { label: string; bg: string; border: string; text: string; dot: string; lightBg: string }
   > = {
     available: {
-      label: 'Available',
+      label: tRoomStatus(t, 'available'),
       bg: 'bg-emerald-600',
       border: 'border-emerald-200 hover:border-emerald-400',
       text: 'text-emerald-700',
@@ -72,7 +75,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
       lightBg: 'bg-emerald-50/70'
     },
     occupied: {
-      label: 'Occupied',
+      label: tRoomStatus(t, 'occupied'),
       bg: 'bg-rose-600',
       border: 'border-rose-200 hover:border-rose-400',
       text: 'text-rose-700',
@@ -80,7 +83,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
       lightBg: 'bg-rose-50/70'
     },
     reserved: {
-      label: 'Reserved',
+      label: tRoomStatus(t, 'reserved'),
       bg: 'bg-blue-600',
       border: 'border-blue-200 hover:border-blue-400',
       text: 'text-blue-700',
@@ -88,7 +91,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
       lightBg: 'bg-blue-50/70'
     },
     dirty: {
-      label: 'Dirty / Turnover',
+      label: tRoomStatus(t, 'dirty'),
       bg: 'bg-amber-600',
       border: 'border-amber-200 hover:border-amber-400',
       text: 'text-amber-700',
@@ -96,7 +99,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
       lightBg: 'bg-amber-50/70'
     },
     cleaning: {
-      label: 'In Cleaning',
+      label: tRoomStatus(t, 'cleaning'),
       bg: 'bg-purple-600',
       border: 'border-purple-200 hover:border-purple-400',
       text: 'text-purple-700',
@@ -104,7 +107,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
       lightBg: 'bg-purple-50/70'
     },
     maintenance: {
-      label: 'Maintenance',
+      label: tRoomStatus(t, 'maintenance'),
       bg: 'bg-slate-700',
       border: 'border-slate-300 hover:border-slate-500',
       text: 'text-slate-700',
@@ -125,11 +128,11 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
           <div className="w-16 h-16 rounded-2xl bg-champagne-gold-500/20 text-champagne-gold-400 mx-auto flex items-center justify-center border border-champagne-gold-500/30">
             <Bed className="w-8 h-8" />
           </div>
-          <h3 className="text-xl font-bold text-white">No Hotel Rooms Found</h3>
+          <h3 className="text-xl font-bold text-white">{t('matrix.noRoomsTitle')}</h3>
           <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
             {roomTypes.length === 0
-              ? 'Your property currently has no room categories or rooms configured.'
-              : 'There are no active rooms in the hotel inventory.'}
+              ? t('matrix.noRoomsDescEmpty')
+              : t('matrix.noRoomsDescInactive')}
           </p>
 
           <div className="pt-2">
@@ -138,11 +141,11 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                 onClick={() => setActiveTab('settings')}
                 className="px-6 py-2.5 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-champagne-gold-500/20 transition-all hover:scale-[1.02]"
               >
-                Open Room Setup
+                {t('matrix.openRoomSetup')}
               </button>
             ) : (
               <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-xs text-slate-300 font-semibold inline-block">
-                Ask your manager to add rooms
+                {t('matrix.askManager')}
               </div>
             )}
           </div>
@@ -184,17 +187,17 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by Room #, Guest Name, or Type..."
+              placeholder={t('matrix.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+              className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-slate-900"
             />
           </div>
 
           {/* Floor Filters */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 mr-1">
-              <SlidersHorizontal className="w-3.5 h-3.5" /> Floor:
+              <SlidersHorizontal className="w-3.5 h-3.5" /> {t('matrix.floorLabel')}
             </span>
             <button
               onClick={() => setSelectedFloor('all')}
@@ -204,7 +207,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              All Floors
+              {t('matrix.allFloors')}
             </button>
             {floors.map((floor) => (
               <button
@@ -216,7 +219,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                Floor {floor}
+                {t('matrix.floorNum', { floor })}
               </button>
             ))}
           </div>
@@ -226,7 +229,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
         {/* Status Pills / Quick Filter */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-2 border-t border-slate-100 text-xs no-scrollbar">
           <span className="text-slate-500 font-semibold mr-1 flex items-center gap-1">
-            <Filter className="w-3 h-3" /> Status:
+            <Filter className="w-3 h-3" /> {t('matrix.statusLabel')}
           </span>
           <button
             onClick={() => setSelectedStatus('all')}
@@ -236,7 +239,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            All ({activeRooms.length})
+            {t('matrix.allCount', { count: formatNumber(activeRooms.length) })}
           </button>
           {(Object.keys(statusConfig) as RoomStatus[]).map((st) => {
             const cfg = statusConfig[st];
@@ -253,7 +256,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
               >
                 <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : cfg.dot}`} />
                 <span>{cfg.label}</span>
-                <span className="opacity-75 font-mono">({counts[st] || 0})</span>
+                <span className="opacity-75 font-mono">({formatNumber(counts[st] || 0)})</span>
               </button>
             );
           })}
@@ -298,7 +301,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                 {arrivingTodayRes && (
                   <div className="absolute top-2.5 right-2.5">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-md border border-amber-300 animate-pulse">
-                      Arriving today
+                      {t('matrix.arrivingToday')}
                     </span>
                   </div>
                 )}
@@ -307,7 +310,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     #{room.roomNumber}
                   </span>
                   <span className="text-[11px] font-semibold text-slate-200 drop-shadow-md">
-                    Floor {room.floor}
+                    {t('matrix.floorNum', { floor: room.floor })}
                   </span>
                 </div>
               </div>
@@ -315,7 +318,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
               {/* Card Meta Subheader */}
               <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-800 truncate">{type?.name || 'Standard'}</span>
-                <span className="text-slate-900 font-bold font-mono">{formatMoney(room.pricePerNight)}/nt</span>
+                <span className="text-slate-900 font-bold font-mono">{formatMoney(room.pricePerNight)}{t('matrix.perNight')}</span>
               </div>
 
               {/* Card Body Information */}
@@ -329,18 +332,18 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     <div className="flex items-center justify-between text-[11px] text-slate-500">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-slate-400" />
-                        Out: {currentRes.checkOutDate}
+                        {t('matrix.outDate', { date: formatDate(currentRes.checkOutDate) })}
                       </span>
-                      <span className="font-mono text-slate-700">{currentRes.totalNights} nts</span>
+                      <span className="font-mono text-slate-700">{t('matrix.nightsCount', { count: formatNumber(currentRes.totalNights) })}</span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200 font-medium">
-                      <span className="text-slate-500">Balance:</span>
+                      <span className="text-slate-500">{t('matrix.balanceLabel')}</span>
                       <span
                         className={`font-semibold font-mono ${
                           folioBalance > 0 ? 'text-rose-600 font-bold' : 'text-emerald-600'
                         }`}
                       >
-                        {folioBalance > 0 ? formatMoney(folioBalance) : 'Settled'}
+                        {folioBalance > 0 ? formatMoney(folioBalance) : t('matrix.settled')}
                       </span>
                     </div>
                   </div>
@@ -351,11 +354,11 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     <div className="font-bold text-amber-900 flex items-center justify-between text-[11px] truncate">
                       <span className="truncate flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        Arrival: {arrivingTodayRes.guestName}
+                        {t('matrix.arrivalGuest', { name: arrivingTodayRes.guestName })}
                       </span>
                     </div>
                     <div className="text-[10px] text-amber-800">
-                      Stay: {arrivingTodayRes.totalNights} nts • Out: {arrivingTodayRes.checkOutDate}
+                      {t('matrix.stayDetails', { count: formatNumber(arrivingTodayRes.totalNights), date: formatDate(arrivingTodayRes.checkOutDate) })}
                     </div>
                   </div>
                 )}
@@ -364,10 +367,10 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-100 space-y-1">
                     <div className="font-semibold text-amber-900 flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      Turnover Needed
+                      {t('matrix.turnoverNeeded')}
                     </div>
                     <div className="text-[11px] text-amber-700 truncate">
-                      Assigned: {room.assignedHousekeeper || 'Housekeeping Crew'}
+                      {t('matrix.assignedStaff', { name: room.assignedHousekeeper || t('matrix.housekeepingCrew') })}
                     </div>
                   </div>
                 )}
@@ -376,10 +379,10 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   <div className="bg-purple-50 p-2.5 rounded-lg border border-purple-100 space-y-1">
                     <div className="font-semibold text-purple-900 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-purple-600 shrink-0 animate-spin" />
-                      Cleaning In Progress
+                      {t('matrix.cleaningInProgress')}
                     </div>
                     <div className="text-[11px] text-purple-700 truncate">
-                      {room.assignedHousekeeper || 'Housekeeping Crew'}
+                      {room.assignedHousekeeper || t('matrix.housekeepingCrew')}
                     </div>
                   </div>
                 )}
@@ -388,10 +391,10 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   <div className="bg-slate-100 p-2.5 rounded-lg border border-slate-200 space-y-1">
                     <div className="font-semibold text-slate-800 flex items-center gap-1">
                       <Wrench className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                      Maintenance Hold
+                      {t('matrix.maintenanceHold')}
                     </div>
                     <div className="text-[11px] text-slate-600 line-clamp-2">
-                      {room.maintenanceNote || 'Facility repair ticket logged.'}
+                      {room.maintenanceNote || t('matrix.facilityRepairLogged')}
                     </div>
                   </div>
                 )}
@@ -400,10 +403,10 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                   <div className="bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100/60 text-slate-600 space-y-1">
                     <div className="flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      Ready for Guest
+                      {t('matrix.readyForGuest')}
                     </div>
                     <div className="text-[10px] text-slate-500">
-                      Cleaned: {room.lastCleaned?.split(' ')[1] || 'Today'} • {type?.bedType}
+                      {t('matrix.cleanedInfo', { time: room.lastCleaned?.split(' ')[1] || t('matrix.today'), bed: type?.bedType || '' })}
                     </div>
                   </div>
                 )}
@@ -420,7 +423,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors"
                   >
                     <Eye className="w-3.5 h-3.5 text-slate-500" />
-                    <span>View Overview</span>
+                    <span>{t('matrix.viewOverview')}</span>
                   </button>
                 ) : (
                   <>
@@ -430,7 +433,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                         className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
                       >
                         <LogIn className="w-3.5 h-3.5" />
-                        <span>Check In</span>
+                        <span>{t('matrix.checkIn')}</span>
                       </button>
                     )}
 
@@ -442,7 +445,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                           title="Open Guest Folio & Charges"
                         >
                           <Receipt className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Folio</span>
+                          <span>{t('matrix.folio')}</span>
                         </button>
                         {canCheckOut && (
                           <button
@@ -451,7 +454,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                             title="Initiate Check-Out"
                           >
                             <LogOut className="w-3.5 h-3.5" />
-                            <span>Out</span>
+                            <span>{t('matrix.out')}</span>
                           </button>
                         )}
                       </div>
@@ -463,7 +466,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                         className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
                       >
                         <LogIn className="w-3.5 h-3.5" />
-                        <span>Check In Guest</span>
+                        <span>{t('matrix.checkInGuest')}</span>
                       </button>
                     )}
 
@@ -473,7 +476,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                         className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>Start Cleaning</span>
+                        <span>{t('matrix.startCleaning')}</span>
                       </button>
                     )}
 
@@ -483,7 +486,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                         className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Inspect & Release</span>
+                        <span>{t('matrix.inspectRelease')}</span>
                       </button>
                     )}
 
@@ -493,7 +496,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                         className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
                       >
                         <Wrench className="w-3.5 h-3.5 text-amber-400" />
-                        <span>View Ticket</span>
+                        <span>{t('matrix.viewTicket')}</span>
                       </button>
                     )}
                   </>
@@ -507,9 +510,9 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
       {filteredRooms.length === 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
           <Bed className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-800">No rooms match your filter</h3>
+          <h3 className="text-base font-semibold text-slate-800">{t('matrix.noMatchTitle')}</h3>
           <p className="text-xs text-slate-500 mt-1">
-            Try adjusting your search query, selected floor, or status criteria.
+            {t('matrix.noMatchDesc')}
           </p>
         </div>
       )}

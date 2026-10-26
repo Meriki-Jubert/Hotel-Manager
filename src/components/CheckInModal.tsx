@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
+import { tPaymentMethod, tBookingSource } from '../i18n/labels';
 import { Room, PaymentMethod } from '../types/hms';
 import { getNextLocalDateString } from '../utils/dateUtils';
 import {
@@ -30,6 +32,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  const { t, formatDate } = useT();
   const {
     rooms,
     roomTypes,
@@ -108,19 +111,19 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     setErrorMsg(null);
 
     if (!selectedRoomId) {
-      setErrorMsg('Please select a valid room.');
+      setErrorMsg(t('checkInModal.valErrRoom'));
       return;
     }
     if (!guestName.trim()) {
-      setErrorMsg('Guest full name is required.');
+      setErrorMsg(t('checkInModal.valErrName'));
       return;
     }
     if (!phone.trim() || phone.trim() === '+237') {
-      setErrorMsg('Valid contact phone number is required.');
+      setErrorMsg(t('checkInModal.valErrPhone'));
       return;
     }
     if (!idCardNumber.trim()) {
-      setErrorMsg('National ID Card / Passport # is required for police registry.');
+      setErrorMsg(t('checkInModal.valErrId'));
       return;
     }
 
@@ -190,12 +193,12 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold">
-                {isFutureArrival ? 'Advance Reservation (Future Arrival)' : 'Express Walk-In Check-In'}
+                {isFutureArrival ? t('checkInModal.futureTitle') : t('checkInModal.expressTitle')}
               </h2>
               <p className="text-xs text-slate-400">
                 {isFutureArrival
-                  ? `Check-In valve active: Arrival on ${checkInDate} (Today: ${businessDate})`
-                  : 'Front Desk Registration & Immediate Room Allocation'}
+                  ? t('checkInModal.futureSubtitle', { date: formatDate(checkInDate), today: formatDate(businessDate) })
+                  : t('checkInModal.expressSubtitle')}
               </p>
             </div>
           </div>
@@ -220,11 +223,11 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
               <Building className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">No Rooms Available for Immediate Check-In</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">{t('checkInModal.noRoomsTitle')}</h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
                 {activeRooms.length === 0
-                  ? 'There are currently no active rooms configured in the hotel inventory.'
-                  : 'All rooms in inventory are currently occupied, undergoing cleaning, or under maintenance.'}
+                  ? t('checkInModal.noRoomsDescEmpty')
+                  : t('checkInModal.noRoomsDesc')}
               </p>
             </div>
             <div className="pt-2">
@@ -237,11 +240,11 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                   }}
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition-all hover:scale-[1.02]"
                 >
-                  Open Room & Inventory Setup
+                  {t('checkInModal.openInventory')}
                 </button>
               ) : (
                 <div className="p-3 bg-slate-100 rounded-xl text-xs text-slate-700 font-semibold inline-block border border-slate-200">
-                  Ask your manager to add rooms
+                  {t('checkInModal.askManager')}
                 </div>
               )}
             </div>
@@ -252,11 +255,11 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                  <Building className="w-3.5 h-3.5" /> Room Assignment & Stay Dates
+                  <Building className="w-3.5 h-3.5" /> {t('checkInModal.roomAndDates')}
                 </span>
                 {selectedRoom && (
                   <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    {formatMoney(selectedRoom.pricePerNight)} / night
+                    {t('checkInModal.perNight', { rate: formatMoney(selectedRoom.pricePerNight) })}
                   </span>
                 )}
               </div>
@@ -264,7 +267,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Room Assigned *
+                    {t('checkInModal.roomAssigned')}
                   </label>
                   <select
                     value={selectedRoomId}
@@ -276,7 +279,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                       const rType = roomTypes.find((t) => t.id === r.roomTypeId);
                       return (
                         <option key={r.id} value={r.id} className="text-slate-900 font-semibold">
-                          Room #{r.roomNumber} - {rType?.name || 'Standard'} (Floor {r.floor})
+                          {t('checkInModal.roomOption', { number: r.roomNumber, type: rType?.name || 'Standard', floor: r.floor })}
                         </option>
                       );
                     })}
@@ -285,7 +288,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Check-In Date *
+                    {t('checkInModal.checkInDate')}
                   </label>
                   <input
                     type="date"
@@ -299,7 +302,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Check-Out Date *
+                    {t('checkInModal.checkOutDate')}
                   </label>
                   <input
                     type="date"
@@ -318,10 +321,10 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                   <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <p className="font-bold text-amber-950">
-                      Check-In Valve Active: Arrival Date ({checkInDate}) is in the Future
+                      {t('checkInModal.valveHeader', { date: formatDate(checkInDate) })}
                     </p>
                     <p className="text-amber-800 leading-relaxed">
-                      Physical check-in and key issuance are strictly blocked before arrival day. This booking will be securely recorded as a <strong>Reservation (Reserved)</strong>. The room remains available in today&apos;s physical inventory ({businessDate}) until the guest arrives on {checkInDate}.
+                      {t('checkInModal.valveBody', { date: formatDate(checkInDate), today: formatDate(businessDate) })}
                     </p>
                   </div>
                 </div>
@@ -330,27 +333,27 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200 gap-2">
                 <div className="flex items-center gap-4 flex-wrap">
                   <span>
-                    Stay Duration: <strong className="text-slate-900 font-mono">{totalNights} Night(s)</strong>
+                    {t('checkInModal.stayDuration', { nights: totalNights })}
                   </span>
                   <span>
-                    Source:
+                    {t('checkInModal.sourceLabel')}
                     <select
                       value={source}
                       onChange={(e: any) => setSource(e.target.value)}
                       className="ml-1.5 text-xs font-semibold border border-slate-200 rounded px-2 py-0.5 bg-slate-50 text-slate-900"
                     >
-                      <option value="Walk-In" className="text-slate-900">Walk-In (Direct)</option>
-                      <option value="Phone" className="text-slate-900">Phone Booking</option>
-                      <option value="WhatsApp" className="text-slate-900">WhatsApp</option>
-                      <option value="Direct Website" className="text-slate-900">Direct Website</option>
-                      <option value="OTA - Booking.com" className="text-slate-900">OTA (Booking.com/Expedia)</option>
-                      <option value="Corporate" className="text-slate-900">Corporate / Government</option>
-                      <option value="Agency" className="text-slate-900">Travel Agency</option>
+                      <option value="Walk-In" className="text-slate-900">{tBookingSource(t, 'Walk-In')}</option>
+                      <option value="Phone" className="text-slate-900">{tBookingSource(t, 'Phone')}</option>
+                      <option value="WhatsApp" className="text-slate-900">{tBookingSource(t, 'WhatsApp')}</option>
+                      <option value="Direct Website" className="text-slate-900">{tBookingSource(t, 'Direct Website')}</option>
+                      <option value="OTA - Booking.com" className="text-slate-900">{tBookingSource(t, 'OTA - Booking.com')}</option>
+                      <option value="Corporate" className="text-slate-900">{tBookingSource(t, 'Corporate')}</option>
+                      <option value="Agency" className="text-slate-900">{tBookingSource(t, 'Agency')}</option>
                     </select>
                   </span>
                 </div>
                 <div className="text-left sm:text-right">
-                  <span className="text-slate-500 text-[11px] block">Est. Room Total:</span>
+                  <span className="text-slate-500 text-[11px] block">{t('checkInModal.estTotal')}</span>
                   <span className="text-sm font-bold font-mono text-emerald-700">
                     {formatMoney(totalRate)}
                   </span>
@@ -362,7 +365,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5" /> Guest Information (Police Logbook Compliant)
+                  <FileText className="w-3.5 h-3.5" /> {t('checkInModal.guestInfoHeading')}
                 </span>
                 {guests.length > 0 && (
                   <select
@@ -370,7 +373,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                     onChange={(e) => handleSelectExistingGuest(e.target.value)}
                     className="text-xs bg-slate-100 text-slate-800 font-semibold px-2 py-1 rounded border border-slate-200 focus:outline-none"
                   >
-                    <option value="">🔍 Lookup Returning Guest (CRM)...</option>
+                    <option value="">{t('checkInModal.lookupReturning')}</option>
                     {guests.map((g) => (
                       <option key={g.id} value={g.id}>
                         {g.fullName} ({g.phone})
@@ -383,7 +386,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Guest Full Name *
+                    {t('checkInModal.fullName')}
                   </label>
                   <input
                     type="text"
@@ -397,7 +400,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Contact Phone Number *
+                    {t('checkInModal.phone')}
                   </label>
                   <input
                     type="tel"
@@ -411,7 +414,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    National ID / Passport # *
+                    {t('checkInModal.idCard')}
                   </label>
                   <input
                     type="text"
@@ -425,7 +428,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Nationality
+                    {t('checkInModal.nationality')}
                   </label>
                   <input
                     type="text"
@@ -438,7 +441,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Email Address (Optional)
+                    {t('checkInModal.email')}
                   </label>
                   <input
                     type="email"
@@ -452,7 +455,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Adults
+                      {t('checkInModal.adults')}
                     </label>
                     <input
                       type="number"
@@ -465,7 +468,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Children
+                      {t('checkInModal.children')}
                     </label>
                     <input
                       type="number"
@@ -483,21 +486,21 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
             {/* Payment Collection */}
             <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200/80 space-y-3">
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5" /> Initial Payment & Deposit Collection
+                <CreditCard className="w-3.5 h-3.5" /> {t('checkInModal.paymentHeading')}
               </span>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Payment Method
+                    {t('checkInModal.paymentMethod')}
                   </label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {[
-                      { id: 'momo', label: 'MTN MoMo', color: 'bg-yellow-400 text-yellow-950 font-bold' },
-                      { id: 'orange_money', label: 'Orange Money', color: 'bg-orange-500 text-white font-bold' },
-                      { id: 'cash', label: 'Cash (FCFA)', color: 'bg-emerald-600 text-white font-bold' },
-                      { id: 'card', label: 'Bank Card', color: 'bg-blue-600 text-white font-bold' },
-                      { id: 'bank_transfer', label: 'Bank Transfer', color: 'bg-indigo-600 text-white font-bold' }
+                      { id: 'momo', label: tPaymentMethod(t, 'momo'), color: 'bg-yellow-400 text-yellow-950 font-bold' },
+                      { id: 'orange_money', label: tPaymentMethod(t, 'orange_money'), color: 'bg-orange-500 text-white font-bold' },
+                      { id: 'cash', label: tPaymentMethod(t, 'cash'), color: 'bg-emerald-600 text-white font-bold' },
+                      { id: 'card', label: tPaymentMethod(t, 'card'), color: 'bg-blue-600 text-white font-bold' },
+                      { id: 'bank_transfer', label: tPaymentMethod(t, 'bank_transfer'), color: 'bg-indigo-600 text-white font-bold' }
                     ].map((pm) => (
                       <button
                         key={pm.id}
@@ -517,7 +520,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Amount Received Now (Deposit / Full)
+                    {t('checkInModal.amountReceived')}
                   </label>
                   <div className="relative">
                     <input
@@ -534,26 +537,26 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                         onClick={() => setAmountPaid(totalRate)}
                         className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 font-semibold"
                       >
-                        Full
+                        {t('checkInModal.fullBtn')}
                       </button>
                       <button
                         type="button"
                         onClick={() => setAmountPaid(Math.round(totalRate / 2))}
                         className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 font-semibold"
                       >
-                        50%
+                        {t('checkInModal.btn50')}
                       </button>
                       <button
                         type="button"
                         onClick={() => setAmountPaid(0)}
                         className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 font-semibold"
                       >
-                        0
+                        {t('checkInModal.btn0')}
                       </button>
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-[11px] mt-1 text-slate-500">
-                    <span>Balance Due at Checkout:</span>
+                    <span>{t('checkInModal.balanceDueCheckout')}</span>
                     <strong className="font-mono text-slate-800">
                       {formatMoney(Math.max(0, totalRate - amountPaid))}
                     </strong>
@@ -565,11 +568,11 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
             {/* Special Requests */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Special Guest Requests / Room Notes
+                {t('checkInModal.specialRequests')}
               </label>
               <input
                 type="text"
-                placeholder="e.g. Quiet room requested, early morning tea, extra towel..."
+                placeholder={t('checkInModal.specialRequestsPlaceholder')}
                 value={specialRequests}
                 onChange={(e) => setSpecialRequests(e.target.value)}
                 className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-900 placeholder-slate-400"
@@ -583,7 +586,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -596,12 +599,12 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                 {isFutureArrival ? (
                   <>
                     <BookmarkCheck className="w-4 h-4" />
-                    <span>Create Advance Reservation ({checkInDate})</span>
+                    <span>{t('checkInModal.submitAdvance', { date: formatDate(checkInDate) })}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Complete Check-In & Issue Key</span>
+                    <span>{t('checkInModal.submitExpress')}</span>
                   </>
                 )}
               </button>

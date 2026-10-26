@@ -38,6 +38,7 @@ export const ProfileSettings: React.FC = () => {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [currencyError, setCurrencyError] = useState<string | null>(null);
+  const [languageError, setLanguageError] = useState<string | null>(null);
 
   const handleSaveTaxSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,9 +331,20 @@ export const ProfileSettings: React.FC = () => {
             {isManagerOrOwner && (
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Default System Language</label>
+                {languageError && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 mb-2 font-semibold">
+                    {languageError}
+                  </div>
+                )}
                 <select
                   value={hotelConfig.defaultLanguage || 'en'}
-                  onChange={(e) => updateHotelConfig({ defaultLanguage: e.target.value as 'en' | 'fr' })}
+                  onChange={(e) => {
+                    setLanguageError(null);
+                    const res = updateHotelConfig({ defaultLanguage: e.target.value as 'en' | 'fr' });
+                    if (!res.success) {
+                      setLanguageError(res.error || 'Failed to update default language.');
+                    }
+                  }}
                   className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="en">English (EN)</option>

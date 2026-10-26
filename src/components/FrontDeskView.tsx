@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
+import { tBookingStatus, tBookingSource } from '../i18n/labels';
 import { Reservation, BookingStatus } from '../types/hms';
 import { getFolioTotals } from '../utils/folio';
 import { SelectBranchNotice } from './SelectBranchNotice';
@@ -54,6 +56,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
   onOpenFolio,
   onOpenCheckOut
 }) => {
+  const { t, formatDate } = useT();
   const {
     reservations,
     formatMoney,
@@ -100,11 +103,11 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
           <div className="w-16 h-16 rounded-2xl bg-champagne-gold-500/20 text-champagne-gold-400 mx-auto flex items-center justify-center border border-champagne-gold-500/30">
             <CalendarCheck2 className="w-8 h-8" />
           </div>
-          <h3 className="text-xl font-bold text-white">No Rooms Configured</h3>
+          <h3 className="text-xl font-bold text-white">{t('frontDesk.noRoomsTitle')}</h3>
           <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
             {roomTypes.length === 0
-              ? 'Your property currently has no room categories or rooms configured to take reservations.'
-              : 'Add rooms to your inventory before creating reservations or checking guests in.'}
+              ? t('frontDesk.noRoomsDescEmpty')
+              : t('frontDesk.noRoomsDesc')}
           </p>
 
           <div className="pt-2">
@@ -113,11 +116,11 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                 onClick={() => setActiveTab('settings')}
                 className="px-6 py-2.5 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-champagne-gold-500/20 transition-all hover:scale-[1.02]"
               >
-                Configure Rooms in Settings
+                {t('frontDesk.configureRooms')}
               </button>
             ) : (
               <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-xs text-slate-300 font-semibold inline-block">
-                Ask your manager to add rooms
+                {t('frontDesk.askManager')}
               </div>
             )}
           </div>
@@ -174,28 +177,28 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-            Checked In (In-House)
+            {tBookingStatus(t, 'checked_in')}
           </span>
         );
       case 'reserved':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
             <Clock className="w-3 h-3 text-blue-600" />
-            Reserved (Upcoming)
+            {tBookingStatus(t, 'reserved')}
           </span>
         );
       case 'checked_out':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
             <CheckCircle2 className="w-3 h-3 text-slate-500" />
-            Checked Out
+            {tBookingStatus(t, 'checked_out')}
           </span>
         );
       case 'cancelled':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-300">
             <XCircle className="w-3 h-3 text-gray-500" />
-            Cancelled
+            {tBookingStatus(t, 'cancelled')}
           </span>
         );
     }
@@ -208,10 +211,10 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
         <div>
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <CalendarCheck2 className="w-5 h-5 text-champagne-gold-400" />
-            Reservations & Front Desk Roster
+            {t('frontDesk.title')}
           </h2>
           <p className="text-xs text-slate-300 mt-0.5">
-            Manage advance reservations, in-house guests, expected arrivals, and departures
+            {t('frontDesk.subtitle')}
           </p>
         </div>
 
@@ -222,7 +225,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
             className="flex items-center gap-1.5 px-4 py-2.5 bg-champagne-gold-500 hover:bg-champagne-gold-600 text-slate-950 rounded-xl text-xs font-bold shadow-md shadow-champagne-gold-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <BookmarkCheck className="w-4 h-4" />
-            <span>New Reservation</span>
+            <span>{t('frontDesk.newReservation')}</span>
           </button>
 
           {/* Quick Walk-In Check-In */}
@@ -231,7 +234,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
             className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02]"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Walk-In Check-In</span>
+            <span>{t('frontDesk.walkInCheckIn')}</span>
           </button>
         </div>
       </div>
@@ -243,12 +246,12 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
           {(
             [
-              { key: 'all', label: 'All Bookings', count: tabCounts.all },
-              { key: 'arriving_today', label: 'Arriving Today', count: tabCounts.arriving_today, highlight: 'amber' },
-              { key: 'departing_today', label: 'Departing Today', count: tabCounts.departing_today, highlight: 'indigo' },
-              { key: 'in_house', label: 'In House', count: tabCounts.in_house, highlight: 'rose' },
-              { key: 'upcoming', label: 'Upcoming', count: tabCounts.upcoming, highlight: 'blue' },
-              { key: 'cancelled', label: 'Cancelled', count: tabCounts.cancelled }
+              { key: 'all', label: t('frontDesk.tabAll'), count: tabCounts.all },
+              { key: 'arriving_today', label: t('frontDesk.tabArrivingToday'), count: tabCounts.arriving_today, highlight: 'amber' },
+              { key: 'departing_today', label: t('frontDesk.tabDepartingToday'), count: tabCounts.departing_today, highlight: 'indigo' },
+              { key: 'in_house', label: t('frontDesk.tabInHouse'), count: tabCounts.in_house, highlight: 'rose' },
+              { key: 'upcoming', label: t('frontDesk.tabUpcoming'), count: tabCounts.upcoming, highlight: 'blue' },
+              { key: 'cancelled', label: t('frontDesk.tabCancelled'), count: tabCounts.cancelled }
             ] as const
           ).map((tab) => {
             const isSelected = activeTabFilter === tab.key;
@@ -282,7 +285,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by Guest Name, Booking Code (BK-...), Room #, Phone..."
+              placeholder={t('frontDesk.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-xs bg-slate-800/90 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 text-white placeholder-slate-400 transition-all"
@@ -291,7 +294,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
 
           {/* Arrival Date From */}
           <div className="md:col-span-3 flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 font-semibold whitespace-nowrap">From:</span>
+            <span className="text-[11px] text-slate-400 font-semibold whitespace-nowrap">{t('frontDesk.from')}</span>
             <input
               type="date"
               value={arrivalDateFrom}
@@ -302,7 +305,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
 
           {/* Arrival Date To */}
           <div className="md:col-span-3 flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 font-semibold whitespace-nowrap">To:</span>
+            <span className="text-[11px] text-slate-400 font-semibold whitespace-nowrap">{t('frontDesk.to')}</span>
             <input
               type="date"
               value={arrivalDateTo}
@@ -331,14 +334,14 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
               <tr>
-                <th className="py-3.5 px-4">Booking Code</th>
-                <th className="py-3.5 px-4">Guest Details</th>
-                <th className="py-3.5 px-4">Room / Category</th>
-                <th className="py-3.5 px-4">Dates & Duration</th>
-                <th className="py-3.5 px-4">Total Stay</th>
-                <th className="py-3.5 px-4">Paid / Balance Due</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4">{t('frontDesk.colBookingCode')}</th>
+                <th className="py-3.5 px-4">{t('frontDesk.colGuestDetails')}</th>
+                <th className="py-3.5 px-4">{t('frontDesk.colRoomCategory')}</th>
+                <th className="py-3.5 px-4">{t('frontDesk.colDatesDuration')}</th>
+                <th className="py-3.5 px-4">{t('frontDesk.colTotalStay')}</th>
+                <th className="py-3.5 px-4">{t('frontDesk.colPaidBalance')}</th>
+                <th className="py-3.5 px-4">{t('frontDesk.colStatus')}</th>
+                <th className="py-3.5 px-4 text-right">{t('frontDesk.colActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -363,12 +366,12 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                         <span className="font-mono font-bold text-slate-900">{res.bookingCode}</span>
                         {res.rateType === 'non_refundable' && (
                           <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-200">
-                            Non-refundable
+                            {t('frontDesk.nonRefundable')}
                           </span>
                         )}
                       </div>
                       <div className="text-[10px] text-slate-500 capitalize flex items-center gap-1 mt-0.5">
-                        <span className="font-semibold">{res.source}</span>
+                        <span className="font-semibold">{tBookingSource(t, res.source)}</span>
                       </div>
                     </td>
 
@@ -398,10 +401,10 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                       ) : (
                         <div>
                           <span className="font-semibold text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                            Hold {typeObj?.name || 'Category'}
+                            {t('frontDesk.holdCategory', { category: typeObj?.name || 'Category' })}
                           </span>
                           <span className="block text-[10px] text-slate-400 mt-0.5">
-                            Room unassigned
+                            {t('frontDesk.roomUnassigned')}
                           </span>
                         </div>
                       )}
@@ -411,23 +414,23 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-1 text-slate-800 font-semibold">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="font-mono">{res.checkInDate}</span>
+                        <span className="font-mono">{formatDate(res.checkInDate)}</span>
                         <ArrowRight className="w-3 h-3 text-slate-400" />
-                        <span className="font-mono">{res.checkOutDate}</span>
+                        <span className="font-mono">{formatDate(res.checkOutDate)}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                        {res.totalNights} Night(s) • Adults: {res.adults}
+                        {t('frontDesk.nightsAdults', { nights: res.totalNights, adults: res.adults })}
                       </div>
 
                       {/* Arriving / Departing Badges */}
                       {isArrivingToday && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 mt-1 animate-pulse">
-                          Arriving Today
+                          {t('frontDesk.arrivingToday')}
                         </span>
                       )}
                       {isDepartingToday && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 mt-1">
-                          Departing Today
+                          {t('frontDesk.departingToday')}
                         </span>
                       )}
                     </td>
@@ -440,20 +443,20 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                     {/* Paid & Balance Due */}
                     <td className="py-3.5 px-4">
                       <div className="font-mono text-xs text-emerald-700 font-semibold">
-                        Paid: {formatMoney(netPayments)}
+                        {t('frontDesk.paid', { amount: formatMoney(netPayments) })}
                       </div>
                       <div className="mt-0.5">
                         {isCredit ? (
                           <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                            Credit: {formatMoney(netPayments - totalCharged)}
+                            {t('frontDesk.credit', { amount: formatMoney(netPayments - totalCharged) })}
                           </span>
                         ) : actualBalanceDue > 0 ? (
                           <span className="text-[11px] font-mono font-bold text-rose-600">
-                            Due: {formatMoney(actualBalanceDue)}
+                            {t('frontDesk.due', { amount: formatMoney(actualBalanceDue) })}
                           </span>
                         ) : (
                           <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                            Settled
+                            {t('frontDesk.settled')}
                           </span>
                         )}
                       </div>
@@ -480,7 +483,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             title="Check-in guest pre-filling details"
                           >
                             <LogIn className="w-3.5 h-3.5" />
-                            <span>Check In</span>
+                            <span>{t('frontDesk.checkIn')}</span>
                           </button>
                         )}
 
@@ -492,7 +495,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             title="Edit booking dates, room or guests"
                           >
                             <Edit className="w-3 h-3 text-blue-600" />
-                            <span>Edit</span>
+                            <span>{t('frontDesk.edit')}</span>
                           </button>
                         )}
 
@@ -507,14 +510,14 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             title="Cancel booking or record no-show"
                           >
                             <UserX className="w-3 h-3 text-rose-600" />
-                            <span>Cancel</span>
+                            <span>{t('frontDesk.cancel')}</span>
                           </button>
                         ) : res.bookingStatus === 'checked_in' ? (
                           <span
                             className="px-2 py-1 text-[10px] text-slate-500 font-medium italic border border-dashed border-slate-200 rounded-lg bg-slate-50 flex items-center whitespace-nowrap"
                             title="Cannot cancel a checked-in guest. Use Check-Out to settle folio."
                           >
-                            Use Check-Out instead
+                            {t('frontDesk.useCheckOut')}
                           </span>
                         ) : null}
 
@@ -527,7 +530,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                               title="Extend Stay"
                             >
                               <PlusCircle className="w-3 h-3 text-emerald-600" />
-                              <span>Extend Stay</span>
+                              <span>{t('frontDesk.extendStay')}</span>
                             </button>
 
                             {isManager && (
@@ -537,7 +540,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                                 title="Shorten Stay (Early Departure)"
                               >
                                 <MinusCircle className="w-3 h-3 text-amber-600" />
-                                <span>Shorten Stay</span>
+                                <span>{t('frontDesk.shortenStay')}</span>
                               </button>
                             )}
 
@@ -547,7 +550,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                               title="Change Room"
                             >
                               <Shuffle className="w-3 h-3 text-blue-600" />
-                              <span>Change Room</span>
+                              <span>{t('frontDesk.changeRoom')}</span>
                             </button>
                           </>
                         )}
@@ -560,7 +563,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             title="Check-Out Guest & Settle Balance"
                           >
                             <LogOut className="w-3.5 h-3.5" />
-                            <span>Check Out</span>
+                            <span>{t('frontDesk.checkOut')}</span>
                           </button>
                         )}
 
@@ -571,7 +574,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                           title="Open Billing Folio"
                         >
                           <Receipt className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Folio</span>
+                          <span>{t('frontDesk.folio')}</span>
                         </button>
                       </div>
                     </td>
@@ -585,8 +588,8 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
         {filtered.length === 0 && (
           <div className="p-10 text-center text-slate-500 text-xs space-y-2">
             <CalendarCheck2 className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="font-semibold text-slate-600">No reservations found matching the current criteria.</p>
-            <p className="text-[11px] text-slate-400">Try adjusting your tab selection, search keywords or date range filters.</p>
+            <p className="font-semibold text-slate-600">{t('frontDesk.noBookingsFound')}</p>
+            <p className="text-[11px] text-slate-400">{t('frontDesk.noBookingsSub')}</p>
           </div>
         )}
       </div>

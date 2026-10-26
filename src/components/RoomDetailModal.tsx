@@ -4,6 +4,8 @@ import { Room } from '../types/hms';
 import { ExtendStayModal } from './ExtendStayModal';
 import { ShortenStayModal } from './ShortenStayModal';
 import { ChangeRoomModal } from './ChangeRoomModal';
+import { useT } from '../i18n/LanguageContext';
+import { tRoomStatus, tBookingSource } from '../i18n/labels';
 import {
   X,
   Bed,
@@ -41,6 +43,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
   onOpenFolio,
   onReportMaintenance
 }) => {
+  const { t, formatDate, formatNumber } = useT();
   const { roomTypes, reservations, updateRoomStatus, formatMoney, maintenanceTickets, getNextUpcomingReservationForRoom, currentUser } = useHMS();
   const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
@@ -67,9 +70,9 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black font-mono">Room #{room.roomNumber}</h2>
+                <h2 className="text-xl font-black font-mono">{t('roomDetail.roomHeader', { number: room.roomNumber })}</h2>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                  Floor {room.floor}
+                  {t('roomDetail.floorHeader', { floor: room.floor })}
                 </span>
               </div>
               <p className="text-xs text-slate-400">{type?.name || 'Standard'}</p>
@@ -88,7 +91,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
           <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                Current State
+                {t('roomDetail.currentState')}
               </span>
               <span className="text-sm font-bold capitalize text-slate-900 mt-0.5 inline-flex items-center gap-1.5">
                 <span
@@ -106,13 +109,13 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                       : 'bg-slate-600'
                   }`}
                 />
-                {room.status.toUpperCase()}
+                {tRoomStatus(t, room.status).toUpperCase()}
               </span>
             </div>
 
             <div className="text-right">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                Nightly Base Rate
+                {t('roomDetail.nightlyRate')}
               </span>
               <span className="text-base font-bold font-mono text-emerald-700 mt-0.5 block">
                 {formatMoney(room.pricePerNight)}
@@ -125,7 +128,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-slate-400" /> Guest Stay Record
+                  <User className="w-3.5 h-3.5 text-slate-400" /> {t('roomDetail.guestStayRecord')}
                 </span>
                 <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700">
                   {currentRes.bookingCode}
@@ -134,21 +137,21 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               <div className="text-sm font-bold text-slate-900">{currentRes.guestName}</div>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
                 <div>
-                  Phone: <strong className="font-mono text-slate-800">{currentRes.guestPhone}</strong>
+                  {t('roomDetail.phone')} <strong className="font-mono text-slate-800">{currentRes.guestPhone}</strong>
                 </div>
                 <div>
-                  Source: <strong className="text-slate-800">{currentRes.source}</strong>
+                  {t('roomDetail.source')} <strong className="text-slate-800">{tBookingSource(t, currentRes.source)}</strong>
                 </div>
                 <div>
-                  Check-in: <strong className="font-mono text-slate-800">{currentRes.checkInDate}</strong>
+                  {t('roomDetail.checkIn')} <strong className="font-mono text-slate-800">{formatDate(currentRes.checkInDate)}</strong>
                 </div>
                 <div>
-                  Check-out: <strong className="font-mono text-slate-800">{currentRes.checkOutDate}</strong>
+                  {t('roomDetail.checkOut')} <strong className="font-mono text-slate-800">{formatDate(currentRes.checkOutDate)}</strong>
                 </div>
               </div>
               {currentRes.specialRequests && (
                 <div className="text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 italic">
-                  Note: "{currentRes.specialRequests}"
+                  {t('roomDetail.specialNote', { note: currentRes.specialRequests })}
                 </div>
               )}
 
@@ -159,10 +162,10 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                     type="button"
                     onClick={() => setShowExtendModal(true)}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 transition-colors cursor-pointer"
-                    title="Extend Stay"
+                    title={t('roomDetail.extendStay')}
                   >
                     <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Extend Stay</span>
+                    <span>{t('roomDetail.extendStay')}</span>
                   </button>
 
                   {isManager && (
@@ -170,10 +173,10 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                       type="button"
                       onClick={() => setShowShortenModal(true)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 transition-colors cursor-pointer"
-                      title="Shorten Stay"
+                      title={t('roomDetail.shortenStay')}
                     >
                       <MinusCircle className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Shorten Stay</span>
+                      <span>{t('roomDetail.shortenStay')}</span>
                     </button>
                   )}
 
@@ -181,10 +184,10 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                     type="button"
                     onClick={() => setShowChangeRoomModal(true)}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-300 transition-colors cursor-pointer"
-                    title="Change Room"
+                    title={t('roomDetail.changeRoom')}
                   >
                     <Shuffle className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Change Room</span>
+                    <span>{t('roomDetail.changeRoom')}</span>
                   </button>
                 </div>
               )}
@@ -196,7 +199,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
             <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-200 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-600" /> Next Upcoming Reservation
+                  <Clock className="w-3.5 h-3.5 text-blue-600" /> {t('roomDetail.nextUpcoming')}
                 </span>
                 <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-800 font-bold">
                   {nextReservation.bookingCode}
@@ -205,21 +208,21 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               <div className="text-sm font-bold text-slate-900">{nextReservation.guestName}</div>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
                 <div>
-                  Phone: <strong className="font-mono text-slate-800">{nextReservation.guestPhone}</strong>
+                  {t('roomDetail.phone')} <strong className="font-mono text-slate-800">{nextReservation.guestPhone}</strong>
                 </div>
                 <div>
-                  Source: <strong className="text-slate-800">{nextReservation.source}</strong>
+                  {t('roomDetail.source')} <strong className="text-slate-800">{tBookingSource(t, nextReservation.source)}</strong>
                 </div>
                 <div>
-                  Arrival: <strong className="font-mono text-slate-800">{nextReservation.checkInDate}</strong>
+                  {t('roomDetail.arrival')} <strong className="font-mono text-slate-800">{formatDate(nextReservation.checkInDate)}</strong>
                 </div>
                 <div>
-                  Departure: <strong className="font-mono text-slate-800">{nextReservation.checkOutDate}</strong>
+                  {t('roomDetail.departure')} <strong className="font-mono text-slate-800">{formatDate(nextReservation.checkOutDate)}</strong>
                 </div>
               </div>
               {nextReservation.specialRequests && (
                 <div className="text-xs text-slate-500 bg-white p-2 rounded border border-blue-100 italic">
-                  Special Note: "{nextReservation.specialRequests}"
+                  {t('roomDetail.specialNoteUpcoming', { note: nextReservation.specialRequests })}
                 </div>
               )}
             </div>
@@ -230,13 +233,13 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
             <div className="bg-rose-50 p-3.5 rounded-xl border border-rose-200 space-y-1.5">
               <div className="flex items-center justify-between text-xs font-bold text-rose-900">
                 <span className="flex items-center gap-1.5">
-                  <Wrench className="w-4 h-4 text-rose-600" /> Maintenance Incident
+                  <Wrench className="w-4 h-4 text-rose-600" /> {t('roomDetail.maintenanceIncident')}
                 </span>
                 <span className="font-mono text-[11px]">{activeTicket.ticketNumber}</span>
               </div>
               <div className="text-xs text-rose-700">{activeTicket.description}</div>
               <div className="text-[10px] text-rose-500">
-                Severity: {activeTicket.severity} • Technician: {activeTicket.assignedTechnician || 'Unassigned'}
+                {t('roomDetail.severityTech', { severity: activeTicket.severity, tech: activeTicket.assignedTechnician || t('roomDetail.unassignedTech') })}
               </div>
             </div>
           )}
@@ -245,14 +248,14 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
           {type && (
             <div className="space-y-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                Room Amenities & Configuration
+                {t('roomDetail.amenitiesConfig')}
               </span>
               <div className="flex flex-wrap gap-1.5">
                 <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium">
-                  Bed: {type.bedType}
+                  {t('roomDetail.bedType', { type: type.bedType })}
                 </span>
                 <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium">
-                  Max Capacity: {type.maxCapacity} Guests
+                  {t('roomDetail.maxCapacity', { count: formatNumber(type.maxCapacity) })}
                 </span>
                 {type.amenities.map((amenity, i) => (
                   <span
@@ -269,29 +272,29 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
           {/* Direct Status Override Buttons */}
           <div className="space-y-2 pt-2 border-t border-slate-200">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-              Quick Housekeeping / Front Desk Actions
+              {t('roomDetail.housekeepingActions')}
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <button
                 onClick={() => updateRoomStatus(room.id, 'available')}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Mark Available</span>
+                <span>{t('roomDetail.markAvailable')}</span>
               </button>
               <button
                 onClick={() => updateRoomStatus(room.id, 'dirty')}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 flex items-center justify-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Mark Dirty</span>
+                <span>{t('roomDetail.markDirty')}</span>
               </button>
               <button
                 onClick={() => updateRoomStatus(room.id, 'cleaning')}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 flex items-center justify-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>In Cleaning</span>
+                <span>{t('roomDetail.inCleaning')}</span>
               </button>
             </div>
           </div>
@@ -303,10 +306,10 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                 onClose();
                 onReportMaintenance(room);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors cursor-pointer"
             >
               <Wrench className="w-3.5 h-3.5 text-slate-500" />
-              <span>Report Issue</span>
+              <span>{t('roomDetail.reportIssue')}</span>
             </button>
 
             <div className="flex items-center gap-2">
@@ -316,10 +319,10 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                     onClose();
                     onCheckIn(room);
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm cursor-pointer"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Check In Guest</span>
+                  <span>{t('matrix.checkInGuest')}</span>
                 </button>
               )}
 
@@ -330,20 +333,20 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                       onClose();
                       onOpenFolio(currentRes.id);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-xs"
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-xs cursor-pointer"
                   >
                     <Receipt className="w-4 h-4 text-emerald-600" />
-                    <span>Folio</span>
+                    <span>{t('matrix.folio')}</span>
                   </button>
                   <button
                     onClick={() => {
                       onClose();
                       onCheckOut(currentRes.id);
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm"
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Check Out</span>
+                    <span>{t('frontDesk.checkOut')}</span>
                   </button>
                 </>
               )}

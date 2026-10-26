@@ -125,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white"
-              aria-label="Toggle navigation"
+              aria-label={t('navbar.toggleNav')}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -184,7 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   value={activeBranchId}
                   onChange={(e) => setActiveBranchId(e.target.value)}
                   className="bg-transparent text-white font-medium text-xs focus:outline-none cursor-pointer pr-1"
-                  aria-label="Active Branch Switcher"
+                  aria-label={t('navbar.branchSwitcher')}
                 >
                   {currentUser?.role === 'owner' && (
                     <option value="all" className="bg-slate-900 text-white font-medium">
@@ -218,7 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'bg-emerald-600 text-white font-bold'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                aria-label="Switch to English"
+                aria-label={t('settings.langEn')}
               >
                 EN
               </button>
@@ -231,7 +231,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'bg-emerald-600 text-white font-bold'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                aria-label="Passer au français"
+                aria-label={t('settings.langFr')}
               >
                 FR
               </button>
@@ -241,7 +241,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => setCurrency(currency === 'FCFA' ? 'USD' : 'FCFA')}
               className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-              title="Toggle Display Currency (FCFA / USD)"
+              title={t('navbar.toggleCurrency')}
             >
               <Coins className="w-3.5 h-3.5 text-amber-400" />
               <span>{currency}</span>
@@ -263,7 +263,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onOpenNightAudit}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/50 transition-colors"
-                title="Run End-of-Day Night Audit & Ledger Rollover"
+                title={t('navbar.nightAuditTooltip')}
               >
                 <Moon className="w-3.5 h-3.5 text-indigo-400" />
                 <span>{t('navbar.nightAudit')}</span>
@@ -274,7 +274,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={resetToDemoData}
               className="hidden sm:block p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-              title="Reset sample hotel demo data for this property"
+              title={t('navbar.resetDemoTooltip')}
             >
               <RotateCcw className="w-4 h-4" />
             </button>

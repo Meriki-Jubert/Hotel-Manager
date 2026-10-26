@@ -23,7 +23,7 @@ export function translate(
 
   if (vars && typeof vars === 'object') {
     for (const [varName, varVal] of Object.entries(vars)) {
-      text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), String(varVal));
+      text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), () => String(varVal));
     }
   }
 

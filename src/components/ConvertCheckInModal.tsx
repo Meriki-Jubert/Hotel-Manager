@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
+import { tPaymentMethod, tBookingSource, tRoomStatus } from '../i18n/labels';
 import { Reservation, Room, PaymentMethod } from '../types/hms';
 import {
   X,
@@ -28,6 +30,7 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  const { t, formatDate } = useT();
   const {
     rooms,
     roomTypes,
@@ -100,28 +103,28 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
     setErrorMsg(null);
 
     if (isFutureArrival) {
-      setErrorMsg(`Early check-in blocked: Reservation is scheduled for arrival on ${reservation.checkInDate}. Current business date is ${businessDate}.`);
+      setErrorMsg(t('convertCheckIn.earlyBlockedErr', { date: formatDate(reservation.checkInDate), today: formatDate(businessDate) }));
       return;
     }
 
     if (!selectedRoomId) {
-      setErrorMsg('Please select a valid room to complete check-in.');
+      setErrorMsg(t('convertCheckIn.selectValidRoomErr'));
       return;
     }
 
     if (isRoomBlocked) {
       setErrorMsg(
         isRoomDeactivated
-          ? `Selected Room #${selectedRoom?.roomNumber} is deactivated. Please switch to an active room.`
+          ? t('convertCheckIn.deactivatedErr', { number: selectedRoom?.roomNumber || '' })
           : isRoomOccupied
-          ? `Selected Room #${selectedRoom?.roomNumber} is currently occupied.`
-          : `Selected Room #${selectedRoom?.roomNumber} is ${selectedRoom?.status} and cannot be checked into.`
+          ? t('convertCheckIn.occupiedErr', { number: selectedRoom?.roomNumber || '' })
+          : t('convertCheckIn.statusErr', { number: selectedRoom?.roomNumber || '', status: selectedRoom?.status || '' })
       );
       return;
     }
 
     if (!idCardNumber.trim()) {
-      setErrorMsg('Guest ID card number is required at check-in.');
+      setErrorMsg(t('convertCheckIn.idRequiredErr'));
       return;
     }
 
@@ -168,10 +171,10 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                Convert Reservation to Check-In
+                {t('convertCheckIn.title')}
               </h2>
               <p className="text-xs text-emerald-200 font-mono">
-                Booking: {reservation.bookingCode} • Arrival: {reservation.checkInDate}
+                {t('convertCheckIn.headerSub', { code: reservation.bookingCode, date: formatDate(reservation.checkInDate) })}
               </p>
             </div>
           </div>
@@ -198,10 +201,10 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <strong className="block font-bold text-amber-950">
-                  Check-In Valve Blocker: Future Arrival Scheduled ({reservation.checkInDate})
+                  {t('convertCheckIn.valveHeader', { date: formatDate(reservation.checkInDate) })}
                 </strong>
                 <p className="text-amber-800 leading-relaxed">
-                  Early check-in before the reservation date is strictly blocked (Current business date is {businessDate}). Guests cannot receive room keys before their scheduled arrival date. If the guest has arrived early today, please edit the reservation dates first.
+                  {t('convertCheckIn.valveBody', { today: formatDate(businessDate) })}
                 </p>
               </div>
             </div>
@@ -218,16 +221,16 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1 border-t border-slate-200/60">
               <div>
-                Dates: <strong className="font-mono text-slate-900">{reservation.checkInDate} ➔ {reservation.checkOutDate}</strong>
+                {t('convertCheckIn.dates', { checkIn: formatDate(reservation.checkInDate), checkOut: formatDate(reservation.checkOutDate) })}
               </div>
               <div>
-                Stay: <strong className="font-mono text-slate-900">{reservation.totalNights} Night(s)</strong> • Adults: {reservation.adults}
+                {t('convertCheckIn.stay', { nights: reservation.totalNights, adults: reservation.adults })}
               </div>
               <div>
-                Category: <strong className="text-slate-900">{roomType?.name || 'Standard'}</strong>
+                {t('convertCheckIn.category', { category: roomType?.name || 'Standard' })}
               </div>
               <div>
-                Channel: <strong className="text-slate-900">{reservation.source}</strong>
+                {t('convertCheckIn.channel', { channel: tBookingSource(t, reservation.source) })}
               </div>
             </div>
           </div>
@@ -236,14 +239,14 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
             <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-slate-500" />
-              <span>National ID Card / Passport # <span className="text-rose-600">*Required at Check-In</span></span>
+              <span>{t('convertCheckIn.idCardLabel')}</span>
             </label>
             <input
               type="text"
               required
               value={idCardNumber}
               onChange={(e) => setIdCardNumber(e.target.value)}
-              placeholder="e.g. LT-10928374-B or Passport #"
+              placeholder={t('convertCheckIn.idCardPlaceholder')}
               className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 placeholder-slate-400"
             />
           </div>
@@ -253,10 +256,10 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Bed className="w-4 h-4 text-slate-500" />
-                Assign Physical Room (Switch Room if Occupied / Dirty / Maintenance / Deactivated)
+                {t('convertCheckIn.assignRoom')}
               </label>
               <span className="text-[10px] text-emerald-700 font-bold">
-                {switchRoomCandidates.length} clean rooms available
+                {t('convertCheckIn.cleanAvailable', { count: switchRoomCandidates.length })}
               </span>
             </div>
 
@@ -271,7 +274,13 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
                   const isBlocked = r.status === 'occupied' || r.status === 'dirty' || r.status === 'cleaning' || r.status === 'maintenance' || r.isActive === false;
                   return (
                     <option key={r.id} value={r.id} disabled={isBlocked} className={`font-semibold ${isBlocked ? 'text-slate-400 bg-slate-100' : 'text-slate-900'}`}>
-                      Room #{r.roomNumber} (Floor {r.floor} • Status: {r.isActive === false ? 'DEACTIVATED' : r.status.toUpperCase()} • {formatMoney(r.pricePerNight)}/nt) {isBlocked ? '[BLOCKED]' : ''}
+                      {t('convertCheckIn.roomOption', {
+                        number: r.roomNumber,
+                        floor: r.floor,
+                        status: r.isActive === false ? 'DEACTIVATED' : tRoomStatus(t, r.status).toUpperCase(),
+                        rate: formatMoney(r.pricePerNight),
+                        blocked: isBlocked ? '[BLOCKED]' : ''
+                      })}
                     </option>
                   );
                 })}
@@ -282,8 +291,8 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               <div className="p-3 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="block font-bold">Room #{selectedRoom?.roomNumber} is Deactivated!</strong>
-                  <span>Check-in is strictly blocked. Please switch to an active room from the list above.</span>
+                  <strong className="block font-bold">{t('convertCheckIn.deactivatedTitle', { number: selectedRoom?.roomNumber || '' })}</strong>
+                  <span>{t('convertCheckIn.deactivatedBody')}</span>
                 </div>
               </div>
             )}
@@ -292,8 +301,8 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               <div className="p-3 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="block font-bold">Room #{selectedRoom?.roomNumber} is Occupied!</strong>
-                  <span>Check-in is blocked because this room is currently occupied by another guest. Please switch to another room.</span>
+                  <strong className="block font-bold">{t('convertCheckIn.occupiedTitle', { number: selectedRoom?.roomNumber || '' })}</strong>
+                  <span>{t('convertCheckIn.occupiedBody')}</span>
                 </div>
               </div>
             )}
@@ -302,8 +311,8 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="block font-bold">Room #{selectedRoom?.roomNumber} is {selectedRoom?.status.toUpperCase()}!</strong>
-                  <span>Check-in is blocked until housekeeping turnover is completed or you switch to a clean room.</span>
+                  <strong className="block font-bold">{t('convertCheckIn.dirtyTitle', { number: selectedRoom?.roomNumber || '', status: selectedRoom ? tRoomStatus(t, selectedRoom.status).toUpperCase() : '' })}</strong>
+                  <span>{t('convertCheckIn.dirtyBody')}</span>
                 </div>
               </div>
             )}
@@ -312,8 +321,8 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               <div className="p-3 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="block font-bold">Maintenance in Progress!</strong>
-                  <span>Room #{selectedRoom?.roomNumber} is under maintenance. Please assign an alternative clean room.</span>
+                  <strong className="block font-bold">{t('convertCheckIn.maintTitle')}</strong>
+                  <span>{t('convertCheckIn.maintBody', { number: selectedRoom?.roomNumber || '' })}</span>
                 </div>
               </div>
             )}
@@ -324,17 +333,17 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                 <CreditCard className="w-4 h-4 text-emerald-600" />
-                Folio Settlement & Additional Payment
+                {t('convertCheckIn.folioHeading')}
               </span>
               <span className="text-[11px] font-mono font-bold text-slate-700">
-                Total Stay: {formatMoney(reservation.totalAmount)} • Paid: {formatMoney(reservation.amountPaid)}
+                {t('convertCheckIn.totalStayPaid', { total: formatMoney(reservation.totalAmount), paid: formatMoney(reservation.amountPaid) })}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Collect Payment (Remaining: {formatMoney(balanceDue)})
+                  {t('convertCheckIn.collectPayment', { remaining: formatMoney(balanceDue) })}
                 </label>
                 <div className="relative">
                   <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -352,7 +361,7 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Payment Method
+                  {t('convertCheckIn.paymentMethod')}
                 </label>
                 <select
                   value={paymentMethod}
@@ -360,11 +369,11 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
                   disabled={additionalPayment <= 0}
                   className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-900 disabled:opacity-50"
                 >
-                  <option value="cash" className="text-slate-900">Cash Settlement</option>
-                  <option value="momo" className="text-slate-900">MTN Mobile Money (MoMo)</option>
-                  <option value="orange_money" className="text-slate-900">Orange Money</option>
-                  <option value="card" className="text-slate-900">Visa / Mastercard</option>
-                  <option value="bank_transfer" className="text-slate-900">Bank Transfer</option>
+                  <option value="cash" className="text-slate-900">{tPaymentMethod(t, 'cash')}</option>
+                  <option value="momo" className="text-slate-900">{tPaymentMethod(t, 'momo')}</option>
+                  <option value="orange_money" className="text-slate-900">{tPaymentMethod(t, 'orange_money')}</option>
+                  <option value="card" className="text-slate-900">{tPaymentMethod(t, 'card')}</option>
+                  <option value="bank_transfer" className="text-slate-900">{tPaymentMethod(t, 'bank_transfer')}</option>
                 </select>
               </div>
             </div>
@@ -377,7 +386,7 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -387,12 +396,12 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
               <LogIn className="w-4 h-4" />
               <span>
                 {isFutureArrival
-                  ? `Check-In Blocked Until ${reservation.checkInDate}`
+                  ? t('convertCheckIn.btnBlockedFuture', { date: formatDate(reservation.checkInDate) })
                   : isRoomBlocked
-                  ? 'Switch Room Required'
+                  ? t('convertCheckIn.btnBlockedSwitch')
                   : !idCardNumber.trim()
-                  ? 'Guest ID Required'
-                  : 'Complete Check-In & Issue Key'}
+                  ? t('convertCheckIn.btnBlockedId')
+                  : t('convertCheckIn.btnSubmit')}
               </span>
             </button>
           </div>
