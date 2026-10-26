@@ -3,14 +3,13 @@ import { useHMS } from '../context/HMSContext';
 import { Reservation, PaymentMethod } from '../types/hms';
 import { calculateCancellationFee, CancellationFeeResult } from '../utils/cancellationPolicy';
 import { getFolioTotals } from '../utils/folio';
+import { useT } from '../i18n/LanguageContext';
 import {
   X,
-  AlertTriangle,
   AlertCircle,
   DollarSign,
   User,
   Calendar,
-  CreditCard,
   Ban,
   ShieldAlert
 } from 'lucide-react';
@@ -34,6 +33,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
     businessDate,
     formatMoney
   } = useHMS();
+  const { t } = useT();
 
   const [isNoShow, setIsNoShow] = useState(false);
   const [fee, setFee] = useState(0);
@@ -74,17 +74,17 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
     setErrorMsg(null);
 
     if (!reason.trim()) {
-      setErrorMsg('A cancellation reason is required.');
+      setErrorMsg(t('cancelRes.errReasonRequired'));
       return;
     }
 
     if (needsWaiver && !isManager) {
-      setErrorMsg('Only managers and owners can override cancellation fees.');
+      setErrorMsg(t('cancelRes.errManagerRequired'));
       return;
     }
 
     if (needsWaiver && (!waiverReason || waiverReason.trim().length < 5)) {
-      setErrorMsg('A valid reason of at least 5 characters is required for fee overrides.');
+      setErrorMsg(t('cancelRes.errWaiverLength'));
       return;
     }
 
@@ -110,7 +110,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
       );
 
       if (!res.success) {
-        setErrorMsg(res.error || 'Failed to cancel reservation.');
+        setErrorMsg(res.error || t('cancelRes.errFail'));
         return;
       }
 
@@ -133,13 +133,13 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                <span>Cancel Reservation</span>
+                <span>{t('cancelRes.title')}</span>
                 <span className="font-mono text-xs font-normal text-rose-300 bg-rose-950/80 px-2 py-0.5 rounded border border-rose-800/60">
                   {reservation.bookingCode}
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Fee calculation, folio settlement, and room inventory release
+                {t('cancelRes.subtitle')}
               </p>
             </div>
           </div>
@@ -147,7 +147,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             type="button"
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Close modal"
+            title={t('cancelRes.closeTooltip')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -173,7 +173,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
               </div>
               {reservation.rateType === 'non_refundable' && (
                 <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full border border-rose-200">
-                  Non-refundable Rate
+                  {t('cancelRes.nonRefundable')}
                 </span>
               )}
             </div>
@@ -181,19 +181,19 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             <div className="text-xs text-slate-600 flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                {reservation.checkInDate} ➔ {reservation.checkOutDate} ({reservation.totalNights} night{reservation.totalNights === 1 ? '' : 's'})
+                {reservation.checkInDate} ➔ {reservation.checkOutDate} ({t('cancelRes.nights', { count: reservation.totalNights, plural: reservation.totalNights === 1 ? '' : 's' })})
               </span>
               <span className="text-slate-400">•</span>
               <span>
-                Room: <strong className="text-slate-800">#{reservation.roomNumber}</strong>
+                {t('cancelRes.roomNumber', { number: reservation.roomNumber })}
               </span>
               <span className="text-slate-400">•</span>
               <span>
-                Stay Cost: <strong className="text-slate-900 font-mono">{formatMoney(reservation.totalAmount)}</strong>
+                {t('cancelRes.stayCost')} <strong className="text-slate-900 font-mono">{formatMoney(reservation.totalAmount)}</strong>
               </span>
               <span className="text-slate-400">•</span>
               <span>
-                Paid: <strong className="text-emerald-700 font-mono">{formatMoney(totalDepositPaid)}</strong>
+                {t('cancelRes.paid')} <strong className="text-emerald-700 font-mono">{formatMoney(totalDepositPaid)}</strong>
               </span>
             </div>
           </div>
@@ -202,10 +202,10 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
               <label htmlFor="noShowCheckbox" className="text-xs font-bold text-slate-900 cursor-pointer block">
-                Mark Booking as No-Show
+                {t('cancelRes.noShowLabel')}
               </label>
               <p className="text-[11px] text-slate-600">
-                Check this if the guest did not arrive on their check-in date
+                {t('cancelRes.noShowSub')}
               </p>
             </div>
             <input
@@ -222,7 +222,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span className="text-[10px] uppercase font-bold text-amber-900 tracking-wider block">
-                  Applicable Cancellation Policy
+                  {t('cancelRes.policyHeading')}
                 </span>
                 <p className="text-xs font-semibold text-slate-900 mt-0.5">
                   {policyResult.ruleText}
@@ -230,7 +230,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
               </div>
               <div className="text-right shrink-0">
                 <span className="text-[10px] uppercase font-bold text-amber-900 tracking-wider block">
-                  Suggested Fee
+                  {t('cancelRes.suggestedFee')}
                 </span>
                 <span className="text-base font-mono font-bold text-rose-700">
                   {formatMoney(policyResult.suggestedFee)}
@@ -241,7 +241,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             {/* Fee to Charge Input */}
             <div className="pt-2 border-t border-amber-200/80">
               <label htmlFor="cancellationFeeInput" className="block text-xs font-bold text-slate-800 mb-1">
-                Fee to Charge Guest ({hotelConfig.defaultCurrency}) <span className="text-rose-600">*</span>
+                {t('cancelRes.feeToCharge', { currency: hotelConfig.defaultCurrency })}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
@@ -258,7 +258,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Max fee is capped at the total booking stay amount ({formatMoney(reservation.totalAmount)}).
+                {t('cancelRes.maxFeeNote', { amount: formatMoney(reservation.totalAmount) })}
               </p>
             </div>
           </div>
@@ -268,25 +268,25 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             <div className="p-4 bg-rose-50 rounded-xl border border-rose-200 space-y-2 animate-in fade-in">
               <div className="flex items-center gap-2 text-rose-900 font-bold text-xs">
                 <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>Manager Fee Override Required</span>
+                <span>{t('cancelRes.overrideRequired')}</span>
               </div>
               <p className="text-[11px] text-rose-700">
-                You are charging {formatMoney(fee)}, which is less than the suggested fee of {formatMoney(policyResult.suggestedFee)}.
+                {t('cancelRes.overrideWarning', { fee: formatMoney(fee), suggested: formatMoney(policyResult.suggestedFee) })}
                 {!isManager && (
                   <strong className="block text-rose-900 mt-1">
-                    Warning: Only Manager and Owner roles can authorize this fee reduction.
+                    {t('cancelRes.overrideRoles')}
                   </strong>
                 )}
               </p>
               <div>
                 <label htmlFor="waiverReasonInput" className="block text-xs font-bold text-slate-800 mb-1">
-                  Override Justification (Min. 5 characters) <span className="text-rose-600">*</span>
+                  {t('cancelRes.overrideJustification')}
                 </label>
                 <textarea
                   id="waiverReasonInput"
                   rows={2}
                   required
-                  placeholder="e.g. Documented medical emergency approved by manager..."
+                  placeholder={t('cancelRes.overridePlaceholder')}
                   value={waiverReason}
                   onChange={(e) => setWaiverReason(e.target.value)}
                   className="w-full p-2.5 bg-white text-slate-900 border border-rose-300 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none font-medium"
@@ -298,13 +298,13 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
           {/* Cancellation Reason */}
           <div>
             <label htmlFor="cancellationReasonInput" className="block text-xs font-bold text-slate-800 mb-1">
-              Cancellation Reason / Front Desk Notes <span className="text-rose-600">*</span>
+              {t('cancelRes.reasonLabel')}
             </label>
             <textarea
               id="cancellationReasonInput"
               rows={2}
               required
-              placeholder="e.g. Guest called to cancel due to flight schedule change..."
+              placeholder={t('cancelRes.reasonPlaceholder')}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none font-medium"
@@ -317,15 +317,15 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-emerald-900 tracking-wider block">
-                    Deposit Balance Resolution
+                    {t('cancelRes.depositResolution')}
                   </span>
                   <span className="text-xs text-slate-700 font-medium">
-                    Guest paid {formatMoney(totalDepositPaid)} — Fee {formatMoney(fee)}
+                    {t('cancelRes.guestPaidSummary', { paid: formatMoney(totalDepositPaid), fee: formatMoney(fee) })}
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] uppercase font-bold text-emerald-900 tracking-wider block">
-                    Net Return to Guest
+                    {t('cancelRes.netReturn')}
                   </span>
                   <span className="text-sm font-mono font-bold text-emerald-700">
                     {formatMoney(refundDue)}
@@ -336,7 +336,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div>
                   <label htmlFor="settlementSelect" className="block text-xs font-bold text-slate-800 mb-1">
-                    Settlement Option
+                    {t('cancelRes.settlementOption')}
                   </label>
                   <select
                     id="settlementSelect"
@@ -344,15 +344,15 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
                     onChange={(e) => setSettlement(e.target.value as 'refund' | 'credit')}
                     className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    <option value="refund">Issue Immediate Refund</option>
-                    <option value="credit">Keep as Guest Credit</option>
+                    <option value="refund">{t('cancelRes.optImmediateRefund')}</option>
+                    <option value="credit">{t('cancelRes.optKeepCredit')}</option>
                   </select>
                 </div>
 
                 {settlement === 'refund' && (
                   <div>
                     <label htmlFor="refundMethodSelect" className="block text-xs font-bold text-slate-800 mb-1">
-                      Refund Payment Channel
+                      {t('cancelRes.refundChannel')}
                     </label>
                     <select
                       id="refundMethodSelect"
@@ -360,11 +360,11 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
                       onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                       className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                      <option value="cash">Cash (Front Desk)</option>
-                      <option value="momo">MTN Mobile Money</option>
-                      <option value="orange_money">Orange Money</option>
-                      <option value="credit_card">Credit / Debit Card</option>
-                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cash">{t('cancelRes.channelCash')}</option>
+                      <option value="momo">{t('cancelRes.channelMomo')}</option>
+                      <option value="orange_money">{t('cancelRes.channelOrange')}</option>
+                      <option value="card">{t('cancelRes.channelCard')}</option>
+                      <option value="bank_transfer">{t('cancelRes.channelTransfer')}</option>
                     </select>
                   </div>
                 )}
@@ -372,9 +372,9 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
             </div>
           ) : (
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
-              <span>Deposit Balance:</span>
+              <span>{t('cancelRes.depositBalance')}</span>
               <span className="font-mono font-semibold text-slate-800">
-                {totalDepositPaid === 0 ? 'No advance deposit paid' : `Deposit (${formatMoney(totalDepositPaid)}) applied toward cancellation fee`}
+                {totalDepositPaid === 0 ? t('cancelRes.noDepositPaid') : t('cancelRes.depositApplied', { amount: formatMoney(totalDepositPaid) })}
               </span>
             </div>
           )}
@@ -387,7 +387,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
               disabled={submitting}
               className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl border border-slate-300 transition-colors cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -395,7 +395,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
               className="px-6 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               <Ban className="w-4 h-4" />
-              <span>{submitting ? 'Processing...' : 'Confirm Cancellation'}</span>
+              <span>{submitting ? t('cancelRes.processing') : t('cancelRes.confirmBtn')}</span>
             </button>
           </div>
         </form>

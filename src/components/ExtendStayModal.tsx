@@ -4,7 +4,8 @@ import { Reservation } from '../types/hms';
 import { calculateExtension } from '../utils/stayChanges';
 import { checkAvailability } from '../utils/availability';
 import { getNextLocalDateString } from '../utils/dateUtils';
-import { Calendar, PlusCircle, AlertCircle, X, Check } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
+import { PlusCircle, AlertCircle, X, Check } from 'lucide-react';
 
 interface ExtendStayModalProps {
   reservation: Reservation;
@@ -19,6 +20,7 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
     allReservations,
     branches
   } = useHMS();
+  const { t } = useT();
 
   const minDate = getNextLocalDateString(reservation.checkOutDate);
   const [newCheckOutDate, setNewCheckOutDate] = useState<string>(minDate);
@@ -40,7 +42,7 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
   // Live availability check for the new nights
   const availabilityStatus = useMemo(() => {
     if (!currentRoom || extensionInfo.addedNights <= 0) {
-      return { available: false, reason: 'Invalid extension date.' };
+      return { available: false, reason: t('extendStay.errMustBeAfter') };
     }
 
     const branchRooms = allRooms.filter(
@@ -69,7 +71,8 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
     reservation.checkOutDate,
     reservation.id,
     newCheckOutDate,
-    branches
+    branches,
+    t
   ]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -77,12 +80,12 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
     setErrorMessage(null);
 
     if (extensionInfo.addedNights <= 0) {
-      setErrorMessage('New check-out date must be after current check-out date.');
+      setErrorMessage(t('extendStay.errMustBeAfter'));
       return;
     }
 
     if (!availabilityStatus.available) {
-      setErrorMessage(availabilityStatus.reason || 'Room is not available for requested extension.');
+      setErrorMessage(availabilityStatus.reason || t('extendStay.errNotAvailable'));
       return;
     }
 
@@ -93,7 +96,7 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
     if (result.success) {
       onClose();
     } else {
-      setErrorMessage(result.error || 'Failed to extend stay.');
+      setErrorMessage(result.error || t('extendStay.errFail'));
     }
   };
 
@@ -107,9 +110,9 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
               <PlusCircle className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold">Extend Guest Stay</h2>
+              <h2 className="text-base sm:text-lg font-bold">{t('extendStay.title')}</h2>
               <p className="text-xs text-slate-400">
-                Room #{reservation.roomNumber} • {reservation.guestName}
+                {t('extendStay.subtitle', { number: reservation.roomNumber, name: reservation.guestName })}
               </p>
             </div>
           </div>
@@ -126,11 +129,11 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
           {/* Current Reservation Info */}
           <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs grid grid-cols-2 gap-2 text-slate-700">
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Departure</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">{t('extendStay.currentDeparture')}</span>
               <span className="font-mono font-bold text-slate-900 text-sm">{reservation.checkOutDate}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Nightly Room Rate</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">{t('extendStay.nightlyRate')}</span>
               <span className="font-mono font-bold text-emerald-700 text-sm">{formatMoney(reservation.nightlyRate)}</span>
             </div>
           </div>
@@ -138,7 +141,7 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
           {/* New Check-Out Date Input */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              New Check-Out Date
+              {t('extendStay.newCheckOut')}
             </label>
             <div className="relative">
               <input
@@ -154,23 +157,23 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
               />
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              Select date after current departure ({reservation.checkOutDate}).
+              {t('extendStay.selectDateHint', { date: reservation.checkOutDate })}
             </p>
           </div>
 
           {/* Live Calculation Preview */}
           <div className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 space-y-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 block">
-              Extension Preview
+              {t('extendStay.previewHeading')}
             </span>
             <div className="flex items-center justify-between text-xs text-slate-700">
-              <span>Added Nights:</span>
+              <span>{t('extendStay.addedNights')}</span>
               <span className="font-mono font-bold text-slate-900">
-                +{extensionInfo.addedNights} Night{extensionInfo.addedNights === 1 ? '' : 's'}
+                {t('extendStay.nightsCount', { count: extensionInfo.addedNights, plural: extensionInfo.addedNights === 1 ? '' : 's' })}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs text-slate-700">
-              <span>Additional Room Charges:</span>
+              <span>{t('extendStay.additionalCharges')}</span>
               <span className="font-mono font-bold text-emerald-700 text-sm">
                 +{formatMoney(extensionInfo.addedAmount)}
               </span>
@@ -182,8 +185,8 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div>
-                <strong className="block font-semibold">Room Not Available</strong>
-                <span>{availabilityStatus.reason || 'This room is occupied or booked for the requested extra dates.'}</span>
+                <strong className="block font-semibold">{t('extendStay.notAvailableTitle')}</strong>
+                <span>{availabilityStatus.reason || t('extendStay.notAvailableDefault')}</span>
               </div>
             </div>
           )}
@@ -191,7 +194,7 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
           {availabilityStatus.available && extensionInfo.addedNights > 0 && (
             <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Room #{reservation.roomNumber} is vacant and ready for the extended dates.</span>
+              <span>{t('extendStay.availableSuccess', { number: reservation.roomNumber })}</span>
             </div>
           )}
 
@@ -209,14 +212,14 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || extensionInfo.addedNights <= 0 || !availabilityStatus.available}
               className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl shadow-xs transition-colors cursor-pointer"
             >
-              {isSubmitting ? 'Extending...' : 'Confirm Extension'}
+              {isSubmitting ? t('extendStay.extending') : t('extendStay.confirmBtn')}
             </button>
           </div>
         </form>

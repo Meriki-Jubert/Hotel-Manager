@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
-import { Reservation } from '../types/hms';
 import { SelectBranchNotice } from './SelectBranchNotice';
+import { useT } from '../i18n/LanguageContext';
+import { tBookingStatus } from '../i18n/labels';
 import {
   Receipt,
   Search,
-  User,
-  CreditCard,
-  Building,
-  Calendar,
-  Printer,
-  PlusCircle,
-  CheckCircle2,
-  AlertCircle
+  User
 } from 'lucide-react';
 
 import { getFolioTotals } from '../utils/folio';
@@ -22,11 +16,12 @@ interface FoliosListViewProps {
   onOpenCheckOut: (resId: string) => void;
 }
 
-export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onOpenCheckOut }) => {
+export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio }) => {
   const { reservations, transactions, formatMoney, activeBranchId } = useHMS();
+  const { t } = useT();
 
   if (activeBranchId === 'all') {
-    return <SelectBranchNotice screenName="Guest Folios & Invoicing" />;
+    return <SelectBranchNotice screenName={t('foliosList.screenName')} />;
   }
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,10 +56,10 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Receipt className="w-5 h-5 text-champagne-gold-400" />
-            Guest Master Folios & Billing Center
+            {t('foliosList.title')}
           </h2>
           <p className="text-xs text-slate-300 mt-0.5">
-            Single-ledger guest accounting, tax invoices, and real-time room charges
+            {t('foliosList.subtitle')}
           </p>
         </div>
       </div>
@@ -76,10 +71,10 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by Guest Name, Folio # (BK-...), or Room #..."
+              placeholder={t('foliosList.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+              className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900 placeholder-slate-400 font-medium"
             />
           </div>
 
@@ -88,13 +83,13 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
               <button
                 key={mode}
                 onClick={() => setFilterBalance(mode)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
                   filterBalance === mode
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {mode === 'unsettled' ? 'Pending Balance' : mode === 'settled' ? 'Settled (0)' : 'All Folios'}
+                {mode === 'unsettled' ? t('foliosList.filterPending') : mode === 'settled' ? t('foliosList.filterSettled') : t('foliosList.filterAll')}
               </button>
             ))}
           </div>
@@ -107,14 +102,14 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
               <tr>
-                <th className="py-3 px-4">Folio / Code</th>
-                <th className="py-3 px-4">Guest Name</th>
-                <th className="py-3 px-4">Room</th>
-                <th className="py-3 px-4">Stay Dates</th>
-                <th className="py-3 px-4 text-right">Total Debit</th>
-                <th className="py-3 px-4 text-right">Total Credit (Paid)</th>
-                <th className="py-3 px-4 text-right">Net Balance Due</th>
-                <th className="py-3 px-4 text-right">Action</th>
+                <th className="py-3 px-4">{t('foliosList.colFolioCode')}</th>
+                <th className="py-3 px-4">{t('foliosList.colGuestName')}</th>
+                <th className="py-3 px-4">{t('foliosList.colRoom')}</th>
+                <th className="py-3 px-4">{t('foliosList.colStayDates')}</th>
+                <th className="py-3 px-4 text-right">{t('foliosList.colTotalDebit')}</th>
+                <th className="py-3 px-4 text-right">{t('foliosList.colTotalCredit')}</th>
+                <th className="py-3 px-4 text-right">{t('foliosList.colNetBalance')}</th>
+                <th className="py-3 px-4 text-right">{t('foliosList.colAction')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -125,10 +120,10 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
                     <div className="text-[10px] text-slate-400 capitalize flex items-center gap-1.5 mt-0.5">
                       {res.bookingStatus === 'cancelled' ? (
                         <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                          Cancelled
+                          {tBookingStatus(t, 'cancelled')}
                         </span>
                       ) : (
-                        <span>{res.bookingStatus.replace('_', ' ')}</span>
+                        <span>{tBookingStatus(t, res.bookingStatus)}</span>
                       )}
                     </div>
                   </td>
@@ -147,14 +142,14 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
                     </span>
                     {res.roomMoves && res.roomMoves.length > 0 && (
                       <div className="text-[10px] text-blue-700 font-semibold mt-0.5">
-                        Moved from #{res.roomMoves[res.roomMoves.length - 1].fromRoom}
+                        {t('foliosList.movedFrom', { room: res.roomMoves[res.roomMoves.length - 1].fromRoom })}
                       </div>
                     )}
                   </td>
 
                   <td className="py-3 px-4 text-slate-600">
-                    <div>{res.checkInDate} to {res.checkOutDate}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{res.totalNights} nights</div>
+                    <div>{res.checkInDate} ➔ {res.checkOutDate}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">{t('foliosList.nightsCount', { count: res.totalNights })}</div>
                   </td>
 
                   <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
@@ -176,20 +171,20 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
                       }`}
                     >
                       {totals.balance < 0
-                        ? `Credit: ${formatMoney(Math.abs(totals.balance))}`
+                        ? t('foliosList.creditAmount', { amount: formatMoney(Math.abs(totals.balance)) })
                         : totals.balance > 0
                         ? formatMoney(totals.balance)
-                        : '0 FCFA Settled'}
+                        : t('foliosList.settledText')}
                     </span>
                   </td>
 
                   <td className="py-3 px-4 text-right">
                     <button
                       onClick={() => onOpenFolio(res.id)}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 ml-auto"
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 ml-auto cursor-pointer"
                     >
                       <Receipt className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Manage Folio</span>
+                      <span>{t('foliosList.manageFolio')}</span>
                     </button>
                   </td>
                 </tr>
@@ -200,7 +195,7 @@ export const FoliosListView: React.FC<FoliosListViewProps> = ({ onOpenFolio, onO
 
         {filtered.length === 0 && (
           <div className="p-8 text-center text-slate-500 text-xs">
-            No folios matching the criteria.
+            {t('foliosList.noFoliosFound')}
           </div>
         )}
       </div>

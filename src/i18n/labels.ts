@@ -104,3 +104,63 @@ export function tBookingSource(t: TFunction, source: string): string {
       return source;
   }
 }
+
+/**
+ * Shared helper for translating folio transaction categories
+ */
+export function tFolioCategory(t: TFunction, category: string): string {
+  switch (category) {
+    case 'room_charge':
+      return t('folio.cat.room_charge');
+    case 'restaurant':
+      return t('folio.cat.restaurant');
+    case 'beverage':
+      return t('folio.cat.beverage');
+    case 'laundry':
+      return t('folio.cat.laundry');
+    case 'maintenance_charge':
+      return t('folio.cat.maintenance_charge');
+    case 'late_checkout':
+      return t('folio.cat.late_checkout');
+    case 'cancellation_fee':
+      return t('folio.cat.cancellation_fee');
+    case 'no_show_fee':
+      return t('folio.cat.no_show_fee');
+    case 'room_charge_void':
+      return t('folio.cat.room_charge_void');
+    case 'discount':
+      return t('folio.cat.discount');
+    case 'payment':
+      return t('folio.cat.payment');
+    case 'deposit':
+      return t('folio.cat.deposit');
+    case 'tax':
+      return t('folio.cat.tax');
+    case 'refund':
+      return t('folio.cat.refund');
+    default:
+      return category.replace(/_/g, ' ');
+  }
+}
+
+/**
+ * Shared helper for translating room move reasons
+ */
+export function tRoomMoveReason(t: TFunction, reason: string): string {
+  switch (reason) {
+    case 'AC/fault':
+      return t('roomMove.reason.acFault');
+    case 'guest request':
+      return t('roomMove.reason.guestRequest');
+    case 'upgrade':
+      return t('roomMove.reason.upgrade');
+    case 'downgrade':
+      return t('roomMove.reason.downgrade');
+    case 'noise':
+      return t('roomMove.reason.noise');
+    case 'other':
+      return t('roomMove.reason.other');
+    default:
+      return reason;
+  }
+}

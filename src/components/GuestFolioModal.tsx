@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, FolioTransaction, PaymentMethod } from '../types/hms';
 import { getFolioTotals } from '../utils/folio';
-import { validateSplitPayment } from '../utils/folioAdjustments';
 import { calculateTaxBreakdown } from '../utils/tax';
 import { DiscountModal } from './DiscountModal';
 import { PaymentReceiptModal } from './PaymentReceiptModal';
+import { useT } from '../i18n/LanguageContext';
+import { translate, Language } from '../i18n/translate';
+import { tFolioCategory, tPaymentMethod, tRoomMoveReason } from '../i18n/labels';
 import {
   X,
   Printer,
@@ -15,8 +17,6 @@ import {
   Building,
   User,
   Calendar,
-  DollarSign,
-  QrCode,
   ShieldCheck,
   CheckCircle2,
   Ban,
@@ -47,10 +47,14 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     activeBranch,
     currentUser
   } = useHMS();
+  const { t, lang } = useT();
 
   const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [selectedReceiptTx, setSelectedReceiptTx] = useState<FolioTransaction | null>(null);
+
+  // Invoice language choice (defaults to current app language)
+  const [invoiceLang, setInvoiceLang] = useState<Language>(lang);
 
   // Split payment state
   const [isSplitPayment, setIsSplitPayment] = useState(false);
@@ -113,7 +117,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
       description: chargeDesc.trim(),
       amount: Number(chargeAmount),
       type: 'charge',
-      recordedBy: 'Front Desk Operator'
+      recordedBy: currentUser?.name || 'Front Desk Operator'
     });
 
     setChargeDesc('');
@@ -143,7 +147,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     setSplitError(null);
 
     if (payAmount <= 0) {
-      setSplitError('Payment amount must be greater than zero.');
+      setSplitError(t('guestFolio.errAmountPositive'));
       return;
     }
 
@@ -155,7 +159,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
       );
 
       if (!res.success) {
-        setSplitError(res.error || 'Failed to record split payment.');
+        setSplitError(res.error || t('guestFolio.errSplitFail'));
         return;
       }
 
@@ -170,7 +174,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
         guestId: reservation.guestId,
         roomNumber: reservation.roomNumber,
         category: 'payment',
-        description: `Split Payment (${splitLines.length} methods)`,
+        description: t('guestFolio.splitDescription', { count: splitLines.length }),
         amount: Number(payAmount),
         paymentMethod: splitLines[0]?.method || 'cash',
         reference: payRef.trim() || `SPLIT-${res.splitGroupId || Date.now()}`,
@@ -192,7 +196,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
       guestId: reservation.guestId,
       roomNumber: reservation.roomNumber,
       category: 'payment' as const,
-      description: `Folio Payment (${payMethod.toUpperCase()})`,
+      description: t('guestFolio.singlePaymentDesc', { method: tPaymentMethod(t, payMethod) }),
       amount: Number(payAmount),
       paymentMethod: payMethod,
       reference: singleRef,
@@ -225,6 +229,8 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
     window.print();
   };
 
+  const tInv = (key: any, vars?: any) => translate(invoiceLang, key, vars);
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-4 sm:my-8 animate-in fade-in zoom-in-95 flex flex-col max-h-[95vh] sm:max-h-[90vh]">
@@ -237,13 +243,13 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold">Guest Folio & Invoicing</h2>
+                <h2 className="text-base sm:text-lg font-bold">{t('guestFolio.title')}</h2>
                 <span className="font-mono text-xs bg-slate-800 text-emerald-400 px-2 py-0.5 rounded border border-slate-700">
                   {reservation.bookingCode}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Itemized Hotel Stay Ledger • Room #{reservation.roomNumber}
+                {t('guestFolio.subtitle', { number: reservation.roomNumber })}
               </p>
             </div>
           </div>
@@ -252,33 +258,61 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
             <div className="bg-slate-800 p-1 rounded-lg flex items-center gap-1 text-xs font-semibold">
               <button
                 onClick={() => setActiveView('ledger')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md transition-colors ${
+                className={`px-2.5 sm:px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   activeView === 'ledger' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Ledger
+                {t('guestFolio.tabLedger')}
               </button>
               <button
                 onClick={() => setActiveView('printable')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md transition-colors ${
+                className={`px-2.5 sm:px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   activeView === 'printable' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Invoice
+                {t('guestFolio.tabInvoice')}
               </button>
             </div>
 
+            {activeView === 'printable' && (
+              <div className="flex items-center gap-1 bg-slate-800 p-0.5 rounded-lg border border-slate-700 text-xs no-print">
+                <span className="text-[10px] text-slate-400 px-1.5">{t('invoice.langLabel')}</span>
+                <button
+                  type="button"
+                  onClick={() => setInvoiceLang('en')}
+                  className={`px-2 py-0.5 rounded font-bold transition-colors cursor-pointer ${
+                    invoiceLang === 'en'
+                      ? 'bg-champagne-gold-500 text-slate-950'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInvoiceLang('fr')}
+                  className={`px-2 py-0.5 rounded font-bold transition-colors cursor-pointer ${
+                    invoiceLang === 'fr'
+                      ? 'bg-champagne-gold-500 text-slate-950'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  FR
+                </button>
+              </div>
+            )}
+
             <button
               onClick={handlePrint}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white transition-colors"
-              title="Print Receipt / PDF"
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white transition-colors cursor-pointer"
+              title={t('guestFolio.tooltipPrint')}
             >
               <Printer className="w-4 h-4" />
             </button>
 
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -292,19 +326,19 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
               {/* Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  <span className="text-xs text-slate-500 font-semibold block">Total Charges</span>
+                  <span className="text-xs text-slate-500 font-semibold block">{t('guestFolio.totalCharges')}</span>
                   <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
                     {formatMoney(totalCharges)}
                   </span>
-                  <span className="text-[10px] text-slate-400">{activeCharges.length} item(s)</span>
+                  <span className="text-[10px] text-slate-400">{t('guestFolio.itemsCount', { count: activeCharges.length })}</span>
                 </div>
 
                 <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
-                  <span className="text-xs text-emerald-700 font-semibold block">Payments Received</span>
+                  <span className="text-xs text-emerald-700 font-semibold block">{t('guestFolio.paymentsReceived')}</span>
                   <span className="text-lg font-bold font-mono text-emerald-800 mt-1 block">
                     {formatMoney(totalPaid)}
                   </span>
-                  <span className="text-[10px] text-emerald-600">{activePayments.length} payment(s)</span>
+                  <span className="text-[10px] text-emerald-600">{t('guestFolio.paymentsCount', { count: activePayments.length })}</span>
                 </div>
 
                 <div
@@ -314,16 +348,16 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       : 'bg-slate-50 border-slate-200 text-slate-900'
                   }`}
                 >
-                  <span className="text-xs font-semibold block opacity-80">Net Balance Due</span>
+                  <span className="text-xs font-semibold block opacity-80">{t('guestFolio.netBalanceDue')}</span>
                   <span
                     className={`text-lg font-bold font-mono mt-1 block ${
                       balance > 0 ? 'text-rose-600' : 'text-emerald-600'
                     }`}
                   >
-                    {balance > 0 ? formatMoney(balance) : '0 FCFA (Settled)'}
+                    {balance > 0 ? formatMoney(balance) : t('guestFolio.settledZero')}
                   </span>
                   <span className="text-[10px] opacity-75">
-                    {balance > 0 ? 'Pending collection' : 'No balance due'}
+                    {balance > 0 ? t('guestFolio.pendingCollection') : t('guestFolio.noBalanceDue')}
                   </span>
                 </div>
               </div>
@@ -345,7 +379,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <span className="text-slate-400">•</span>
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {reservation.checkInDate} to {reservation.checkOutDate} ({reservation.totalNights} nts)
+                    {reservation.checkInDate} ➔ {reservation.checkOutDate} ({t('guestFolio.nightsCount', { count: reservation.totalNights })})
                   </span>
                 </div>
               </div>
@@ -354,17 +388,17 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
               {reservation.roomMoves && reservation.roomMoves.length > 0 && (
                 <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200 text-xs space-y-1.5 animate-in fade-in">
                   <span className="font-bold text-blue-900 block text-[11px] uppercase tracking-wider">
-                    Room Transfer History
+                    {t('guestFolio.roomTransferHistory')}
                   </span>
                   {reservation.roomMoves.map((m, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-slate-700 flex-wrap">
                       <span className="font-semibold text-blue-900">
-                        Room moved from #{m.fromRoom} to #{m.toRoom}
+                        {t('guestFolio.roomMovedRecord', { from: m.fromRoom, to: m.toRoom })}
                       </span>
                       <span className="text-slate-400">•</span>
-                      <span className="text-slate-600">Reason: <em className="font-medium text-slate-800">{m.reason}</em></span>
+                      <span className="text-slate-600">{t('guestFolio.reasonLabel')} <em className="font-medium text-slate-800">{tRoomMoveReason(t, m.reason)}</em></span>
                       <span className="text-slate-400">•</span>
-                      <span className="text-[11px] text-slate-500 font-mono">By {m.by}</span>
+                      <span className="text-[11px] text-slate-500 font-mono">{t('guestFolio.byLabel', { name: m.by })}</span>
                     </div>
                   ))}
                 </div>
@@ -381,7 +415,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors cursor-pointer"
                   >
                     <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Post Incidental Charge</span>
+                    <span>{t('guestFolio.postChargeBtn')}</span>
                   </button>
 
                   <button
@@ -400,7 +434,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
-                    <span>Record Payment</span>
+                    <span>{t('guestFolio.recordPaymentBtn')}</span>
                   </button>
 
                   {isManager && (
@@ -413,7 +447,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition-colors cursor-pointer"
                     >
                       <Tag className="w-3.5 h-3.5" />
-                      <span>Give Discount</span>
+                      <span>{t('guestFolio.giveDiscountBtn')}</span>
                     </button>
                   )}
                 </div>
@@ -426,35 +460,35 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   className="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-3 animate-in fade-in"
                 >
                   <div className="font-bold text-xs text-slate-800 flex items-center justify-between">
-                    <span>Add New Incidental Charge to Folio</span>
+                    <span>{t('guestFolio.addChargeTitle')}</span>
                     <button
                       type="button"
                       onClick={() => setShowAddCharge(false)}
-                      className="text-slate-400 hover:text-slate-600"
+                      className="text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Category</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('guestFolio.categoryLabel')}</label>
                       <select
                         value={chargeCategory}
                         onChange={(e: any) => setChargeCategory(e.target.value)}
                         className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900"
                       >
-                        <option value="restaurant">Restaurant / Dining</option>
-                        <option value="beverage">Bar & Minibar</option>
-                        <option value="laundry">Laundry & Pressing</option>
-                        <option value="maintenance_charge">Damages / Repairs</option>
-                        <option value="late_checkout">Late Check-Out Fee</option>
+                        <option value="restaurant">{tFolioCategory(t, 'restaurant')}</option>
+                        <option value="beverage">{tFolioCategory(t, 'beverage')}</option>
+                        <option value="laundry">{tFolioCategory(t, 'laundry')}</option>
+                        <option value="maintenance_charge">{tFolioCategory(t, 'maintenance_charge')}</option>
+                        <option value="late_checkout">{tFolioCategory(t, 'late_checkout')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Description</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('guestFolio.descLabel')}</label>
                       <input
                         type="text"
-                        placeholder="e.g. 2x Oku Coffee & Club Sandwich"
+                        placeholder={t('guestFolio.descPlaceholder')}
                         value={chargeDesc}
                         onChange={(e) => setChargeDesc(e.target.value)}
                         className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 font-medium"
@@ -462,7 +496,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Amount (FCFA)</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('guestFolio.amountFcfa')}</label>
                       <input
                         type="number"
                         min="500"
@@ -479,7 +513,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       type="submit"
                       className="px-4 py-1.5 text-xs font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer"
                     >
-                      Confirm Charge
+                      {t('guestFolio.confirmChargeBtn')}
                     </button>
                   </div>
                 </form>
@@ -492,7 +526,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-300 space-y-3.5 animate-in fade-in"
                 >
                   <div className="font-bold text-xs text-emerald-900 flex items-center justify-between">
-                    <span>Record Guest Payment / Settlement</span>
+                    <span>{t('guestFolio.recordPaymentTitle')}</span>
                     <button
                       type="button"
                       onClick={() => setShowAddPayment(false)}
@@ -504,7 +538,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
 
                   {/* Single vs Split Toggle */}
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-emerald-900">Payment Mode:</span>
+                    <span className="text-[11px] font-semibold text-emerald-900">{t('guestFolio.paymentMode')}</span>
                     <div className="inline-flex rounded-lg border border-emerald-300 bg-white p-0.5 text-xs">
                       <button
                         type="button"
@@ -518,7 +552,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        Single Payment
+                        {t('guestFolio.singlePayment')}
                       </button>
                       <button
                         type="button"
@@ -539,7 +573,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         }`}
                       >
                         <Split className="w-3.5 h-3.5" />
-                        <span>Split Payment</span>
+                        <span>{t('guestFolio.splitPayment')}</span>
                       </button>
                     </div>
                   </div>
@@ -555,21 +589,21 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     /* Single Payment Mode */
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Payment Method</label>
+                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">{t('guestFolio.paymentMethod')}</label>
                         <select
                           value={payMethod}
                           onChange={(e: any) => setPayMethod(e.target.value)}
                           className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-medium text-slate-900"
                         >
-                          <option value="momo">MTN Mobile Money</option>
-                          <option value="orange_money">Orange Money</option>
-                          <option value="cash">Cash (FCFA)</option>
-                          <option value="card">Credit / Debit Card</option>
-                          <option value="bank_transfer">Bank Wire Transfer</option>
+                          <option value="momo">{tPaymentMethod(t, 'momo')}</option>
+                          <option value="orange_money">{tPaymentMethod(t, 'orange_money')}</option>
+                          <option value="cash">{tPaymentMethod(t, 'cash')}</option>
+                          <option value="card">{tPaymentMethod(t, 'card')}</option>
+                          <option value="bank_transfer">{tPaymentMethod(t, 'bank_transfer')}</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Amount Received</label>
+                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">{t('guestFolio.amountReceived')}</label>
                         <input
                           type="number"
                           min="100"
@@ -581,10 +615,10 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Reference / Receipt #</label>
+                        <label className="block text-[11px] font-semibold text-emerald-800 mb-1">{t('guestFolio.refReceiptNumber')}</label>
                         <input
                           type="text"
-                          placeholder="MOMO-982143"
+                          placeholder={t('guestFolio.refPlaceholder')}
                           value={payRef}
                           onChange={(e) => setPayRef(e.target.value)}
                           className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono text-slate-900 placeholder-slate-400 font-medium"
@@ -597,7 +631,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                            Total Payment Amount to Collect
+                            {t('guestFolio.totalToCollect')}
                           </label>
                           <input
                             type="number"
@@ -611,11 +645,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                         </div>
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                            Group Receipt Reference (Optional)
+                            {t('guestFolio.groupRef')}
                           </label>
                           <input
                             type="text"
-                            placeholder="e.g. SPLIT-REC-01"
+                            placeholder={t('guestFolio.groupRefPlaceholder')}
                             value={payRef}
                             onChange={(e) => setPayRef(e.target.value)}
                             className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-900 placeholder-slate-400"
@@ -626,7 +660,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       <div className="space-y-2 pt-1">
                         <div className="flex items-center justify-between">
                           <label className="text-[11px] font-bold text-slate-700">
-                            Split Lines ({splitLines.length} methods):
+                            {t('guestFolio.splitLinesCount', { count: splitLines.length })}
                           </label>
                           <button
                             type="button"
@@ -634,7 +668,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                             className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
                           >
                             <PlusCircle className="w-3 h-3" />
-                            <span>Add Split Line</span>
+                            <span>{t('guestFolio.addSplitLine')}</span>
                           </button>
                         </div>
 
@@ -647,11 +681,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                                 onChange={(e) => handleUpdateSplitLine(line.id, 'method', e.target.value as PaymentMethod)}
                                 className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded-md font-medium text-slate-900"
                               >
-                                <option value="momo">MTN Mobile Money</option>
-                                <option value="orange_money">Orange Money</option>
-                                <option value="cash">Cash (FCFA)</option>
-                                <option value="card">Credit / Debit Card</option>
-                                <option value="bank_transfer">Bank Wire Transfer</option>
+                                <option value="momo">{tPaymentMethod(t, 'momo')}</option>
+                                <option value="orange_money">{tPaymentMethod(t, 'orange_money')}</option>
+                                <option value="cash">{tPaymentMethod(t, 'cash')}</option>
+                                <option value="card">{tPaymentMethod(t, 'card')}</option>
+                                <option value="bank_transfer">{tPaymentMethod(t, 'bank_transfer')}</option>
                               </select>
                             </div>
                             <div className="w-32">
@@ -659,7 +693,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                                 type="number"
                                 min="100"
                                 step="100"
-                                placeholder="Amount"
+                                placeholder={t('common.search')}
                                 value={line.amount || ''}
                                 onChange={(e) => handleUpdateSplitLine(line.id, 'amount', Number(e.target.value))}
                                 className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900"
@@ -671,7 +705,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                                 type="button"
                                 onClick={() => handleRemoveSplitLine(line.id)}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
-                                title="Remove Line"
+                                title={t('guestFolio.removeLineTooltip')}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -687,15 +721,15 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                           return (
                             <div className="flex items-center justify-between text-xs pt-1 px-1">
                               <span className="text-slate-500">
-                                Lines Allocated: <strong>{formatMoney(currentSum)}</strong> / {formatMoney(Number(payAmount))}
+                                {t('guestFolio.linesAllocated', { allocated: formatMoney(currentSum), total: formatMoney(Number(payAmount)) })}
                               </span>
                               {matches ? (
                                 <span className="text-emerald-700 font-bold flex items-center gap-1">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Sum Balanced
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> {t('guestFolio.sumBalanced')}
                                 </span>
                               ) : (
                                 <span className="text-rose-600 font-bold">
-                                  {diff > 0 ? `Unallocated: ${formatMoney(diff)}` : `Over by: ${formatMoney(Math.abs(diff))}`}
+                                  {diff > 0 ? t('guestFolio.unallocated', { amount: formatMoney(diff) }) : t('guestFolio.overBy', { amount: formatMoney(Math.abs(diff)) })}
                                 </span>
                               )}
                             </div>
@@ -711,13 +745,13 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       onClick={() => setShowAddPayment(false)}
                       className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="submit"
                       className="px-4 py-1.5 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 shadow-xs cursor-pointer"
                     >
-                      {isSplitPayment ? 'Record Split Payment' : 'Record Payment'}
+                      {isSplitPayment ? t('guestFolio.recordSplitPaymentBtn') : t('guestFolio.recordPaymentBtn')}
                     </button>
                   </div>
                 </form>
@@ -729,96 +763,84 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold tracking-wider">
                       <tr>
-                        <th className="py-2.5 px-3">Date & Time</th>
-                        <th className="py-2.5 px-3">Category</th>
-                        <th className="py-2.5 px-3">Description</th>
-                        <th className="py-2.5 px-3 text-right">Debit (Charge)</th>
-                        <th className="py-2.5 px-3 text-right">Credit (Payment)</th>
-                        <th className="py-2.5 px-3 text-right">Action</th>
+                        <th className="py-2.5 px-3">{t('guestFolio.thDateTime')}</th>
+                        <th className="py-2.5 px-3">{t('guestFolio.thCategory')}</th>
+                        <th className="py-2.5 px-3">{t('guestFolio.thDesc')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('guestFolio.thDebit')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('guestFolio.thCredit')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('guestFolio.thAction')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
-                      {folioTxs.map((t) => (
+                      {folioTxs.map((tItem) => (
                         <tr
-                          key={t.id}
+                          key={tItem.id}
                           className={`hover:bg-slate-50 transition-colors ${
-                            t.voided ? 'opacity-40 bg-slate-50 line-through' : ''
+                            tItem.voided ? 'opacity-40 bg-slate-50 line-through' : ''
                           }`}
                         >
                           <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                            {t.timestamp}
+                            {tItem.timestamp}
                           </td>
                           <td className="py-2.5 px-3 capitalize">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                t.category === 'refund'
+                                tItem.category === 'refund'
                                   ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                  : t.category === 'cancellation_fee' || t.category === 'no_show_fee'
+                                  : tItem.category === 'cancellation_fee' || tItem.category === 'no_show_fee'
                                   ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                  : t.category === 'room_charge_void'
+                                  : tItem.category === 'room_charge_void'
                                   ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  : t.category === 'discount'
+                                  : tItem.category === 'discount'
                                   ? 'bg-purple-100 text-purple-800 border border-purple-200'
                                   : 'bg-slate-100 text-slate-700'
                               }`}
                             >
-                              {t.category === 'refund'
-                                ? 'Refund'
-                                : t.category === 'cancellation_fee'
-                                ? 'Cancellation Fee'
-                                : t.category === 'no_show_fee'
-                                ? 'No-Show Fee'
-                                : t.category === 'discount'
-                                ? 'Discount'
-                                : t.category === 'room_charge'
-                                ? 'Room Charge'
-                                : t.category === 'room_charge_void'
-                                ? 'Stay Adjustment'
-                                : t.category.replace(/_/g, ' ')}
+                              {tFolioCategory(t, tItem.category)}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-slate-900">
-                            <div>{t.description}</div>
-                            {t.voided && (
+                            <div>{tItem.description}</div>
+                            {tItem.voided && (
                               <div className="text-[10px] text-rose-600 font-bold no-underline inline-block mt-0.5">
-                                [VOIDED by {t.voidedBy}: {t.voidReason}]
+                                {t('guestFolio.voidedBadge', { by: tItem.voidedBy || '', reason: tItem.voidReason || '' })}
                               </div>
                             )}
-                            {t.reference && !t.voided && (
-                              <div className="text-[10px] font-mono text-slate-400">Ref: {t.reference}</div>
+                            {tItem.reference && !tItem.voided && (
+                              <div className="text-[10px] font-mono text-slate-400">{t('guestFolio.refPrefix', { ref: tItem.reference })}</div>
                             )}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
-                            {t.type === 'charge' ? formatMoney(t.amount) : '-'}
+                            {tItem.type === 'charge' ? formatMoney(tItem.amount) : '-'}
                           </td>
                           <td
                             className={`py-2.5 px-3 text-right font-mono font-semibold whitespace-nowrap ${
-                              t.category === 'refund' || t.amount < 0 ? 'text-blue-600 font-bold' : 'text-emerald-700'
+                              tItem.category === 'refund' || tItem.amount < 0 ? 'text-blue-600 font-bold' : 'text-emerald-700'
                             }`}
                           >
-                            {t.type === 'payment' ? formatMoney(t.amount) : '-'}
+                            {tItem.type === 'payment' ? formatMoney(tItem.amount) : '-'}
                           </td>
                           <td className="py-2.5 px-3 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
-                              {(t.type === 'payment' || t.category === 'refund') && !t.voided && (
+                              {(tItem.type === 'payment' || tItem.category === 'refund') && !tItem.voided && (
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedReceiptTx(t)}
+                                  onClick={() => setSelectedReceiptTx(tItem)}
                                   className="text-[10px] text-slate-700 hover:text-slate-900 font-semibold px-2 py-0.5 rounded border border-slate-300 hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
-                                  title="Print Payment Receipt"
+                                  title={t('guestFolio.printPaymentReceipt')}
                                 >
                                   <Printer className="w-3 h-3 text-slate-500" />
-                                  <span>Receipt</span>
+                                  <span>{t('guestFolio.receiptBtn')}</span>
                                 </button>
                               )}
-                              {canVoidTransactions && !t.voided && (
+                              {canVoidTransactions && !tItem.voided && (
                                 <button
                                   type="button"
-                                  onClick={() => setVoidingTxId(t.id)}
+                                  onClick={() => setVoidingTxId(tItem.id)}
                                   className="text-[10px] text-rose-600 hover:text-rose-800 font-semibold px-2 py-0.5 rounded border border-rose-200 hover:bg-rose-50 cursor-pointer"
-                                  title="Manager Void Authorization"
+                                  title={t('guestFolio.managerVoidTooltip')}
                                 >
-                                  Void
+                                  {t('guestFolio.voidBtn')}
                                 </button>
                               )}
                             </div>
@@ -829,7 +851,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     <tfoot className="bg-slate-100 font-bold border-t border-slate-200">
                       <tr>
                         <td colSpan={3} className="py-2.5 px-3 text-slate-700 text-right uppercase text-[11px]">
-                          Active Total:
+                          {t('guestFolio.activeTotal')}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-900 whitespace-nowrap">
                           {formatMoney(totalCharges)}
@@ -849,13 +871,13 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                 <div className="p-4 bg-rose-50 rounded-xl border border-rose-200 space-y-3 text-xs animate-in fade-in">
                   <div className="font-bold text-rose-900 flex items-center gap-1.5">
                     <Ban className="w-4 h-4 text-rose-600" />
-                    Manager Folio Void Authorization
+                    {t('guestFolio.voidDialogTitle')}
                   </div>
                   <p className="text-rose-700">
-                    Are you sure you want to void this transaction? This adjustment will be audited with your manager signature.
+                    {t('guestFolio.voidDialogWarning')}
                   </p>
                   <div>
-                    <label className="block font-semibold text-rose-800 mb-1">Reason for voiding:</label>
+                    <label className="block font-semibold text-rose-800 mb-1">{t('guestFolio.voidReasonLabel')}</label>
                     <input
                       type="text"
                       value={voidReason}
@@ -867,15 +889,15 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => setVoidingTxId(null)}
-                      className="px-3 py-1 bg-white text-slate-700 border border-slate-300 rounded"
+                      className="px-3 py-1 bg-white text-slate-700 border border-slate-300 rounded cursor-pointer"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                       onClick={() => handleConfirmVoid(voidingTxId)}
-                      className="px-3 py-1 bg-rose-600 text-white font-bold rounded"
+                      className="px-3 py-1 bg-rose-600 text-white font-bold rounded cursor-pointer"
                     >
-                      Authorize Void
+                      {t('guestFolio.authorizeVoidBtn')}
                     </button>
                   </div>
                 </div>
@@ -917,33 +939,33 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
 
                 <div className="text-right">
                   <span className="text-xs uppercase font-bold tracking-widest text-slate-400 block">
-                    GUEST FOLIO INVOICE
+                    {tInv('invoice.title')}
                   </span>
                   <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-0.5 block">
                     {reservation.bookingCode}
                   </span>
-                  <span className="text-xs text-slate-500 font-mono">Date: {businessDate}</span>
+                  <span className="text-xs text-slate-500 font-mono">{tInv('invoice.dateLabel', { date: businessDate })}</span>
                 </div>
               </div>
 
               {/* Guest & Room Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs">
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">Billed To:</span>
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">{tInv('invoice.billedTo')}</span>
                   <div className="font-bold text-sm text-slate-900 mt-1">{reservation.guestName}</div>
-                  <div className="text-slate-600 mt-0.5 font-mono">Phone: {reservation.guestPhone}</div>
-                  <div className="text-slate-500 mt-0.5">Method: {reservation.paymentMethod.toUpperCase()}</div>
+                  <div className="text-slate-600 mt-0.5 font-mono">{tInv('invoice.phone', { phone: reservation.guestPhone })}</div>
+                  <div className="text-slate-500 mt-0.5">{tInv('invoice.method', { method: tPaymentMethod(tInv, reservation.paymentMethod) })}</div>
                 </div>
 
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">Stay Specifics:</span>
-                  <div className="font-bold text-slate-900 mt-1">Room #{reservation.roomNumber}</div>
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">{tInv('invoice.staySpecifics')}</span>
+                  <div className="font-bold text-slate-900 mt-1">{tInv('invoice.roomLabel', { number: reservation.roomNumber })}</div>
                   <div className="text-slate-600 mt-0.5 font-mono">{reservation.checkInDate} ➔ {reservation.checkOutDate}</div>
-                  <div className="text-slate-500 mt-0.5">Duration: {reservation.totalNights} Night(s)</div>
+                  <div className="text-slate-500 mt-0.5">{tInv('invoice.duration', { count: reservation.totalNights })}</div>
                   {reservation.roomMoves && reservation.roomMoves.length > 0 && (
                     <div className="text-[11px] text-blue-700 font-semibold mt-1">
                       {reservation.roomMoves.map((m, idx) => (
-                        <div key={idx}>• Room moved from #{m.fromRoom} to #{m.toRoom} ({m.reason})</div>
+                        <div key={idx}>{tInv('invoice.roomMoved', { from: m.fromRoom, to: m.toRoom, reason: tRoomMoveReason(tInv, m.reason) })}</div>
                       ))}
                     </div>
                   )}
@@ -955,51 +977,41 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                 <table className="w-full text-left text-xs border border-slate-200">
                   <thead className="bg-slate-100 uppercase text-[10px] font-bold text-slate-600">
                     <tr>
-                      <th className="py-2 px-3 border-b">Item / Description</th>
-                      <th className="py-2 px-3 border-b">Category</th>
-                      <th className="py-2 px-3 border-b text-right">Debit</th>
-                      <th className="py-2 px-3 border-b text-right">Credit</th>
+                      <th className="py-2 px-3 border-b">{tInv('invoice.colItem')}</th>
+                      <th className="py-2 px-3 border-b">{tInv('invoice.colCategory')}</th>
+                      <th className="py-2 px-3 border-b text-right">{tInv('invoice.colDebit')}</th>
+                      <th className="py-2 px-3 border-b text-right">{tInv('invoice.colCredit')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {activeCharges.map((t) => (
-                      <tr key={t.id}>
+                    {activeCharges.map((tItem) => (
+                      <tr key={tItem.id}>
                         <td className="py-2 px-3">
-                          <span className="font-semibold text-slate-900">{t.description}</span>
+                          <span className="font-semibold text-slate-900">{tItem.description}</span>
                         </td>
                         <td className="py-2 px-3 capitalize text-slate-600 text-[11px]">
-                          {t.category === 'discount'
-                            ? 'Discount'
-                            : t.category === 'cancellation_fee'
-                            ? 'Cancellation Fee'
-                            : t.category === 'no_show_fee'
-                            ? 'No-Show Fee'
-                            : t.category === 'room_charge'
-                            ? 'Room Charge'
-                            : t.category === 'room_charge_void'
-                            ? 'Stay Adjustment'
-                            : t.category.replace(/_/g, ' ')}
+                          {tFolioCategory(tInv, tItem.category)}
                         </td>
                         <td className="py-2 px-3 text-right font-mono text-slate-900 font-medium">
-                          {t.amount < 0 ? `-${formatMoney(Math.abs(t.amount))}` : formatMoney(t.amount)}
+                          {tItem.amount < 0 ? `-${formatMoney(Math.abs(tItem.amount))}` : formatMoney(tItem.amount)}
                         </td>
                         <td className="py-2 px-3 text-right font-mono text-slate-400">-</td>
                       </tr>
                     ))}
-                    {activePayments.map((t) => (
-                      <tr key={t.id}>
+                    {activePayments.map((tItem) => (
+                      <tr key={tItem.id}>
                         <td className="py-2 px-3">
-                          <span className={`font-semibold ${t.category === 'refund' || t.amount < 0 ? 'text-blue-800' : 'text-emerald-800'}`}>
-                            {t.description}
+                          <span className={`font-semibold ${tItem.category === 'refund' || tItem.amount < 0 ? 'text-blue-800' : 'text-emerald-800'}`}>
+                            {tItem.description}
                           </span>
-                          {t.reference && <span className="text-[10px] font-mono text-slate-500 ml-1.5">({t.reference})</span>}
+                          {tItem.reference && <span className="text-[10px] font-mono text-slate-500 ml-1.5">({tItem.reference})</span>}
                         </td>
-                        <td className={`py-2 px-3 capitalize text-[11px] ${t.category === 'refund' || t.amount < 0 ? 'text-blue-700 font-bold' : 'text-emerald-700'}`}>
-                          {t.category === 'refund' ? 'Refund' : 'Payment'}
+                        <td className={`py-2 px-3 capitalize text-[11px] ${tItem.category === 'refund' || tItem.amount < 0 ? 'text-blue-700 font-bold' : 'text-emerald-700'}`}>
+                          {tFolioCategory(tInv, tItem.category)}
                         </td>
                         <td className="py-2 px-3 text-right font-mono text-slate-400">-</td>
-                        <td className={`py-2 px-3 text-right font-mono font-bold ${t.category === 'refund' || t.amount < 0 ? 'text-blue-700' : 'text-emerald-700'}`}>
-                          {formatMoney(t.amount)}
+                        <td className={`py-2 px-3 text-right font-mono font-bold ${tItem.category === 'refund' || tItem.amount < 0 ? 'text-blue-700' : 'text-emerald-700'}`}>
+                          {formatMoney(tItem.amount)}
                         </td>
                       </tr>
                     ))}
@@ -1013,11 +1025,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   {hasTax && (
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Prices include {taxLabel} ({taxRate}%)</span>
+                      <span>{tInv('invoice.pricesIncludeTax', { label: taxLabel, rate: taxRate })}</span>
                     </div>
                   )}
                   <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-[11px]">
-                    Thank you for choosing {invName}!
+                    {tInv('invoice.thankYou', { name: invName })}
                   </div>
                 </div>
 
@@ -1025,45 +1037,50 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   {hasTax ? (
                     <>
                       <div className="flex justify-between text-slate-600">
-                        <span>Total excluding {taxLabel}:</span>
+                        <span>{tInv('invoice.totalExcludingTax', { label: taxLabel })}</span>
                         <span className="font-mono">{formatMoney(taxBreakdown.net)}</span>
                       </div>
                       <div className="flex justify-between text-slate-600">
-                        <span>{taxLabel} ({taxRate}%) included:</span>
+                        <span>{tInv('invoice.taxIncluded', { label: taxLabel, rate: taxRate })}</span>
                         <span className="font-mono">{formatMoney(taxBreakdown.tax)}</span>
                       </div>
                       <div className="flex justify-between text-slate-900 font-semibold">
-                        <span>Total including {taxLabel}:</span>
+                        <span>{tInv('invoice.totalIncludingTax', { label: taxLabel })}</span>
                         <span className="font-mono">{formatMoney(totalCharges)}</span>
                       </div>
                     </>
                   ) : (
                     <div className="flex justify-between text-slate-600">
-                      <span>Subtotal Charges:</span>
+                      <span>{tInv('invoice.subtotal')}</span>
                       <span className="font-mono">{formatMoney(totalCharges)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-emerald-700 font-medium">
-                    <span>Payments / Deposits:</span>
+                    <span>{tInv('invoice.paymentsDeposits')}</span>
                     <span className="font-mono">-{formatMoney(totalPaid)}</span>
                   </div>
                   <div className="h-px bg-slate-300 my-1.5" />
                   <div className="flex justify-between text-sm font-bold text-slate-900">
-                    <span>Total Balance Due:</span>
+                    <span>{tInv('invoice.totalBalanceDue')}</span>
                     <span className={`font-mono text-base ${balance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                      {balance > 0 ? formatMoney(balance) : 'PAID IN FULL'}
+                      {balance > 0 ? formatMoney(balance) : tInv('invoice.paidInFull')}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Signatures */}
-              <div className="grid grid-cols-2 gap-8 sm:gap-12 pt-8 text-xs border-t border-slate-200">
-                <div className="border-t border-dashed border-slate-400 pt-2 text-center">
-                  <span className="text-slate-500">Guest Signature</span>
+              {/* Signatures & Printed By */}
+              <div className="pt-8 text-xs border-t border-slate-200 space-y-4">
+                <div className="grid grid-cols-2 gap-8 sm:gap-12">
+                  <div className="border-t border-dashed border-slate-400 pt-2 text-center">
+                    <span className="text-slate-500">{tInv('invoice.guestSignature')}</span>
+                  </div>
+                  <div className="border-t border-dashed border-slate-400 pt-2 text-center">
+                    <span className="text-slate-500">{tInv('invoice.cashierStamp')}</span>
+                  </div>
                 </div>
-                <div className="border-t border-dashed border-slate-400 pt-2 text-center">
-                  <span className="text-slate-500">Authorized Cashier Stamp</span>
+                <div className="text-center text-[10px] text-slate-400">
+                  {tInv('invoice.printedBy', { name: currentUser?.name || 'Staff', date: businessDate })}
                 </div>
               </div>
 
@@ -1074,13 +1091,13 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
         {/* Footer */}
         <div className="bg-slate-50 px-4 sm:px-6 py-3 border-t border-slate-200 flex items-center justify-between no-print shrink-0">
           <div className="text-xs text-slate-500">
-            Booking Code: <strong className="font-mono text-slate-800">{reservation.bookingCode}</strong>
+            {t('guestFolio.bookingCodeFooter', { code: reservation.bookingCode })}
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors cursor-pointer"
           >
-            Close
+            {t('common.close')}
           </button>
         </div>
 

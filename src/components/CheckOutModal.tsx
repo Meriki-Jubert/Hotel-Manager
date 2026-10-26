@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { Reservation, PaymentMethod } from '../types/hms';
 import { validateSplitPayment } from '../utils/folioAdjustments';
+import { useT } from '../i18n/LanguageContext';
+import { tPaymentMethod } from '../i18n/labels';
 import {
   X,
   LogOut,
   Receipt,
-  CreditCard,
   KeyRound,
-  CheckCircle2,
   AlertCircle,
-  FileCheck,
   User,
   Calendar,
   Building,
@@ -35,6 +34,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
   onOpenFolio
 }) => {
   const { transactions, checkOutGuest, formatMoney } = useHMS();
+  const { t } = useT();
 
   // Calculate charges & payments using shared getFolioTotals
   const totals = getFolioTotals(transactions, reservation.id);
@@ -76,7 +76,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
   const handleCheckout = () => {
     setErrorMsg(null);
     if (!keyReturned) {
-      setErrorMsg('Please confirm physical room key/keycard return before checking out.');
+      setErrorMsg(t('checkOut.errKeyRequired'));
       return;
     }
 
@@ -87,7 +87,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
       });
 
       if (!validation.valid) {
-        setErrorMsg(validation.error || 'Invalid split payment configuration.');
+        setErrorMsg(validation.error || t('checkOut.errSplitConfig'));
         return;
       }
 
@@ -101,7 +101,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
       if (res.success) {
         onSuccess();
       } else {
-        setErrorMsg(res.error || 'Failed to complete check out');
+        setErrorMsg(res.error || t('checkOut.errFail'));
       }
       return;
     }
@@ -115,7 +115,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
     if (res.success) {
       onSuccess();
     } else {
-      setErrorMsg(res.error || 'Failed to complete check out');
+      setErrorMsg(res.error || t('checkOut.errFail'));
     }
   };
 
@@ -130,9 +130,9 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
               <LogOut className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold">Express Guest Check-Out</h2>
+              <h2 className="text-base sm:text-lg font-bold">{t('checkOut.title')}</h2>
               <p className="text-xs text-slate-400">
-                Folio Settlement & Room Status Turnover
+                {t('checkOut.subtitle')}
               </p>
             </div>
           </div>
@@ -168,7 +168,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  {reservation.checkInDate} ➔ {reservation.checkOutDate} ({reservation.totalNights} nights)
+                  {reservation.checkInDate} ➔ {reservation.checkOutDate} ({t('checkOut.nightsCount', { count: reservation.totalNights })})
                 </span>
               </div>
             </div>
@@ -179,34 +179,34 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
               className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold shadow-xs"
             >
               <Receipt className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Full Folio</span>
+              <span>{t('checkOut.fullFolio')}</span>
             </button>
           </div>
 
           {/* Folio Financial Breakdown */}
           <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Folio Financial Reconciliation
+              {t('checkOut.reconciliationTitle')}
             </span>
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center text-slate-600">
-                <span>Total Charges (Room + F&B + Services):</span>
+                <span>{t('checkOut.totalCharges')}</span>
                 <span className="font-mono font-medium">{formatMoney(totalCharges)}</span>
               </div>
               <div className="flex justify-between items-center text-emerald-700">
-                <span>Total Payments & Deposits Received:</span>
+                <span>{t('checkOut.totalPayments')}</span>
                 <span className="font-mono font-medium">-{formatMoney(totalPaid)}</span>
               </div>
               <div className="h-px bg-slate-200 my-1" />
               <div className="flex justify-between items-center text-sm font-bold">
-                <span className="text-slate-900">Remaining Balance Due:</span>
+                <span className="text-slate-900">{t('checkOut.remainingBalance')}</span>
                 <span
                   className={`font-mono text-base ${
                     remainingBalance > 0 ? 'text-rose-600 font-extrabold' : 'text-emerald-600'
                   }`}
                 >
-                  {remainingBalance > 0 ? formatMoney(remainingBalance) : 'FULLY SETTLED (0 FCFA)'}
+                  {remainingBalance > 0 ? formatMoney(remainingBalance) : t('checkOut.fullySettled')}
                 </span>
               </div>
             </div>
@@ -216,7 +216,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
               <div className="pt-3 border-t border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-700">
-                    Settlement for Balance ({formatMoney(remainingBalance)}):
+                    {t('checkOut.settlementForBalance', { amount: formatMoney(remainingBalance) })}
                   </label>
                   <div className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-0.5 text-xs">
                     <button
@@ -231,7 +231,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      Single Payment
+                      {t('checkOut.singlePayment')}
                     </button>
                     <button
                       type="button"
@@ -251,7 +251,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                       }`}
                     >
                       <Split className="w-3.5 h-3.5" />
-                      <span>Split Payment</span>
+                      <span>{t('checkOut.splitPayment')}</span>
                     </button>
                   </div>
                 </div>
@@ -259,11 +259,11 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                 {!isSplitPayment ? (
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                     {[
-                      { id: 'momo', label: 'MTN MoMo' },
-                      { id: 'orange_money', label: 'Orange Money' },
-                      { id: 'cash', label: 'Cash' },
-                      { id: 'card', label: 'Card' },
-                      { id: 'bank_transfer', label: 'Transfer' }
+                      { id: 'momo', label: tPaymentMethod(t, 'momo') },
+                      { id: 'orange_money', label: tPaymentMethod(t, 'orange_money') },
+                      { id: 'cash', label: tPaymentMethod(t, 'cash') },
+                      { id: 'card', label: tPaymentMethod(t, 'card') },
+                      { id: 'bank_transfer', label: tPaymentMethod(t, 'bank_transfer') }
                     ].map((m) => (
                       <button
                         key={m.id}
@@ -283,7 +283,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                   <div className="space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-700">
-                        Split Allocation ({splitLines.length} methods):
+                        {t('checkOut.splitAllocation', { count: splitLines.length })}
                       </span>
                       <button
                         type="button"
@@ -291,7 +291,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                         className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
                       >
                         <PlusCircle className="w-3.5 h-3.5" />
-                        <span>Add Method</span>
+                        <span>{t('checkOut.addMethod')}</span>
                       </button>
                     </div>
 
@@ -304,11 +304,11 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                             onChange={(e) => handleUpdateSplitLine(line.id, 'method', e.target.value as PaymentMethod)}
                             className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded text-slate-900 font-medium"
                           >
-                            <option value="momo">MTN MoMo</option>
-                            <option value="orange_money">Orange Money</option>
-                            <option value="cash">Cash</option>
-                            <option value="card">Card</option>
-                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="momo">{tPaymentMethod(t, 'momo')}</option>
+                            <option value="orange_money">{tPaymentMethod(t, 'orange_money')}</option>
+                            <option value="cash">{tPaymentMethod(t, 'cash')}</option>
+                            <option value="card">{tPaymentMethod(t, 'card')}</option>
+                            <option value="bank_transfer">{tPaymentMethod(t, 'bank_transfer')}</option>
                           </select>
                         </div>
                         <div className="w-28">
@@ -328,7 +328,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                             type="button"
                             onClick={() => handleRemoveSplitLine(line.id)}
                             className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                            title="Remove split line"
+                            title={t('checkOut.removeLineTooltip')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -343,7 +343,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                       return (
                         <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
                           <span className="text-slate-600">
-                            Allocated: <strong className="text-slate-900 font-mono">{formatMoney(allocated)}</strong> / {formatMoney(remainingBalance)}
+                            {t('checkOut.allocatedSummary', { allocated: formatMoney(allocated), total: formatMoney(remainingBalance) })}
                           </span>
                           <span
                             className={`font-semibold font-mono ${
@@ -354,7 +354,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                                 : 'text-rose-700'
                             }`}
                           >
-                            {diff === 0 ? '✓ Balanced' : diff > 0 ? `Remaining: ${formatMoney(diff)}` : `Over: ${formatMoney(Math.abs(diff))}`}
+                            {diff === 0 ? t('checkOut.balanced') : diff > 0 ? t('checkOut.remainingDiff', { amount: formatMoney(diff) }) : t('checkOut.overDiff', { amount: formatMoney(Math.abs(diff)) })}
                           </span>
                         </div>
                       );
@@ -368,7 +368,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
           {/* Front Desk Verification Checklist */}
           <div className="bg-amber-50/60 rounded-xl border border-amber-200 p-4 space-y-2.5">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
-              <KeyRound className="w-3.5 h-3.5 text-amber-700" /> Front Desk Turnover Checklist
+              <KeyRound className="w-3.5 h-3.5 text-amber-700" /> {t('checkOut.checklistTitle')}
             </span>
 
             <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
@@ -378,7 +378,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                 onChange={(e) => setKeyReturned(e.target.checked)}
                 className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
               />
-              <span>Physical room key / electronic RFID keycard received and sanitized</span>
+              <span>{t('checkOut.keyReturnedCheck')}</span>
             </label>
 
             <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
@@ -388,14 +388,13 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                 onChange={(e) => setMinibarChecked(e.target.checked)}
                 className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
               />
-              <span>Minibar & room condition verified with housekeeping</span>
+              <span>{t('checkOut.minibarCheck')}</span>
             </label>
           </div>
 
           {/* Notice of State Transition */}
           <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-            <strong>System Action:</strong> Checking out this guest will mark Room #{reservation.roomNumber} as{' '}
-            <span className="text-amber-700 font-bold">DIRTY</span> on the visual Room Matrix and automatically queue a cleaning task for Housekeeping.
+            {t('checkOut.stateNotice', { number: reservation.roomNumber })}
           </div>
 
           {/* Actions */}
@@ -403,17 +402,17 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
               onClick={handleCheckout}
-              className="px-5 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-md shadow-rose-700/20 flex items-center gap-2 transition-all hover:scale-[1.01]"
+              className="px-5 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-md shadow-rose-700/20 flex items-center gap-2 transition-all hover:scale-[1.01] cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
-              <span>Confirm Settlement & Check Out</span>
+              <span>{t('checkOut.confirmBtn')}</span>
             </button>
           </div>
         </div>

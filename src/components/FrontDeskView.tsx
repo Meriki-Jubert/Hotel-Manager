@@ -319,7 +319,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                   setArrivalDateTo('');
                 }}
                 className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                title="Clear date filter"
+                title={t('frontDesk.tooltipClearDate')}
               >
                 ✕
               </button>
@@ -480,7 +480,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                           <button
                             onClick={() => setCheckInReservation(res)}
                             className="px-2.5 py-1 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-2xs flex items-center gap-1 transition-all"
-                            title="Check-in guest pre-filling details"
+                            title={t('frontDesk.tooltipCheckIn')}
                           >
                             <LogIn className="w-3.5 h-3.5" />
                             <span>{t('frontDesk.checkIn')}</span>
@@ -492,7 +492,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                           <button
                             onClick={() => setEditingReservation(res)}
                             className="px-2 py-1 text-xs font-semibold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
-                            title="Edit booking dates, room or guests"
+                            title={t('frontDesk.tooltipEdit')}
                           >
                             <Edit className="w-3 h-3 text-blue-600" />
                             <span>{t('frontDesk.edit')}</span>
@@ -507,7 +507,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                               setCancellingReservation(res);
                             }}
                             className="px-2 py-1 text-xs font-semibold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-rose-700 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
-                            title="Cancel booking or record no-show"
+                            title={t('frontDesk.tooltipCancel')}
                           >
                             <UserX className="w-3 h-3 text-rose-600" />
                             <span>{t('frontDesk.cancel')}</span>
@@ -515,7 +515,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                         ) : res.bookingStatus === 'checked_in' ? (
                           <span
                             className="px-2 py-1 text-[10px] text-slate-500 font-medium italic border border-dashed border-slate-200 rounded-lg bg-slate-50 flex items-center whitespace-nowrap"
-                            title="Cannot cancel a checked-in guest. Use Check-Out to settle folio."
+                            title={t('frontDesk.tooltipCannotCancel')}
                           >
                             {t('frontDesk.useCheckOut')}
                           </span>
@@ -527,7 +527,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             <button
                               onClick={() => setExtendingReservation(res)}
                               className="px-2 py-1 text-xs font-semibold bg-white hover:bg-emerald-50 border border-slate-300 hover:border-emerald-300 text-emerald-800 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
-                              title="Extend Stay"
+                              title={t('frontDesk.tooltipExtendStay')}
                             >
                               <PlusCircle className="w-3 h-3 text-emerald-600" />
                               <span>{t('frontDesk.extendStay')}</span>
@@ -537,7 +537,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                               <button
                                 onClick={() => setShorteningReservation(res)}
                                 className="px-2 py-1 text-xs font-semibold bg-white hover:bg-amber-50 border border-slate-300 hover:border-amber-300 text-amber-800 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
-                                title="Shorten Stay (Early Departure)"
+                                title={t('frontDesk.tooltipShortenStay')}
                               >
                                 <MinusCircle className="w-3 h-3 text-amber-600" />
                                 <span>{t('frontDesk.shortenStay')}</span>
@@ -547,7 +547,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             <button
                               onClick={() => setMovingReservation(res)}
                               className="px-2 py-1 text-xs font-semibold bg-white hover:bg-blue-50 border border-slate-300 hover:border-blue-300 text-blue-800 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
-                              title="Change Room"
+                              title={t('frontDesk.tooltipChangeRoom')}
                             >
                               <Shuffle className="w-3 h-3 text-blue-600" />
                               <span>{t('frontDesk.changeRoom')}</span>
@@ -560,7 +560,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                           <button
                             onClick={() => onOpenCheckOut(res.id)}
                             className="px-2.5 py-1 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
-                            title="Check-Out Guest & Settle Balance"
+                            title={t('frontDesk.tooltipCheckOut')}
                           >
                             <LogOut className="w-3.5 h-3.5" />
                             <span>{t('frontDesk.checkOut')}</span>
@@ -571,7 +571,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                         <button
                           onClick={() => onOpenFolio(res.id)}
                           className="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
-                          title="Open Billing Folio"
+                          title={t('frontDesk.tooltipFolio')}
                         >
                           <Receipt className="w-3.5 h-3.5 text-emerald-600" />
                           <span>{t('frontDesk.folio')}</span>

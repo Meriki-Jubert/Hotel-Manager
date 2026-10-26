@@ -392,7 +392,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                     type="text"
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="e.g. Jean-Paul Mbarga"
+                    placeholder={t('checkInModal.namePlaceholder')}
                     className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-900 placeholder-slate-400"
                     required
                   />
@@ -406,7 +406,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+237 6..."
+                    placeholder={t('checkInModal.phonePlaceholder')}
                     className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-900 font-mono placeholder-slate-400"
                     required
                   />
@@ -420,7 +420,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                     type="text"
                     value={idCardNumber}
                     onChange={(e) => setIdCardNumber(e.target.value)}
-                    placeholder="e.g. 1198273645 / P0129384"
+                    placeholder={t('checkInModal.idPlaceholder')}
                     className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-900 font-mono placeholder-slate-400"
                     required
                   />
@@ -434,7 +434,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                     type="text"
                     value={nationality}
                     onChange={(e) => setNationality(e.target.value)}
-                    placeholder="e.g. Cameroonian, Nigerian, French"
+                    placeholder={t('checkInModal.nationalityPlaceholder')}
                     className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-900 placeholder-slate-400"
                   />
                 </div>
@@ -447,7 +447,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="guest@example.com"
+                    placeholder={t('checkInModal.emailPlaceholder')}
                     className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-900 placeholder-slate-400"
                   />
                 </div>

@@ -442,7 +442,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                         <button
                           onClick={() => onOpenFolioForRes(currentRes.id)}
                           className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold rounded-lg text-xs transition-colors"
-                          title="Open Guest Folio & Charges"
+                          title={t('matrix.tooltipFolio')}
                         >
                           <Receipt className="w-3.5 h-3.5 text-slate-500" />
                           <span>{t('matrix.folio')}</span>
@@ -451,7 +451,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                           <button
                             onClick={() => onOpenCheckOutForRes(currentRes.id)}
                             className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
-                            title="Initiate Check-Out"
+                            title={t('matrix.tooltipCheckOut')}
                           >
                             <LogOut className="w-3.5 h-3.5" />
                             <span>{t('matrix.out')}</span>

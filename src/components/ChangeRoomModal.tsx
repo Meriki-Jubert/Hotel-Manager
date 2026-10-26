@@ -1,23 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
-import { Reservation, Room } from '../types/hms';
+import { Reservation } from '../types/hms';
 import { calculateRoomMoveAdjustment } from '../utils/stayChanges';
 import { checkAvailability } from '../utils/availability';
 import { listNights, getLocalDateString } from '../utils/dateUtils';
-import { Shuffle, Check, AlertCircle, X, ShieldAlert, Sparkles } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
+import { tRoomMoveReason } from '../i18n/labels';
+import { Shuffle, Check, AlertCircle, X } from 'lucide-react';
 
 interface ChangeRoomModalProps {
   reservation: Reservation;
   onClose: () => void;
 }
 
-const REASON_OPTIONS = [
-  { value: 'AC/fault', label: 'AC / Maintenance Fault' },
-  { value: 'guest request', label: 'Guest Request' },
-  { value: 'upgrade', label: 'Upgrade' },
-  { value: 'downgrade', label: 'Downgrade' },
-  { value: 'noise', label: 'Noise / Disturbance' },
-  { value: 'other', label: 'Other Reason' }
+const REASON_KEYS = [
+  'AC/fault',
+  'guest request',
+  'upgrade',
+  'downgrade',
+  'noise',
+  'other'
 ];
 
 export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, onClose }) => {
@@ -32,6 +34,7 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
     branchBusinessDates,
     businessDate
   } = useHMS();
+  const { t } = useT();
 
   const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
   const targetBranchId = reservation.branchId || branches[0]?.id || '';
@@ -116,24 +119,24 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
     setErrorMessage(null);
 
     if (!selectedRoomId) {
-      setErrorMessage('Please select a target room.');
+      setErrorMessage(t('changeRoom.errSelectRoom'));
       return;
     }
 
     const fullReason =
       reasonCategory === 'other'
-        ? (reasonCustom.trim() || 'Other reason')
+        ? (reasonCustom.trim() || t('changeRoom.otherReasonDefault'))
         : reasonCustom.trim()
         ? `${reasonCategory}: ${reasonCustom.trim()}`
         : reasonCategory;
 
     if (!fullReason || fullReason.trim().length === 0) {
-      setErrorMessage('Please provide a reason for the room move.');
+      setErrorMessage(t('changeRoom.errProvideReason'));
       return;
     }
 
     if (!keepCurrentRate && !isManager) {
-      setErrorMessage('Only Managers or Owners can modify the stay rate.');
+      setErrorMessage(t('changeRoom.errOnlyManagerRate'));
       return;
     }
 
@@ -144,7 +147,7 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
     if (result.success) {
       onClose();
     } else {
-      setErrorMessage(result.error || 'Failed to change room.');
+      setErrorMessage(result.error || t('changeRoom.errFail'));
     }
   };
 
@@ -158,9 +161,9 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
               <Shuffle className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold">Change In-House Room</h2>
+              <h2 className="text-base sm:text-lg font-bold">{t('changeRoom.title')}</h2>
               <p className="text-xs text-slate-400">
-                Current: Room #{reservation.roomNumber} • {reservation.guestName}
+                {t('changeRoom.subtitle', { number: reservation.roomNumber, name: reservation.guestName })}
               </p>
             </div>
           </div>
@@ -177,15 +180,15 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
           {/* Stay Context */}
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs grid grid-cols-3 gap-2 text-slate-700">
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Room</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">{t('changeRoom.currentRoom')}</span>
               <span className="font-mono font-bold text-slate-900 text-sm">#{reservation.roomNumber}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Remaining Stay</span>
-              <span className="font-semibold text-slate-900 text-xs">{remainingNights} Night(s)</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">{t('changeRoom.remainingStay')}</span>
+              <span className="font-semibold text-slate-900 text-xs">{t('changeRoom.nightsCount', { count: remainingNights })}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Rate</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">{t('changeRoom.currentRate')}</span>
               <span className="font-mono font-bold text-emerald-700 text-xs">{formatMoney(reservation.nightlyRate)}</span>
             </div>
           </div>
@@ -193,16 +196,16 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
           {/* Target Room Selection */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Select Target Available Room <span className="text-rose-500">*</span>
+              {t('changeRoom.selectTarget')}
             </label>
 
             {validRooms.length === 0 ? (
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="block font-semibold">No Available Clean Rooms</strong>
+                  <strong className="block font-semibold">{t('changeRoom.noRoomsTitle')}</strong>
                   <span>
-                    There are no clean, vacant rooms in this branch available for all remaining nights of this stay ({branchCurrentDate} to {reservation.checkOutDate}).
+                    {t('changeRoom.noRoomsBody', { from: branchCurrentDate, to: reservation.checkOutDate })}
                   </span>
                 </div>
               </div>
@@ -248,10 +251,10 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
                       <div className="text-right">
                         <div className="font-mono font-bold text-slate-900">
                           {formatMoney(room.pricePerNight)}
-                          <span className="text-[10px] text-slate-400 font-normal"> / nt</span>
+                          <span className="text-[10px] text-slate-400 font-normal"> {t('changeRoom.perNight')}</span>
                         </div>
                         <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                          Clean & Vacant
+                          {t('changeRoom.cleanVacant')}
                         </span>
                       </div>
                     </button>
@@ -265,16 +268,16 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Reason for Move <span className="text-rose-500">*</span>
+                {t('changeRoom.reasonLabel')}
               </label>
               <select
                 value={reasonCategory}
                 onChange={(e) => setReasonCategory(e.target.value)}
                 className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {REASON_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="text-slate-900">
-                    {opt.label}
+                {REASON_KEYS.map((k) => (
+                  <option key={k} value={k} className="text-slate-900">
+                    {tRoomMoveReason(t, k)}
                   </option>
                 ))}
               </select>
@@ -282,11 +285,11 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Additional Notes / Details
+                {t('changeRoom.notesLabel')}
               </label>
               <input
                 type="text"
-                placeholder="e.g. AC leaking in ceiling"
+                placeholder={t('changeRoom.notesPlaceholder')}
                 value={reasonCustom}
                 onChange={(e) => setReasonCustom(e.target.value)}
                 className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -297,7 +300,7 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
           {/* Rate Choice */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
             <span className="text-xs font-bold text-slate-800 block">
-              Nightly Rate Option for Remaining Stay ({remainingNights} nights)
+              {t('changeRoom.rateOptionTitle', { count: remainingNights })}
             </span>
 
             <div className="space-y-2 text-xs">
@@ -310,7 +313,7 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
                   className="w-4 h-4 text-blue-600"
                 />
                 <span className="font-medium">
-                  Keep current rate (<strong>{formatMoney(reservation.nightlyRate)} / night</strong>) — No rate adjustment
+                  {t('changeRoom.keepCurrentRate', { rate: formatMoney(reservation.nightlyRate) })}
                 </span>
               </label>
 
@@ -328,16 +331,12 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
                   className="w-4 h-4 text-blue-600 disabled:cursor-not-allowed"
                 />
                 <span className="font-medium">
-                  Use new room's rate (
-                  {selectedRoom ? (
-                    <strong>{formatMoney(selectedRoom.pricePerNight)} / night</strong>
-                  ) : (
-                    'target room rate'
-                  )}
-                  )
+                  {selectedRoom
+                    ? t('changeRoom.useNewRate', { rate: formatMoney(selectedRoom.pricePerNight) })
+                    : t('changeRoom.targetRoomRate')}
                   {!isManager && (
                     <span className="ml-1.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
-                      Managers only
+                      {t('changeRoom.managersOnly')}
                     </span>
                   )}
                 </span>
@@ -348,7 +347,7 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
             {!keepCurrentRate && selectedRoom && (
               <div className="pt-2 border-t border-slate-200 text-xs flex items-center justify-between">
                 <span className="text-slate-600">
-                  Rate difference ({remainingNights} nights):
+                  {t('changeRoom.rateDifference', { count: remainingNights })}
                 </span>
                 <span
                   className={`font-mono font-bold ${
@@ -360,10 +359,10 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
                   }`}
                 >
                   {adjustmentInfo.adjustmentAmount > 0
-                    ? `+${formatMoney(adjustmentInfo.adjustmentAmount)} (Charge)`
+                    ? t('changeRoom.diffCharge', { amount: formatMoney(adjustmentInfo.adjustmentAmount) })
                     : adjustmentInfo.adjustmentAmount < 0
-                    ? `-${formatMoney(Math.abs(adjustmentInfo.adjustmentAmount))} (Credit Void)`
-                    : 'No difference'}
+                    ? t('changeRoom.diffCredit', { amount: formatMoney(Math.abs(adjustmentInfo.adjustmentAmount)) })
+                    : t('changeRoom.noDifference')}
                 </span>
               </div>
             )}
@@ -383,14 +382,14 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !selectedRoomId || validRooms.length === 0}
               className="px-5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl shadow-xs transition-colors cursor-pointer"
             >
-              {isSubmitting ? 'Moving Room...' : 'Confirm Room Move'}
+              {isSubmitting ? t('changeRoom.moving') : t('changeRoom.confirmBtn')}
             </button>
           </div>
         </form>
