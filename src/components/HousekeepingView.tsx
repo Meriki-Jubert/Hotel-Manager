@@ -1,19 +1,15 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
 import { Room } from '../types/hms';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   Sparkles,
   CheckCircle2,
   Clock,
-  AlertTriangle,
   User,
-  Bed,
-  Check,
-  RefreshCw,
   Wrench,
-  Package,
-  Layers
+  Package
 } from 'lucide-react';
 
 interface HousekeepingViewProps {
@@ -21,10 +17,11 @@ interface HousekeepingViewProps {
 }
 
 export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMaintenance }) => {
+  const { t } = useT();
   const { rooms, updateRoomStatus, roomTypes, showNotification, activeBranchId } = useHMS();
 
   if (activeBranchId === 'all') {
-    return <SelectBranchNotice screenName="Housekeeping" />;
+    return <SelectBranchNotice screenName={t('housekeeping.screenName')} />;
   }
 
   // Housekeeping supply stock counter (in-memory demo)
@@ -42,7 +39,13 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
         i === index && item.stock > 0 ? { ...item, stock: item.stock - 1 } : item
       )
     );
-    showNotification(`Restocked 1 ${supplies[index].unit} of ${supplies[index].name}`, 'info');
+    showNotification(
+      t('housekeeping.restockedNotification', {
+        unit: supplies[index].unit,
+        name: supplies[index].name
+      }),
+      'info'
+    );
   };
 
   const activeRoomTypeIds = new Set(roomTypes.filter((rt) => rt.isActive !== false).map((rt) => rt.id));
@@ -51,7 +54,6 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
   const dirtyRooms = activeRooms.filter((r) => r.status === 'dirty');
   const cleaningRooms = activeRooms.filter((r) => r.status === 'cleaning');
   const availableRooms = activeRooms.filter((r) => r.status === 'available');
-  const occupiedRooms = activeRooms.filter((r) => r.status === 'occupied');
 
   return (
     <div className="space-y-6">
@@ -60,18 +62,18 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500" />
-            Housekeeping Dispatch & Room Hygiene Control
+            {t('housekeeping.title')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Turnover queue, sanitation verification, and room linen replenishment
+            {t('housekeeping.subtitle')}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <span className="text-[11px] text-slate-500 block">Rooms Requiring Turnover:</span>
+            <span className="text-[11px] text-slate-500 block">{t('housekeeping.roomsRequiringTurnover')}</span>
             <span className="text-sm font-bold text-amber-600 font-mono">
-              {dirtyRooms.length + cleaningRooms.length} Pending
+              {t('housekeeping.pendingCount', { count: dirtyRooms.length + cleaningRooms.length })}
             </span>
           </div>
         </div>
@@ -85,10 +87,10 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-xs uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              1. Turnover Needed ({dirtyRooms.length})
+              {t('housekeeping.col1Title', { count: dirtyRooms.length })}
             </h3>
             <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">
-              High Priority
+              {t('housekeeping.priority.high')}
             </span>
           </div>
 
@@ -104,31 +106,31 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
                     <span className="text-base font-mono font-bold text-slate-900">
                       Room #{room.roomNumber}
                     </span>
-                    <span className="text-[11px] text-slate-500 font-medium">Floor {room.floor}</span>
+                    <span className="text-[11px] text-slate-500 font-medium">{t('housekeeping.floor', { floor: room.floor })}</span>
                   </div>
 
                   <div className="text-xs text-slate-600">
                     <div>{type?.name}</div>
                     <div className="text-[11px] text-amber-700 italic mt-0.5">
-                      {room.maintenanceNote || 'Guest checked out • Needs linen swap & vacuuming'}
+                      {room.maintenanceNote || t('housekeeping.defaultTurnoverNote')}
                     </div>
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                     <button
                       onClick={() => onReportMaintenance(room)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg text-xs"
-                      title="Report Maintenance Issue"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg text-xs cursor-pointer"
+                      title={t('housekeeping.reportMaintenanceTooltip')}
                     >
                       <Wrench className="w-3.5 h-3.5" />
                     </button>
 
                     <button
                       onClick={() => updateRoomStatus(room.id, 'cleaning')}
-                      className="flex-1 py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                      className="flex-1 py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
                     >
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Start Cleaning</span>
+                      <span>{t('housekeeping.startCleaningBtn')}</span>
                     </button>
                   </div>
                 </div>
@@ -137,7 +139,7 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
 
             {dirtyRooms.length === 0 && (
               <div className="p-8 text-center bg-white/70 rounded-xl border border-dashed border-amber-200 text-amber-800 text-xs">
-                All rooms cleaned and turned over!
+                {t('housekeeping.allCleaned')}
               </div>
             )}
           </div>
@@ -148,10 +150,10 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-xs uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse" />
-              2. In Cleaning ({cleaningRooms.length})
+              {t('housekeeping.col2Title', { count: cleaningRooms.length })}
             </h3>
             <span className="text-[10px] text-purple-700 font-semibold bg-purple-100 px-2 py-0.5 rounded-full">
-              Active Crew
+              {t('housekeeping.activeCrew')}
             </span>
           </div>
 
@@ -167,31 +169,31 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
                     <span className="text-base font-mono font-bold text-slate-900">
                       Room #{room.roomNumber}
                     </span>
-                    <span className="text-[11px] text-slate-500 font-medium">Floor {room.floor}</span>
+                    <span className="text-[11px] text-slate-500 font-medium">{t('housekeeping.floor', { floor: room.floor })}</span>
                   </div>
 
                   <div className="text-xs text-slate-600">
                     <div>{type?.name}</div>
                     <div className="text-[11px] text-purple-700 flex items-center gap-1 mt-1 font-medium">
-                      <User className="w-3 h-3" /> Assigned: {room.assignedHousekeeper || 'Therese Mbi'}
+                      <User className="w-3 h-3" /> {t('housekeeping.assigned', { name: room.assignedHousekeeper || 'Therese Mbi' })}
                     </div>
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                     <button
                       onClick={() => onReportMaintenance(room)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg text-xs"
-                      title="Report Maintenance Issue"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg text-xs cursor-pointer"
+                      title={t('housekeeping.reportMaintenanceTooltip')}
                     >
                       <Wrench className="w-3.5 h-3.5" />
                     </button>
 
                     <button
                       onClick={() => updateRoomStatus(room.id, 'available')}
-                      className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                      className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Inspect & Mark Available</span>
+                      <span>{t('housekeeping.inspectBtn')}</span>
                     </button>
                   </div>
                 </div>
@@ -200,7 +202,7 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
 
             {cleaningRooms.length === 0 && (
               <div className="p-8 text-center bg-white/70 rounded-xl border border-dashed border-purple-200 text-purple-800 text-xs">
-                No rooms currently undergoing cleaning.
+                {t('housekeeping.noCleaning')}
               </div>
             )}
           </div>
@@ -211,10 +213,10 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-xs uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              3. Inspected & Available ({availableRooms.length})
+              {t('housekeeping.col3Title', { count: availableRooms.length })}
             </h3>
             <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
-              Ready for Front Desk
+              {t('housekeeping.readyFrontDesk')}
             </span>
           </div>
 
@@ -230,15 +232,15 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
                     <span className="font-mono font-bold text-sm text-slate-900">
                       Room #{room.roomNumber}
                     </span>
-                    <div className="text-[11px] text-slate-500">{type?.name} (Fl. {room.floor})</div>
+                    <div className="text-[11px] text-slate-500">{type?.name} ({t('housekeeping.floor', { floor: room.floor })})</div>
                   </div>
 
                   <div className="text-right">
                     <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      Sanitized
+                      {t('housekeeping.sanitized')}
                     </span>
                     <div className="text-[10px] text-slate-400 mt-0.5">
-                      {room.lastCleaned?.split(' ')[1] || 'Today'}
+                      {room.lastCleaned?.split(' ')[1] || t('housekeeping.today')}
                     </div>
                   </div>
                 </div>
@@ -255,10 +257,10 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
           <div className="flex items-center gap-2">
             <Package className="w-5 h-5 text-indigo-600" />
             <h3 className="font-bold text-sm text-slate-900">
-              Housekeeping Consumables & Linens Stock Log
+              {t('housekeeping.suppliesTitle')}
             </h3>
           </div>
-          <span className="text-xs text-slate-500">Auto-replenishment tracking</span>
+          <span className="text-xs text-slate-500">{t('housekeeping.suppliesSubtitle')}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
@@ -278,9 +280,9 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMain
 
               <button
                 onClick={() => handleUseSupply(idx)}
-                className="w-full py-1 text-[11px] font-semibold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg shadow-2xs transition-colors"
+                className="w-full py-1 text-[11px] font-semibold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg shadow-2xs transition-colors cursor-pointer"
               >
-                Log 1 Restocked
+                {t('housekeeping.logRestocked')}
               </button>
             </div>
           ))}

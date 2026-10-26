@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
-import { RoomType, Room, PaymentMethod, BookingSource } from '../types/hms';
+import { useT } from '../i18n/LanguageContext';
+import { tBookingSource, tPaymentMethod, tVipTier } from '../i18n/labels';
+import { Room, PaymentMethod, BookingSource } from '../types/hms';
 import { getNextLocalDateString, calculateStayNights, isValidDateString } from '../utils/dateUtils';
 import { checkAvailability, getAvailableRoomCount } from '../utils/availability';
 import { getGuestStats } from '../utils/guestStats';
@@ -11,16 +13,11 @@ import {
   User,
   Phone,
   Mail,
-  Building,
   CreditCard,
-  FileText,
   DollarSign,
   AlertCircle,
-  CheckCircle2,
   BookmarkCheck,
   Search,
-  Sparkles,
-  Users,
   ShieldCheck
 } from 'lucide-react';
 
@@ -35,6 +32,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   onSuccess,
   initialRoom
 }) => {
+  const { t } = useT();
   const {
     roomTypes,
     rooms,
@@ -170,45 +168,45 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     setErrorMsg(null);
 
     // Validation
-    if (!guestName.trim()) {
-      setErrorMsg('Guest full name is required.');
-      return;
-    }
-    if (!phone.trim() || phone.trim() === '+237') {
-      setErrorMsg('A valid contact phone number is required.');
+    if (!guestName.trim() || !phone.trim() || phone.trim() === '+237') {
+      setErrorMsg(t('newRes.errNamePhoneRequired'));
       return;
     }
     if (!isValidDateString(checkInDate) || !isValidDateString(checkOutDate)) {
-      setErrorMsg('Please enter valid dates (YYYY-MM-DD).');
+      setErrorMsg(t('newRes.errValidDates'));
       return;
     }
     if (checkOutDate <= checkInDate) {
-      setErrorMsg('Check-out date must be strictly after check-in date.');
+      setErrorMsg(t('newRes.errCheckOutAfter'));
       return;
     }
     if (checkInDate < businessDate) {
-      setErrorMsg(`Check-in date cannot be in the past (Hotel business date: ${businessDate}).`);
+      setErrorMsg(t('newRes.errPastDate', { date: businessDate }));
       return;
     }
     if (adults < 1) {
-      setErrorMsg('At least 1 adult is required.');
+      setErrorMsg(t('newRes.errAdultRequired'));
       return;
     }
     if (currentRoomType && adults + children > currentRoomType.maxCapacity) {
       setErrorMsg(
-        `Total guests (${adults + children}) exceeds maximum capacity (${currentRoomType.maxCapacity}) for ${currentRoomType.name}.`
+        t('newRes.errCapacity', {
+          total: adults + children,
+          cap: currentRoomType.maxCapacity,
+          type: currentRoomType.name
+        })
       );
       return;
     }
     if (selectedRoomId) {
       const roomAvailable = availableRoomsForRange.some((r) => r.id === selectedRoomId);
       if (!roomAvailable) {
-        setErrorMsg('The selected room is not available for these dates. Please choose another room or select auto-assign.');
+        setErrorMsg(t('newRes.errRoomNotAvailable'));
         return;
       }
     } else {
       if (availableRoomCount === 0) {
-        setErrorMsg(`All rooms of type ${currentRoomType?.name || 'this category'} are booked for the selected dates.`);
+        setErrorMsg(t('newRes.errNoAvailability', { type: currentRoomType?.name || '' }));
         return;
       }
     }
@@ -234,7 +232,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     });
 
     if (!res.success) {
-      setErrorMsg(res.error || 'Failed to create reservation.');
+      setErrorMsg(res.error || t('newRes.errFail'));
       return;
     }
 
@@ -248,7 +246,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in fade-in zoom-in-95">
         
-        {/* Modal Header - shrink-0 pinned at top */}
+        {/* Modal Header */}
         <div className="bg-slate-900 text-white px-5 sm:px-6 py-4 flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-champagne-gold-500/20 text-champagne-gold-400 border border-champagne-gold-500/30">
@@ -256,10 +254,10 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                New Reservation Booking
+                {t('newRes.title')}
               </h2>
               <p className="text-xs text-slate-300">
-                Book for future arrival dates with live inventory & rate validation
+                {t('newRes.subtitle')}
               </p>
             </div>
           </div>
@@ -285,7 +283,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Search className="w-3.5 h-3.5 text-slate-500" />
-                Find Repeat Guest (CRM Lookup)
+                {t('newRes.guestLookupTitle')}
               </label>
               {selectedGuestId && (
                 <button
@@ -299,36 +297,39 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   }}
                   className="text-[11px] text-rose-600 hover:underline font-semibold"
                 >
-                  Clear Selected Guest
+                  {t('newRes.clearLookup')}
                 </button>
               )}
             </div>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by name, phone or ID # to autofill existing profile..."
+                placeholder={t('newRes.searchPlaceholder')}
                 value={guestSearch}
                 onChange={(e) => setGuestSearch(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
               />
               {matchedGuests.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-slate-100">
-                  {matchedGuests.map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => handleSelectExistingGuest(g)}
-                      className="w-full text-left p-2.5 hover:bg-slate-50 flex items-center justify-between text-xs transition-colors"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-800">{g.fullName}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{g.phone} • {g.nationality}</div>
-                      </div>
-                      <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-semibold text-slate-700">
-                        {g.vipTier} ({getGuestStats(g.id, allReservations, allTransactions).visits} visits)
-                      </span>
-                    </button>
-                  ))}
+                  {matchedGuests.map((g) => {
+                    const stats = getGuestStats(g.id, allReservations, allTransactions);
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => handleSelectExistingGuest(g)}
+                        className="w-full text-left p-2.5 hover:bg-slate-50 flex items-center justify-between text-xs transition-colors"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-800">{g.fullName}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{g.phone} • {g.nationality}</div>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-semibold text-slate-700">
+                          {tVipTier(t, g.vipTier)} ({t('crm.visitsCount', { count: stats.visits })})
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -338,14 +339,14 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Guest Full Name <span className="text-rose-500">*</span>
+                {t('newRes.fullName')}
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Jean-Luc Nguemo"
+                  placeholder={t('newRes.fullNamePlaceholder')}
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 focus:bg-white"
@@ -355,14 +356,14 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Contact Phone # <span className="text-rose-500">*</span>
+                {t('newRes.phone')}
               </label>
               <div className="relative">
                 <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
-                  placeholder="+237 6XX XX XX XX"
+                  placeholder={t('newRes.phonePlaceholder')}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs font-mono bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 focus:bg-white"
@@ -372,13 +373,13 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Email Address (Optional)
+                {t('newRes.email')}
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
-                  placeholder="guest@example.com"
+                  placeholder={t('newRes.emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 focus:bg-white"
@@ -388,20 +389,20 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Booking Channel / Source <span className="text-rose-500">*</span>
+                {t('newRes.bookingSource')} <span className="text-rose-500">*</span>
               </label>
               <select
                 value={source}
                 onChange={(e) => setSource(e.target.value as BookingSource)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 focus:bg-white font-medium"
               >
-                <option value="Phone">Phone Call</option>
-                <option value="WhatsApp">WhatsApp</option>
-                <option value="Walk-In">Walk-In Inquiry</option>
-                <option value="Direct Website">Direct Website</option>
-                <option value="Agency">Travel Agency</option>
-                <option value="OTA - Booking.com">OTA - Booking.com</option>
-                <option value="Corporate">Corporate Account</option>
+                <option value="Phone">{tBookingSource(t, 'Phone')}</option>
+                <option value="WhatsApp">{tBookingSource(t, 'WhatsApp')}</option>
+                <option value="Walk-In">{tBookingSource(t, 'Walk-In')}</option>
+                <option value="Direct Website">{tBookingSource(t, 'Direct Website')}</option>
+                <option value="Agency">{tBookingSource(t, 'Agency')}</option>
+                <option value="OTA - Booking.com">{tBookingSource(t, 'OTA - Booking.com')}</option>
+                <option value="Corporate">{tBookingSource(t, 'Corporate')}</option>
               </select>
             </div>
           </div>
@@ -410,13 +411,13 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-champagne-gold-600" />
-              Reservation Schedule & Room Selection
+              {t('newRes.stayHeading')}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Arrival / Check-in Date <span className="text-rose-500">*</span>
+                  {t('newRes.checkInDate')}
                 </label>
                 <input
                   type="date"
@@ -427,13 +428,13 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  Today's hotel date: <strong className="font-mono">{businessDate}</strong>
+                  {t('newRes.todayHotelDate', { date: businessDate })}
                 </span>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Departure / Check-out Date <span className="text-rose-500">*</span>
+                  {t('newRes.checkOutDate')}
                 </label>
                 <input
                   type="date"
@@ -444,7 +445,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  Duration: <strong className="font-mono text-emerald-700">{nights} night(s)</strong>
+                  {t('newRes.duration', { nights })}
                 </span>
               </div>
             </div>
@@ -452,19 +453,23 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Room Category / Type <span className="text-rose-500">*</span>
+                  {t('newRes.roomCategory')}
                 </label>
                 <select
                   value={roomTypeId}
                   onChange={(e) => {
                     setRoomTypeId(e.target.value);
-                    setSelectedRoomId(''); // Reset specific room choice
+                    setSelectedRoomId('');
                   }}
                   className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-medium"
                 >
                   {activeRoomTypes.map((rt) => (
                     <option key={rt.id} value={rt.id}>
-                      {rt.name} ({formatMoney(rt.basePrice)}/nt • Cap: {rt.maxCapacity})
+                      {t('newRes.roomOption', {
+                        name: rt.name,
+                        rate: formatMoney(rt.basePrice),
+                        cap: rt.maxCapacity
+                      })}
                     </option>
                   ))}
                 </select>
@@ -472,9 +477,12 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                  <span>Specific Room (Optional)</span>
+                  <span>{t('newRes.specificRoom')}</span>
                   <span className="text-[10px] font-semibold text-emerald-700">
-                    {availableRoomCount} {availableRoomCount === 1 ? 'room' : 'rooms'} available
+                    {t('newRes.roomsAvailableCount', {
+                      count: availableRoomCount,
+                      plural: availableRoomCount === 1 ? t('newRes.roomSingular') : t('newRes.roomPlural')
+                    })}
                   </span>
                 </label>
                 <select
@@ -483,17 +491,17 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 font-medium"
                 >
                   <option value="">
-                    Auto-assign at Check-in (Hold room category)
+                    {t('newRes.autoAssign')}
                   </option>
                   {availableRoomsForRange.map((r) => (
                     <option key={r.id} value={r.id}>
-                      Room #{r.roomNumber} (Floor {r.floor} • {formatMoney(r.pricePerNight)}/nt)
+                      {t('newRes.specificRoomOption', { number: r.roomNumber, floor: r.floor })} ({formatMoney(r.pricePerNight)}/nt)
                     </option>
                   ))}
                 </select>
                 {availableRoomCount === 0 && (
                   <p className="text-[10px] text-rose-600 font-bold mt-1">
-                    No rooms of this category available for the selected dates!
+                    {t('newRes.errNoAvailability', { type: currentRoomType?.name || '' })}
                   </p>
                 )}
               </div>
@@ -503,7 +511,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             <div className="grid grid-cols-2 gap-3.5 pt-1">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Adults (18+) <span className="text-rose-500">*</span>
+                  {t('newRes.adults')}
                 </label>
                 <input
                   type="number"
@@ -517,7 +525,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Children
+                  {t('newRes.children')}
                 </label>
                 <input
                   type="number"
@@ -536,17 +544,17 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
                 <CreditCard className="w-4 h-4 text-emerald-600" />
-                Optional Advance Deposit & Folio Posting
+                {t('newRes.advanceDepositHeading')}
               </h3>
               <span className="text-[11px] text-emerald-800 font-medium">
-                Posted immediately to reservation folio
+                {t('newRes.postedImmediately')}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Deposit Amount (Leave 0 if unpaid)
+                  {t('newRes.depositAmount')}
                 </label>
                 <div className="relative">
                   <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -564,7 +572,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Deposit Payment Method
+                  {t('newRes.depositMethod')}
                 </label>
                 <select
                   value={depositMethod}
@@ -572,11 +580,11 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   disabled={depositAmount <= 0}
                   className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium disabled:opacity-50"
                 >
-                  <option value="momo">MTN Mobile Money (MoMo)</option>
-                  <option value="orange_money">Orange Money</option>
-                  <option value="cash">Cash Settlement</option>
-                  <option value="card">Visa / Mastercard POS</option>
-                  <option value="bank_transfer">Direct Bank Transfer</option>
+                  <option value="momo">{tPaymentMethod(t, 'momo')}</option>
+                  <option value="orange_money">{tPaymentMethod(t, 'orange_money')}</option>
+                  <option value="cash">{tPaymentMethod(t, 'cash')}</option>
+                  <option value="card">{tPaymentMethod(t, 'card')}</option>
+                  <option value="bank_transfer">{tPaymentMethod(t, 'bank_transfer')}</option>
                 </select>
               </div>
             </div>
@@ -584,22 +592,22 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             {/* Live Pricing Breakdown Bar */}
             <div className="bg-white p-3 rounded-lg border border-emerald-100 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Nightly Rate</span>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('newRes.nightlyRate')}</span>
                 <span className="font-mono font-bold text-slate-800">{formatMoney(nightlyRate)}</span>
               </div>
               <div className="text-slate-300">•</div>
               <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Nights</span>
-                <span className="font-mono font-bold text-slate-800">{nights} night(s)</span>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('newRes.nights')}</span>
+                <span className="font-mono font-bold text-slate-800">{t('newRes.nightsCount', { count: nights })}</span>
               </div>
               <div className="text-slate-300">•</div>
               <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Total Stay Cost</span>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('newRes.totalStayCost')}</span>
                 <span className="font-mono font-bold text-slate-900 text-sm">{formatMoney(totalStayAmount)}</span>
               </div>
               <div className="text-slate-300">•</div>
               <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Balance Due at Check-in</span>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('newRes.balanceDueCheckIn')}</span>
                 <span className={`font-mono font-bold ${balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                   {formatMoney(balanceDue)}
                 </span>
@@ -612,10 +620,10 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-slate-700 flex items-center gap-1.5 shrink-0">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Cancellation Terms:
+                {t('newRes.cancellationTerms')}
               </span>
               <span className="text-slate-600 font-medium text-right">
-                {getCancellationPolicySummary(hotelConfig.cancellationPolicy)}
+                {getCancellationPolicySummary(hotelConfig.cancellationPolicy, t)}
               </span>
             </div>
 
@@ -623,10 +631,10 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
               <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between gap-3">
                 <div>
                   <label htmlFor="newResNonRefundable" className="font-bold text-slate-800 cursor-pointer block">
-                    Non-refundable Rate
+                    {t('newRes.nonRefundableLabel')}
                   </label>
                   <p className="text-[11px] text-slate-500">
-                    If cancelled or no-show, full stay amount applies as cancellation fee
+                    {t('newRes.nonRefundableSub')}
                   </p>
                 </div>
                 <input
@@ -643,11 +651,11 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
           {/* Special Requests */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              Special Requests or Notes
+              {t('newRes.specialRequests')}
             </label>
             <textarea
               rows={2}
-              placeholder="e.g. Quiet room preferred, late evening arrival, airport transfer needed..."
+              placeholder={t('newRes.specialRequestsPlaceholder')}
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500 focus:bg-white resize-none"
@@ -659,17 +667,17 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={availableRoomsForRange.length === 0}
-              className="px-5 py-2.5 bg-champagne-gold-500 hover:bg-champagne-gold-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs shadow-md shadow-champagne-gold-500/20 transition-all flex items-center gap-1.5"
+              className="px-5 py-2.5 bg-champagne-gold-500 hover:bg-champagne-gold-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs shadow-md shadow-champagne-gold-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <BookmarkCheck className="w-4 h-4" />
-              <span>Confirm Reservation</span>
+              <span>{t('newRes.confirmBtn')}</span>
             </button>
           </div>
         </form>

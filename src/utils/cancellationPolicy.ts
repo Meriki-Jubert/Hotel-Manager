@@ -1,4 +1,5 @@
 import { CancellationPolicy, Reservation } from '../types/hms';
+import { translate, Language } from '../i18n/translate';
 
 export interface CalculateCancellationFeeArgs {
   policy: CancellationPolicy;
@@ -127,22 +128,33 @@ export function calculateCancellationFee({
 /**
  * One-line summary of the free-cancellation window for the new-reservation modal.
  */
-export function getCancellationPolicySummary(policy: CancellationPolicy | undefined): string {
+export function getCancellationPolicySummary(
+  policy: CancellationPolicy | undefined,
+  tOrLang?: ((key: any, vars?: any) => string) | Language
+): string {
   const safe =
     policy || {
       tiers: [],
       noShow: { feeType: 'nights' as const, value: 1 },
       allowNonRefundable: false
     };
+
+  const tr =
+    typeof tOrLang === 'function'
+      ? tOrLang
+      : typeof tOrLang === 'string'
+      ? (k: string, v?: any) => translate(tOrLang, k, v)
+      : (k: string, v?: any) => translate('en', k, v);
+
   const tiers = Array.isArray(safe.tiers) ? safe.tiers : [];
   if (tiers.length === 0) {
-    return 'Free cancellation';
+    return tr('policy.freeCancellation');
   }
   const maxDays = Math.max(...tiers.map((t) => t.daysBeforeArrival));
   if (maxDays <= 0) {
-    return 'Cancellation fees may apply from the booking date';
+    return tr('policy.feesMayApply');
   }
-  return `Free cancellation until ${maxDays} day${maxDays === 1 ? '' : 's'} before arrival`;
+  return tr('policy.freeUntilDays', { days: maxDays, plural: maxDays === 1 ? '' : 's' });
 }
 
 export const DEFAULT_CANCELLATION_POLICY: CancellationPolicy = {

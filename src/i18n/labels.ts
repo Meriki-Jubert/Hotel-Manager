@@ -164,3 +164,133 @@ export function tRoomMoveReason(t: TFunction, reason: string): string {
       return reason;
   }
 }
+
+/**
+ * Shared helper for translating housekeeping task states
+ */
+export function tHousekeepingStatus(t: TFunction, status: string): string {
+  switch (status) {
+    case 'dirty':
+      return t('housekeeping.status.dirty');
+    case 'cleaning':
+      return t('housekeeping.status.cleaning');
+    case 'inspected':
+      return t('housekeeping.status.inspected');
+    case 'available':
+      return t('housekeeping.status.available');
+    default:
+      return status;
+  }
+}
+
+/**
+ * Shared helper for translating housekeeping priorities
+ */
+export function tHousekeepingPriority(t: TFunction, priority: string): string {
+  switch (priority.toLowerCase()) {
+    case 'normal':
+      return t('housekeeping.priority.normal');
+    case 'high':
+      return t('housekeeping.priority.high');
+    case 'urgent':
+      return t('housekeeping.priority.urgent');
+    default:
+      return priority;
+  }
+}
+
+/**
+ * Shared helper for translating maintenance priorities / severity
+ */
+export function tMaintenancePriority(t: TFunction, priority: string): string {
+  switch (priority.toLowerCase()) {
+    case 'low':
+      return t('maintenance.priority.low');
+    case 'medium':
+      return t('maintenance.priority.medium');
+    case 'high':
+      return t('maintenance.priority.high');
+    case 'emergency':
+    case 'urgent':
+      return t('maintenance.priority.emergency');
+    default:
+      return priority;
+  }
+}
+
+export function tMaintenancePriorityShort(t: TFunction, priority: string): string {
+  switch (priority.toLowerCase()) {
+    case 'low':
+      return t('maintenance.priorityShort.low');
+    case 'medium':
+      return t('maintenance.priorityShort.medium');
+    case 'high':
+      return t('maintenance.priorityShort.high');
+    case 'emergency':
+    case 'urgent':
+      return t('maintenance.priorityShort.emergency');
+    default:
+      return priority;
+  }
+}
+
+/**
+ * Shared helper for translating maintenance categories
+ */
+export function tMaintenanceCategory(t: TFunction, category: string): string {
+  switch (category) {
+    case 'Air Conditioning':
+      return t('maintenance.cat.airConditioning');
+    case 'Plumbing':
+      return t('maintenance.cat.plumbing');
+    case 'Electrical':
+      return t('maintenance.cat.electrical');
+    case 'Television':
+      return t('maintenance.cat.television');
+    case 'Door Lock':
+      return t('maintenance.cat.doorLock');
+    case 'Furniture':
+      return t('maintenance.cat.furniture');
+    case 'Other':
+      return t('maintenance.cat.other');
+    default:
+      return category;
+  }
+}
+
+/**
+ * Shared helper for translating maintenance ticket status
+ */
+export function tMaintenanceStatus(t: TFunction, status: string): string {
+  switch (status) {
+    case 'All':
+      return t('maintenance.status.all');
+    case 'Reported':
+      return t('maintenance.status.reported');
+    case 'In Progress':
+      return t('maintenance.status.inProgress');
+    case 'Resolved':
+      return t('maintenance.status.resolved');
+    default:
+      return status;
+  }
+}
+
+/**
+ * Shared helper for translating VIP tier
+ */
+export function tVipTier(t: TFunction, tier: string): string {
+  switch (tier) {
+    case 'Standard':
+      return t('vip.standard');
+    case 'Silver':
+      return t('vip.silver');
+    case 'Gold':
+      return t('vip.gold');
+    case 'VIP':
+      return t('vip.vip');
+    default:
+      return tier;
+  }
+}
+

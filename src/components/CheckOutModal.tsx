@@ -319,7 +319,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                             value={line.amount}
                             onChange={(e) => handleUpdateSplitLine(line.id, 'amount', Number(e.target.value))}
                             className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-900"
-                            placeholder="Amount"
+                            placeholder={t('checkOut.amountPlaceholder')}
                             required
                           />
                         </div>

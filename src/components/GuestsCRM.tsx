@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
+import { tVipTier } from '../i18n/labels';
 import { Guest } from '../types/hms';
 import { getGuestStats } from '../utils/guestStats';
 import {
@@ -8,19 +10,15 @@ import {
   PlusCircle,
   Phone,
   Mail,
-  CreditCard,
-  Crown,
   FileText,
-  Calendar,
-  Building,
   Car
 } from 'lucide-react';
 
 export const GuestsCRM: React.FC = () => {
+  const { t } = useT();
   const { guests, allReservations, allTransactions, formatMoney, addGuest } = useHMS();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [showAddGuest, setShowAddGuest] = useState(false);
 
   // New guest inputs
@@ -86,10 +84,10 @@ export const GuestsCRM: React.FC = () => {
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-600" />
-            Guest Profile CRM & Guest History
+            {t('crm.title')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Police registry records, lifetime spend, VIP tiers, and guest preferences
+            {t('crm.subtitle')}
           </p>
         </div>
 
@@ -98,7 +96,7 @@ export const GuestsCRM: React.FC = () => {
           className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
         >
           <PlusCircle className="w-4 h-4 text-emerald-400" />
-          <span>New Guest Profile</span>
+          <span>{t('crm.newProfileBtn')}</span>
         </button>
       </div>
 
@@ -107,54 +105,54 @@ export const GuestsCRM: React.FC = () => {
         <form onSubmit={handleCreateGuest} className="bg-white p-5 rounded-xl border border-slate-200 shadow-md space-y-4">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-4 h-4 text-emerald-600" />
-            Add New Guest Profile
+            {t('crm.addTitle')}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('crm.fullName')}</label>
               <input
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. John Doe"
+                placeholder={t('crm.fullNamePlaceholder')}
                 className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number *</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('crm.phone')}</label>
               <input
                 type="text"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+237 ..."
+                placeholder={t('crm.phonePlaceholder')}
                 className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Email (Optional)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('crm.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. john@example.com"
+                placeholder={t('crm.emailPlaceholder')}
                 className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">ID Card / Passport # *</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('crm.idCard')}</label>
               <input
                 type="text"
                 required
                 value={idCardNumber}
                 onChange={(e) => setIdCardNumber(e.target.value)}
-                placeholder="ID or Passport Number"
+                placeholder={t('crm.idPlaceholder')}
                 className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Nationality</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('crm.nationality')}</label>
               <input
                 type="text"
                 value={nationality}
@@ -163,26 +161,26 @@ export const GuestsCRM: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">VIP Tier</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('crm.vipTier')}</label>
               <select
                 value={vipTier}
                 onChange={(e) => setVipTier(e.target.value as Guest['vipTier'])}
                 className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-semibold"
               >
-                <option value="Standard">Standard</option>
-                <option value="Silver">Silver</option>
-                <option value="Gold">Gold</option>
-                <option value="VIP">VIP</option>
+                <option value="Standard">{tVipTier(t, 'Standard')}</option>
+                <option value="Silver">{tVipTier(t, 'Silver')}</option>
+                <option value="Gold">{tVipTier(t, 'Gold')}</option>
+                <option value="VIP">{tVipTier(t, 'VIP')}</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Notes / Preferences</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">{t('crm.notes')}</label>
             <textarea
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Guest preferences, room allergies, etc."
+              placeholder={t('crm.notesPlaceholder')}
               className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
             />
           </div>
@@ -192,13 +190,13 @@ export const GuestsCRM: React.FC = () => {
               onClick={() => setShowAddGuest(false)}
               className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm cursor-pointer"
             >
-              Save Guest Profile
+              {t('crm.saveProfile')}
             </button>
           </div>
         </form>
@@ -211,7 +209,7 @@ export const GuestsCRM: React.FC = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search guests by name, phone, email, or ID number..."
+          placeholder={t('crm.searchPlaceholder')}
           className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 shadow-xs"
         />
       </div>
@@ -230,7 +228,7 @@ export const GuestsCRM: React.FC = () => {
                   <div>
                     <h3 className="font-bold text-sm text-slate-900">{guest.fullName}</h3>
                     <p className="text-[10px] text-slate-500 font-mono">
-                      {guest.nationality} • Added {guest.createdAt}
+                      {t('crm.addedOn', { nationality: guest.nationality, date: guest.createdAt })}
                     </p>
                   </div>
                   <span
@@ -238,7 +236,7 @@ export const GuestsCRM: React.FC = () => {
                       guest.vipTier
                     )}`}
                   >
-                    {guest.vipTier}
+                    {tVipTier(t, guest.vipTier)}
                   </span>
                 </div>
 
@@ -250,19 +248,19 @@ export const GuestsCRM: React.FC = () => {
                   <div className="flex items-center gap-1.5 truncate">
                     <Mail className="w-3.5 h-3.5 text-slate-400" />
                     <span className="truncate text-[11px]">
-                      {guest.email ? guest.email : <span className="text-slate-400 italic">No email</span>}
+                      {guest.email ? guest.email : <span className="text-slate-400 italic">{t('crm.noEmail')}</span>}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-slate-400" />
                     <span className="font-mono text-[10px] uppercase">
-                      {guest.idCardNumber ? `ID: ${guest.idCardNumber}` : <span className="text-slate-400 italic">No ID provided</span>}
+                      {guest.idCardNumber ? `ID: ${guest.idCardNumber}` : <span className="text-slate-400 italic">{t('crm.noId')}</span>}
                     </span>
                   </div>
                   {guest.vehicleReg && (
                     <div className="flex items-center gap-1.5">
                       <Car className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="font-mono text-[11px]">Plate: {guest.vehicleReg}</span>
+                      <span className="font-mono text-[11px]">{t('crm.plate', { plate: guest.vehicleReg })}</span>
                     </div>
                   )}
                 </div>
@@ -276,13 +274,13 @@ export const GuestsCRM: React.FC = () => {
 
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-slate-400 text-[10px] block">Lifetime Stays</span>
+                  <span className="text-slate-400 text-[10px] block">{t('crm.lifetimeStays')}</span>
                   <span className="font-bold font-mono text-slate-800">
-                    {stats.visits} visit(s)
+                    {t('crm.visitsCount', { count: stats.visits })}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-slate-400 text-[10px] block">Total Spend</span>
+                  <span className="text-slate-400 text-[10px] block">{t('crm.totalSpend')}</span>
                   <span className="font-bold font-mono text-emerald-700">
                     {formatMoney(stats.totalSpent)}
                   </span>
@@ -292,6 +290,12 @@ export const GuestsCRM: React.FC = () => {
           );
         })}
       </div>
+
+      {filteredGuests.length === 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500 text-xs">
+          {t('crm.noGuestsFound')}
+        </div>
+      )}
     </div>
   );
 };

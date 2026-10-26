@@ -1,18 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
+import { tBookingSource } from '../i18n/labels';
 import { Reservation, BookingSource } from '../types/hms';
 import { calculateStayNights, isValidDateString } from '../utils/dateUtils';
 import { checkAvailability, getAvailableRoomCount } from '../utils/availability';
 import { getCancellationPolicySummary } from '../utils/cancellationPolicy';
 import {
   X,
-  Calendar,
-  Building,
   Edit,
   AlertCircle,
   CheckCircle2,
-  BookmarkCheck,
-  User,
   ShieldCheck
 } from 'lucide-react';
 
@@ -27,6 +25,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  const { t } = useT();
   const {
     roomTypes,
     rooms,
@@ -121,24 +120,28 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     setErrorMsg(null);
 
     if (!isValidDateString(checkInDate) || !isValidDateString(checkOutDate)) {
-      setErrorMsg('Please enter valid dates.');
+      setErrorMsg(t('editRes.errValidDates'));
       return;
     }
     if (checkOutDate <= checkInDate) {
-      setErrorMsg('Check-out date must be strictly after check-in date.');
+      setErrorMsg(t('editRes.errCheckOutAfter'));
       return;
     }
     if (checkInDate < businessDate) {
-      setErrorMsg(`Check-in date cannot be in the past (Hotel business date: ${businessDate}).`);
+      setErrorMsg(t('editRes.errPastDate', { date: businessDate }));
       return;
     }
     if (adults < 1) {
-      setErrorMsg('At least 1 adult is required.');
+      setErrorMsg(t('editRes.errAdultRequired'));
       return;
     }
     if (currentRoomType && adults + children > currentRoomType.maxCapacity) {
       setErrorMsg(
-        `Total guests (${adults + children}) exceeds maximum capacity (${currentRoomType.maxCapacity}) for ${currentRoomType.name}.`
+        t('editRes.errCapacity', {
+          total: adults + children,
+          cap: currentRoomType.maxCapacity,
+          type: currentRoomType.name
+        })
       );
       return;
     }
@@ -146,12 +149,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     if (selectedRoomId) {
       const roomAvailable = availableRoomsForRange.some((r) => r.id === selectedRoomId);
       if (!roomAvailable) {
-        setErrorMsg('The selected room is not available for these dates.');
+        setErrorMsg(t('editRes.errRoomNotAvailable'));
         return;
       }
     } else {
       if (availableRoomCount === 0) {
-        setErrorMsg(`All rooms of type ${currentRoomType?.name} are booked for the selected dates.`);
+        setErrorMsg(t('editRes.errNoAvailability', { type: currentRoomType?.name || '' }));
         return;
       }
     }
@@ -169,7 +172,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     });
 
     if (!res.success) {
-      setErrorMsg(res.error || 'Failed to update reservation.');
+      setErrorMsg(res.error || t('editRes.errFail'));
       return;
     }
 
@@ -189,10 +192,10 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                Edit Reservation <span className="font-mono text-champagne-gold-400">{reservation.bookingCode}</span>
+                {t('editRes.title')} <span className="font-mono text-champagne-gold-400">{reservation.bookingCode}</span>
               </h2>
               <p className="text-xs text-slate-300">
-                Guest: <strong className="text-white">{reservation.guestName}</strong> ({reservation.guestPhone})
+                {t('editRes.guestSummary')}: <strong className="text-white">{reservation.guestName}</strong> ({t('editRes.phone', { phone: reservation.guestPhone })})
               </p>
             </div>
           </div>
@@ -217,7 +220,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Check-in Date <span className="text-rose-500">*</span>
+                {t('editRes.checkInDate')}
               </label>
               <input
                 type="date"
@@ -231,7 +234,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Check-out Date <span className="text-rose-500">*</span>
+                {t('editRes.checkOutDate')}
               </label>
               <input
                 type="date"
@@ -248,7 +251,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Room Category <span className="text-rose-500">*</span>
+                {t('editRes.roomCategory')}
               </label>
               <select
                 value={roomTypeId}
@@ -268,9 +271,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                <span>Specific Room</span>
+                <span>{t('editRes.specificRoom')}</span>
                 <span className="text-[10px] font-semibold text-emerald-700">
-                  {availableRoomCount} {availableRoomCount === 1 ? 'room' : 'rooms'} available
+                  {t('editRes.roomsAvailableCount', {
+                    count: availableRoomCount,
+                    plural: availableRoomCount === 1 ? t('newRes.roomSingular') : t('newRes.roomPlural')
+                  })}
                 </span>
               </label>
               <select
@@ -278,10 +284,10 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 onChange={(e) => setSelectedRoomId(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               >
-                <option value="">Auto-assign at Check-in (Hold Room Type)</option>
+                <option value="">{t('editRes.autoAssign')}</option>
                 {availableRoomsForRange.map((r) => (
                   <option key={r.id} value={r.id}>
-                    Room #{r.roomNumber} (Floor {r.floor} • {formatMoney(r.pricePerNight)}/nt)
+                    {t('editRes.specificRoomOption', { number: r.roomNumber, floor: r.floor })} ({formatMoney(r.pricePerNight)}/nt)
                   </option>
                 ))}
               </select>
@@ -291,7 +297,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           {/* Guest Count & Source */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Adults</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('editRes.adults')}</label>
               <input
                 type="number"
                 min={1}
@@ -302,7 +308,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Children</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('editRes.children')}</label>
               <input
                 type="number"
                 min={0}
@@ -313,26 +319,26 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Source</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">{t('editRes.source')}</label>
               <select
                 value={source}
                 onChange={(e) => setSource(e.target.value as BookingSource)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               >
-                <option value="Phone">Phone</option>
-                <option value="WhatsApp">WhatsApp</option>
-                <option value="Walk-In">Walk-In</option>
-                <option value="Direct Website">Website</option>
-                <option value="Agency">Agency</option>
-                <option value="OTA - Booking.com">OTA</option>
-                <option value="Corporate">Corporate</option>
+                <option value="Phone">{tBookingSource(t, 'Phone')}</option>
+                <option value="WhatsApp">{tBookingSource(t, 'WhatsApp')}</option>
+                <option value="Walk-In">{tBookingSource(t, 'Walk-In')}</option>
+                <option value="Direct Website">{tBookingSource(t, 'Direct Website')}</option>
+                <option value="Agency">{tBookingSource(t, 'Agency')}</option>
+                <option value="OTA - Booking.com">{tBookingSource(t, 'OTA - Booking.com')}</option>
+                <option value="Corporate">{tBookingSource(t, 'Corporate')}</option>
               </select>
             </div>
           </div>
 
           {/* Special Requests */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Special Requests</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">{t('editRes.specialRequests')}</label>
             <textarea
               rows={2}
               value={specialRequests}
@@ -344,19 +350,19 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           {/* Pricing Summary */}
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">New Rate</span>
-              <span className="font-mono font-bold text-slate-800">{nights} nts × {formatMoney(nightlyRate)}</span>
+              <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('editRes.newRate')}</span>
+              <span className="font-mono font-bold text-slate-800">{t('editRes.rateBreakdown', { nights, rate: formatMoney(nightlyRate) })}</span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Total Stay</span>
+              <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('editRes.totalStay')}</span>
               <span className="font-mono font-bold text-slate-900">{formatMoney(newTotalAmount)}</span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Deposit Paid</span>
+              <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('editRes.depositPaid')}</span>
               <span className="font-mono font-bold text-emerald-700">{formatMoney(reservation.amountPaid)}</span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Balance Due</span>
+              <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('editRes.balanceDue')}</span>
               <span className={`font-mono font-bold ${balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                 {formatMoney(balanceDue)}
               </span>
@@ -368,10 +374,10 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-slate-700 flex items-center gap-1.5 shrink-0">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Cancellation Terms:
+                {t('editRes.cancellationTerms')}
               </span>
               <span className="text-slate-600 font-medium text-right">
-                {getCancellationPolicySummary(hotelConfig.cancellationPolicy)}
+                {getCancellationPolicySummary(hotelConfig.cancellationPolicy, t)}
               </span>
             </div>
 
@@ -379,10 +385,10 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between gap-3">
                 <div>
                   <label htmlFor="editResNonRefundable" className="font-bold text-slate-800 cursor-pointer block">
-                    Non-refundable Rate
+                    {t('editRes.nonRefundableLabel')}
                   </label>
                   <p className="text-[11px] text-slate-500">
-                    Full stay amount applies as fee if cancelled or no-show
+                    {t('editRes.nonRefundableSub')}
                   </p>
                 </div>
                 <input
@@ -401,16 +407,16 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Save Changes</span>
+              <span>{t('editRes.saveChanges')}</span>
             </button>
           </div>
         </form>
