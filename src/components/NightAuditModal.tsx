@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
 import { NightAuditReport } from '../types/hms';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   X,
   Moon,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  RotateCw,
-  Printer,
-  ShieldCheck,
-  Building
+  CheckCircle2
 } from 'lucide-react';
 import { sumPaymentsByMethod } from '../utils/folio';
 
@@ -22,6 +15,7 @@ interface NightAuditModalProps {
 }
 
 export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => {
+  const { t, formatDate, formatNumber } = useT();
   const {
     rooms,
     reservations,
@@ -29,7 +23,6 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
     runNightAudit,
     businessDate,
     formatMoney,
-    nightAuditReports,
     hasMultipleActiveBranches,
     activeBranch,
     activeBranchId
@@ -41,11 +34,11 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
         <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden relative p-4">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 z-10"
+            className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 z-10 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
-          <SelectBranchNotice screenName="Night Audit Routine" />
+          <SelectBranchNotice screenName={t('audit.screenName')} />
         </div>
       </div>
     );
@@ -53,7 +46,7 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [actualCashFloat, setActualCashFloat] = useState<number>(175000);
-  const [auditNotes, setAuditNotes] = useState('Standard night shift closure. All folios verified.');
+  const [auditNotes, setAuditNotes] = useState(t('audit.defaultNotes'));
   const [completedReport, setCompletedReport] = useState<NightAuditReport | null>(null);
 
   // Compute active metrics for current day
@@ -88,24 +81,24 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold">End-of-Day Night Audit Routine</h2>
+                <h2 className="text-lg font-bold">{t('audit.title')}</h2>
                 {hasMultipleActiveBranches && activeBranch && activeBranchId !== 'all' && (
                   <span className="text-xs bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">
                     {activeBranch.name}
                   </span>
                 )}
                 <span className="text-xs bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800 font-mono">
-                  Date: {businessDate}
+                  {t('audit.date', { date: formatDate(businessDate) })}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Ledger reconciliation, recurring charges posting, and business date rollover
+                {t('audit.subtitle')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -114,10 +107,10 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
         {/* Step Indicator */}
         <div className="bg-slate-100 px-6 py-2.5 border-b border-slate-200 flex items-center justify-between text-xs font-semibold shrink-0">
           {[
-            { num: 1, title: 'In-House Review' },
-            { num: 2, title: 'Room Rate Posting' },
-            { num: 3, title: 'Cash Reconciliation' },
-            { num: 4, title: 'Audit Report' }
+            { num: 1, title: t('audit.step1') },
+            { num: 2, title: t('audit.step2') },
+            { num: 3, title: t('audit.step3') },
+            { num: 4, title: t('audit.step4') }
           ].map((st) => (
             <div
               key={st.num}
@@ -142,48 +135,48 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
         </div>
 
         {/* Body Content */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+        <div className="p-6 overflow-y-auto space-y-5 flex-1 text-xs text-slate-900">
           {step === 1 && (
             <div className="space-y-4">
               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-1">
                 <h3 className="font-bold text-sm text-indigo-950">
-                  Step 1: Occupancy & In-House Guest Audit
+                  {t('audit.step1Heading')}
                 </h3>
                 <p className="text-indigo-800">
-                  Verify that all currently checked-in guests are active in the system before batch folio calculations.
+                  {t('audit.step1Sub')}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="text-[11px] text-slate-500 font-medium block">Occupied Rooms</span>
+                  <span className="text-[11px] text-slate-500 font-medium block">{t('audit.occupiedRooms')}</span>
                   <span className="text-xl font-bold font-mono text-slate-900 mt-1 block">
                     {inHouseCount} / {totalRooms}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="text-[11px] text-slate-500 font-medium block">Occupancy Rate</span>
+                  <span className="text-[11px] text-slate-500 font-medium block">{t('audit.occupancyRate')}</span>
                   <span className="text-xl font-bold font-mono text-emerald-700 mt-1 block">
-                    {((inHouseCount / totalRooms) * 100).toFixed(1)}%
+                    {totalRooms > 0 ? ((inHouseCount / totalRooms) * 100).toFixed(1) : '0.0'}%
                   </span>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="text-[11px] text-slate-500 font-medium block">Est. Nightly Rev</span>
+                  <span className="text-[11px] text-slate-500 font-medium block">{t('audit.estNightlyRev')}</span>
                   <span className="text-sm font-bold font-mono text-slate-900 mt-2 block">
                     {formatMoney(estRoomRev)}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="text-[11px] text-slate-500 font-medium block">Open Folios</span>
+                  <span className="text-[11px] text-slate-500 font-medium block">{t('audit.openFolios')}</span>
                   <span className="text-xl font-bold font-mono text-indigo-700 mt-1 block">
-                    {inHouseCount} Active
+                    {t('audit.activeCount', { count: inHouseCount })}
                   </span>
                 </div>
               </div>
 
               <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <div className="bg-slate-100 px-3 py-2 font-bold text-slate-700 uppercase text-[10px]">
-                  Active Guest Occupancies Pending Rollover:
+                  {t('audit.activeGuestsPending')}
                 </div>
                 <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
                   {reservations
@@ -194,7 +187,7 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
                           <strong className="text-slate-900 font-mono">Room #{res.roomNumber}</strong>: {res.guestName}
                         </div>
                         <div className="font-mono text-slate-600">
-                          {formatMoney(res.nightlyRate)} / nt
+                          {t('audit.perNight', { rate: formatMoney(res.nightlyRate) })}
                         </div>
                       </div>
                     ))}
@@ -207,23 +200,23 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
             <div className="space-y-4">
               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-1">
                 <h3 className="font-bold text-sm text-indigo-950">
-                  Step 2: Automated Nightly Room Charges Posting
+                  {t('audit.step2Heading')}
                 </h3>
                 <p className="text-indigo-800">
-                  The system will automatically post recurring accommodation charges and applicable local tourism taxes to each active folio for the date {businessDate}.
+                  {t('audit.step2Sub', { date: formatDate(businessDate) })}
                 </p>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex items-center gap-2 text-emerald-700 font-bold">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Batch Room Rates Validated</span>
+                  <span>{t('audit.batchValidated')}</span>
                 </div>
                 <p className="text-slate-600">
-                  All {inHouseCount} active in-house guest folios will be stamped with their agreed contract rates. No manual ledger entry is required.
+                  {t('audit.batchDesc', { count: inHouseCount })}
                 </p>
                 <div className="bg-white p-3 rounded-lg border border-slate-200 font-mono text-xs flex justify-between">
-                  <span>Batch Post Total (Room Charges):</span>
+                  <span>{t('audit.batchTotal')}</span>
                   <strong className="text-slate-900">{formatMoney(estRoomRev)}</strong>
                 </div>
               </div>
@@ -234,36 +227,36 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
             <div className="space-y-4">
               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-1">
                 <h3 className="font-bold text-sm text-indigo-950">
-                  Step 3: Shift Drawer & Mobile Money Reconciliation
+                  {t('audit.step3Heading')}
                 </h3>
                 <p className="text-indigo-800">
-                  Enter physical cash in drawer to detect any cashier float discrepancies.
+                  {t('audit.step3Sub')}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
-                  <span className="font-bold text-slate-800 block">System Expected Collections:</span>
+                  <span className="font-bold text-slate-800 block">{t('audit.expectedCollections')}</span>
                   <div className="space-y-1 text-slate-600">
                     <div className="flex justify-between">
-                      <span>Shift Opening Float:</span>
+                      <span>{t('audit.openingFloat')}</span>
                       <span className="font-mono">{formatMoney(150000)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Cash Received:</span>
+                      <span>{t('audit.cashReceived')}</span>
                       <span className="font-mono">{formatMoney(cashCollected)}</span>
                     </div>
                     <div className="flex justify-between text-yellow-800 font-medium">
-                      <span>MTN MoMo Received:</span>
+                      <span>{t('audit.momoReceived')}</span>
                       <span className="font-mono">{formatMoney(momoCollected)}</span>
                     </div>
                     <div className="flex justify-between text-orange-800 font-medium">
-                      <span>Orange Money Received:</span>
+                      <span>{t('audit.orangeReceived')}</span>
                       <span className="font-mono">{formatMoney(orangeCollected)}</span>
                     </div>
                     <div className="h-px bg-slate-200 my-1" />
                     <div className="flex justify-between font-bold text-slate-900">
-                      <span>Expected Physical Cash Drawer:</span>
+                      <span>{t('audit.expectedCash')}</span>
                       <span className="font-mono">{formatMoney(expectedCashTotal)}</span>
                     </div>
                   </div>
@@ -272,18 +265,18 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
                   <div>
                     <label className="font-bold text-slate-800 block mb-1">
-                      Actual Physical Cash Counted in Drawer (FCFA):
+                      {t('audit.actualCashLabel')}
                     </label>
                     <input
                       type="number"
                       value={actualCashFloat}
                       onChange={(e) => setActualCashFloat(Number(e.target.value))}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-sm"
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-sm text-slate-900"
                     />
                   </div>
 
                   <div className="p-2.5 rounded-lg border bg-white flex items-center justify-between">
-                    <span className="font-semibold text-slate-700">Cash Float Discrepancy:</span>
+                    <span className="font-semibold text-slate-700">{t('audit.discrepancyLabel')}</span>
                     <span
                       className={`font-mono font-bold ${
                         discrepancy === 0
@@ -294,18 +287,18 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
                       }`}
                     >
                       {discrepancy === 0
-                        ? '0 FCFA (Balanced)'
+                        ? t('audit.balanced')
                         : `${discrepancy > 0 ? '+' : ''}${formatMoney(discrepancy)}`}
                     </span>
                   </div>
 
                   <div>
-                    <label className="font-semibold text-slate-700 block mb-1">Audit Notes / Comments:</label>
+                    <label className="font-semibold text-slate-700 block mb-1">{t('audit.notesLabel')}</label>
                     <input
                       type="text"
                       value={auditNotes}
                       onChange={(e) => setAuditNotes(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs"
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900"
                     />
                   </div>
                 </div>
@@ -318,10 +311,10 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-center space-y-1">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
                 <h3 className="font-bold text-base text-emerald-950">
-                  Night Audit Rollover Successfully Completed!
+                  {t('audit.step4Success')}
                 </h3>
                 <p className="text-emerald-800 text-xs">
-                  Business date rolled over from <strong>{completedReport.date}</strong> to the next operational day.
+                  {t('audit.step4Sub', { date: formatDate(completedReport.date) })}
                 </p>
               </div>
 
@@ -329,35 +322,35 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                   <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Daily Flash Report Summary
+                    {t('audit.flashReport')}
                   </span>
                   <span className="font-mono text-slate-500">{completedReport.timestamp}</span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block">Occupancy</span>
+                    <span className="text-[10px] text-slate-400 block">{t('audit.occupancyRate')}</span>
                     <strong className="font-mono text-emerald-700">{completedReport.occupancyRate}%</strong>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block">ADR (Avg Daily Rate)</span>
+                    <span className="text-[10px] text-slate-400 block">{t('audit.adr')}</span>
                     <strong className="font-mono text-slate-800">{formatMoney(completedReport.adr)}</strong>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block">RevPAR</span>
+                    <span className="text-[10px] text-slate-400 block">{t('audit.revPar')}</span>
                     <strong className="font-mono text-slate-800">{formatMoney(completedReport.revPar)}</strong>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block">Gross Revenue</span>
+                    <span className="text-[10px] text-slate-400 block">{t('audit.grossRevenue')}</span>
                     <strong className="font-mono text-slate-900">{formatMoney(completedReport.totalGrossRevenue)}</strong>
                   </div>
                 </div>
 
                 <div className="p-3 bg-white rounded-lg border border-slate-200 text-slate-600 space-y-1 text-xs">
-                  <div>Cash Collected: <strong>{formatMoney(completedReport.cashCollected)}</strong></div>
-                  <div>MTN MoMo Collected: <strong>{formatMoney(completedReport.momoCollected)}</strong></div>
-                  <div>Discrepancy: <strong>{completedReport.discrepancy === 0 ? 'None (0)' : formatMoney(completedReport.discrepancy)}</strong></div>
-                  <div>Audited By: <strong>{completedReport.auditedBy}</strong></div>
+                  <div>{t('audit.cashCollected', { amount: formatMoney(completedReport.cashCollected) })}</div>
+                  <div>{t('audit.momoCollected', { amount: formatMoney(completedReport.momoCollected) })}</div>
+                  <div>{t('audit.discrepancy', { amount: completedReport.discrepancy === 0 ? t('audit.noneZero') : formatMoney(completedReport.discrepancy) })}</div>
+                  <div>{t('audit.auditedBy', { name: completedReport.auditedBy })}</div>
                 </div>
               </div>
             </div>
@@ -369,37 +362,37 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
           {step > 1 && step < 4 && (
             <button
               onClick={() => setStep((s) => (s - 1) as any)}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
             >
-              Back
+              {t('audit.backBtn')}
             </button>
           )}
 
           {step < 3 && (
             <button
               onClick={() => setStep((s) => (s + 1) as any)}
-              className="ml-auto px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all"
+              className="ml-auto px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all cursor-pointer"
             >
-              Proceed to Next Step
+              {t('audit.nextStepBtn')}
             </button>
           )}
 
           {step === 3 && (
             <button
               onClick={handleExecuteAudit}
-              className="ml-auto px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-md transition-all flex items-center gap-1.5"
+              className="ml-auto px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Moon className="w-4 h-4" />
-              <span>Finalize & Roll Over Business Date</span>
+              <span>{t('audit.finalizeBtn')}</span>
             </button>
           )}
 
           {step === 4 && (
             <button
               onClick={onClose}
-              className="ml-auto px-5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg"
+              className="ml-auto px-5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg cursor-pointer"
             >
-              Close Night Audit
+              {t('audit.closeBtn')}
             </button>
           )}
         </div>

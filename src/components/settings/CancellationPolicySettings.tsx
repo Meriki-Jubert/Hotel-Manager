@@ -16,9 +16,12 @@ import {
   AlertCircle,
   X
 } from 'lucide-react';
+import { useT } from '../../i18n/LanguageContext';
+import { translate } from '../../i18n/translate';
 
 export const CancellationPolicySettings: React.FC = () => {
   const { hotelConfig, updateHotelConfig, currentUser, formatMoney } = useHMS();
+  const { lang } = useT();
 
   const isManagerOrOwner = currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
@@ -760,8 +763,8 @@ export const CancellationPolicySettings: React.FC = () => {
                 <span className="text-base font-mono font-bold text-rose-600 mt-0.5 block">
                   {formatMoney(simResult.suggestedFee)}
                 </span>
-                <span className="text-[11px] text-slate-500 mt-0.5 block truncate" title={simResult.ruleText}>
-                  {simResult.ruleText}
+                <span className="text-[11px] text-slate-500 mt-0.5 block truncate" title={translate(lang, simResult.ruleKey, simResult.ruleVars)}>
+                  {translate(lang, simResult.ruleKey, simResult.ruleVars)}
                 </span>
               </div>
               <div>

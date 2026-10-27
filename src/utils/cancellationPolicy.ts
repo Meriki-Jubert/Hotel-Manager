@@ -14,6 +14,8 @@ export interface CalculateCancellationFeeArgs {
 export interface CancellationFeeResult {
   suggestedFee: number;
   ruleText: string;
+  ruleKey: string;
+  ruleVars?: Record<string, string | number>;
 }
 
 /** Whole calendar days from dateA to dateB using local dates (YYYY-MM-DD). */
@@ -68,7 +70,9 @@ export function calculateCancellationFee({
     const fee = Math.round(Math.max(0, total));
     return {
       suggestedFee: fee,
-      ruleText: 'Non-refundable rate: full booking total applies'
+      ruleText: 'Non-refundable rate: full booking total applies',
+      ruleKey: 'policy.rule.nonRefundable',
+      ruleVars: {}
     };
   }
 
@@ -86,7 +90,15 @@ export function calculateCancellationFee({
       noShow.feeType === 'percent'
         ? `No-show: ${noShow.value}% of booking total`
         : `No-show: ${noShow.value} night${noShow.value === 1 ? '' : 's'} charge`;
-    return { suggestedFee: fee, ruleText };
+    return {
+      suggestedFee: fee,
+      ruleText,
+      ruleKey: noShow.feeType === 'percent' ? 'policy.rule.noShowPercent' : 'policy.rule.noShowNights',
+      ruleVars: {
+        value: noShow.value,
+        plural: noShow.value === 1 ? '' : 's'
+      }
+    };
   }
 
   const daysBefore = wholeDaysBetween(businessDate, booking.checkInDate);
@@ -104,9 +116,23 @@ export function calculateCancellationFee({
   );
 
   if (matching.length === 0) {
+    let ruleKey = 'policy.rule.daysBeforeFree';
+    let ruleVars: Record<string, string | number> = {
+      days: daysBefore,
+      plural: daysBefore === 1 ? '' : 's'
+    };
+    if (daysBefore === 0) {
+      ruleKey = 'policy.rule.arrivalDayFree';
+      ruleVars = {};
+    } else if (daysBefore < 0) {
+      ruleKey = 'policy.rule.afterArrivalFree';
+      ruleVars = {};
+    }
     return {
       suggestedFee: 0,
-      ruleText: `${timingText}: free cancellation`
+      ruleText: `${timingText}: free cancellation`,
+      ruleKey,
+      ruleVars
     };
   }
 
@@ -122,7 +148,30 @@ export function calculateCancellationFee({
 
   const ruleText = `${timingText}: ${feeDesc}`;
 
-  return { suggestedFee: fee, ruleText };
+  let ruleKey = tier.feeType === 'percent' ? 'policy.rule.daysBeforePercent' : 'policy.rule.daysBeforeNights';
+  let ruleVars: Record<string, string | number> = {
+    days: daysBefore,
+    pluralDays: daysBefore === 1 ? '' : 's',
+    value: tier.value,
+    pluralNights: tier.value === 1 ? '' : 's',
+    plural: tier.value === 1 ? '' : 's'
+  };
+
+  if (daysBefore === 0) {
+    ruleKey = tier.feeType === 'percent' ? 'policy.rule.arrivalDayPercent' : 'policy.rule.arrivalDayNights';
+    ruleVars = {
+      value: tier.value,
+      plural: tier.value === 1 ? '' : 's'
+    };
+  } else if (daysBefore < 0) {
+    ruleKey = tier.feeType === 'percent' ? 'policy.rule.afterArrivalPercent' : 'policy.rule.afterArrivalNights';
+    ruleVars = {
+      value: tier.value,
+      plural: tier.value === 1 ? '' : 's'
+    };
+  }
+
+  return { suggestedFee: fee, ruleText, ruleKey, ruleVars };
 }
 
 /**

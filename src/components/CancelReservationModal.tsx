@@ -4,6 +4,7 @@ import { Reservation, PaymentMethod } from '../types/hms';
 import { calculateCancellationFee, CancellationFeeResult } from '../utils/cancellationPolicy';
 import { getFolioTotals } from '../utils/folio';
 import { useT } from '../i18n/LanguageContext';
+import { translate } from '../i18n/translate';
 import {
   X,
   AlertCircle,
@@ -33,7 +34,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
     businessDate,
     formatMoney
   } = useHMS();
-  const { t } = useT();
+  const { t, lang } = useT();
 
   const [isNoShow, setIsNoShow] = useState(false);
   const [fee, setFee] = useState(0);
@@ -225,7 +226,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
                   {t('cancelRes.policyHeading')}
                 </span>
                 <p className="text-xs font-semibold text-slate-900 mt-0.5">
-                  {policyResult.ruleText}
+                  {translate(lang, policyResult.ruleKey, policyResult.ruleVars)}
                 </p>
               </div>
               <div className="text-right shrink-0">

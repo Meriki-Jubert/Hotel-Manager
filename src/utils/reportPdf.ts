@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { translate, Language } from '../i18n/translate';
 
 export interface ReportPdfColumn {
   label: string;
@@ -24,6 +25,7 @@ export interface BuildReportPdfOptions {
   generatedBy: string;
   generatedAt: string;
   sections: ReportPdfSection[];
+  tOrLang?: ((key: any, vars?: any) => string) | Language | string;
 }
 
 /**
@@ -59,6 +61,13 @@ export function formatPdfMoney(amount: number): string {
  * Handles header, titles, notes, right-aligned monetary values, wrapping, and "Page X of Y" footer.
  */
 export function buildReportPdf(options: BuildReportPdfOptions): jsPDF {
+  const tr =
+    typeof options.tOrLang === 'function'
+      ? options.tOrLang
+      : typeof options.tOrLang === 'string'
+      ? (k: string, v?: any) => translate(options.tOrLang as Language, k, v)
+      : (k: string, v?: any) => translate('en', k, v);
+
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -86,14 +95,18 @@ export function buildReportPdf(options: BuildReportPdfOptions): jsPDF {
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105); // slate-600
   doc.text(
-    sanitizePdfText(`Branch: ${options.branchName}   |   Period: ${options.from} to ${options.to}`),
+    sanitizePdfText(
+      tr('pdf.branchPeriod', { branch: options.branchName, from: options.from, to: options.to })
+    ),
     14,
     currentY
   );
   currentY += 4.5;
 
   doc.text(
-    sanitizePdfText(`Printed by ${options.generatedBy} on ${options.generatedAt}`),
+    sanitizePdfText(
+      tr('pdf.printedBy', { name: options.generatedBy, date: options.generatedAt })
+    ),
     14,
     currentY
   );
@@ -136,7 +149,7 @@ export function buildReportPdf(options: BuildReportPdfOptions): jsPDF {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(148, 163, 184); // slate-400
-      doc.text(sanitizePdfText('No data for this period'), 14, currentY + 1.5);
+      doc.text(sanitizePdfText(tr('pdf.noData')), 14, currentY + 1.5);
       currentY += 9;
       continue;
     }
@@ -206,7 +219,7 @@ export function buildReportPdf(options: BuildReportPdfOptions): jsPDF {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+    doc.text(sanitizePdfText(tr('pdf.pageOf', { page: i, total: pageCount })), 105, 290, { align: 'center' });
   }
 
   return doc;

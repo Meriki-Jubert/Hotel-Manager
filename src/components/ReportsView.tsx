@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
+import { tFolioCategory, tPaymentMethod } from '../i18n/labels';
 import {
   buildRevenueByCategory,
   buildPaymentsByMethod,
@@ -32,59 +34,8 @@ import {
   FileText
 } from 'lucide-react';
 
-function formatCategoryLabel(cat: string): string {
-  switch (cat) {
-    case 'room_charge':
-      return 'Room Charges (Nightly Accommodation)';
-    case 'restaurant':
-      return 'Restaurant & Dining Charges';
-    case 'beverage':
-      return 'Bar & Beverage Charges';
-    case 'laundry':
-      return 'Laundry & Valet Services';
-    case 'maintenance_charge':
-      return 'Damage & Maintenance Charges';
-    case 'late_checkout':
-      return 'Late Check-Out Fees';
-    case 'cancellation_fee':
-      return 'Cancellation Fees Retained';
-    case 'no_show_fee':
-      return 'No-Show Penalties';
-    case 'tax':
-      return 'Taxes & Statutory Levies';
-    case 'discount':
-      return 'Folio Discounts & Promotional Credits';
-    case 'room_charge_void':
-      return 'Early Departure Adjustments (Voided Nights)';
-    default:
-      return cat
-        .split('_')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-  }
-}
-
-function formatMethodLabel(m: string): string {
-  switch (m) {
-    case 'cash':
-      return 'Physical Cash Drawer';
-    case 'momo':
-      return 'MTN Mobile Money (MoMo)';
-    case 'orange_money':
-      return 'Orange Money (OM)';
-    case 'card':
-      return 'Credit / Debit Card (Electronic POS)';
-    case 'bank_transfer':
-      return 'Bank Wire / Direct Transfer';
-    default:
-      return m
-        .split('_')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-  }
-}
-
 export const ReportsView: React.FC = () => {
+  const { t } = useT();
   const {
     allTransactions,
     allReservations,
@@ -151,117 +102,117 @@ export const ReportsView: React.FC = () => {
   );
 
   const activeBranchName = useMemo(() => {
-    if (selectedBranchId === 'all') return 'All Branches (Portfolio)';
+    if (selectedBranchId === 'all') return t('reports.allBranches');
     return branches.find((b) => b.id === selectedBranchId)?.name || 'Selected Branch';
-  }, [selectedBranchId, branches]);
+  }, [selectedBranchId, branches, t]);
 
   // CSV download handlers
   const handleDownloadRevenueCsv = () => {
     const csv = toCsv(revenueReport.rows, [
-      { key: 'category', label: 'Category', format: (val) => formatCategoryLabel(String(val)) },
-      { key: 'amount', label: `Amount (${hotelConfig.defaultCurrency})` }
+      { key: 'category', label: t('reports.col.category'), format: (val) => tFolioCategory(t, String(val)) },
+      { key: 'amount', label: t('reports.col.amount', { currency: hotelConfig.defaultCurrency }) }
     ]);
     downloadCsv(`revenue-by-category-${range.from}-to-${range.to}`, csv);
   };
 
   const handleDownloadPaymentsCsv = () => {
     const csv = toCsv(paymentsReport.rows, [
-      { key: 'method', label: 'Payment Method', format: (val) => formatMethodLabel(String(val)) },
-      { key: 'amount', label: `Net Amount (${hotelConfig.defaultCurrency})` }
+      { key: 'method', label: t('reports.col.paymentMethod'), format: (val) => tPaymentMethod(t, String(val)) },
+      { key: 'amount', label: t('reports.col.netCollected', { currency: hotelConfig.defaultCurrency }) }
     ]);
     downloadCsv(`payments-by-method-${range.from}-to-${range.to}`, csv);
   };
 
   const handleDownloadOccupancyCsv = () => {
     const csv = toCsv(occupancyReport.rows, [
-      { key: 'date', label: 'Night (Date)' },
-      { key: 'occupiedRooms', label: 'Occupied Rooms' },
-      { key: 'totalRooms', label: 'Total Active Rooms' },
-      { key: 'occupancyPercent', label: 'Occupancy Rate (%)' }
+      { key: 'date', label: t('reports.col.nightDate') },
+      { key: 'occupiedRooms', label: t('reports.col.occupiedRooms') },
+      { key: 'totalRooms', label: t('reports.col.totalRooms') },
+      { key: 'occupancyPercent', label: t('reports.col.occupancyRate') }
     ]);
     downloadCsv(`occupancy-and-adr-${range.from}-to-${range.to}`, csv);
   };
 
   const handleDownloadOutstandingCsv = () => {
     const csv = toCsv(outstandingReport.rows, [
-      { key: 'bookingCode', label: 'Booking Code' },
-      { key: 'guestName', label: 'Guest Name' },
-      { key: 'roomNumber', label: 'Room #' },
-      { key: 'guestPhone', label: 'Phone' },
-      { key: 'checkInDate', label: 'Check-In' },
-      { key: 'checkOutDate', label: 'Check-Out' },
-      { key: 'totalCharges', label: `Total Charges (${hotelConfig.defaultCurrency})` },
-      { key: 'totalPaid', label: `Total Paid (${hotelConfig.defaultCurrency})` },
-      { key: 'balance', label: `Balance Due (${hotelConfig.defaultCurrency})` }
+      { key: 'bookingCode', label: t('reports.col.bookingCode') },
+      { key: 'guestName', label: t('reports.col.guestName') },
+      { key: 'roomNumber', label: t('reports.col.roomNumber') },
+      { key: 'guestPhone', label: t('reports.col.phone') },
+      { key: 'checkInDate', label: t('reports.col.checkIn') },
+      { key: 'checkOutDate', label: t('reports.col.checkOut') },
+      { key: 'totalCharges', label: t('reports.col.totalCharges', { currency: hotelConfig.defaultCurrency }) },
+      { key: 'totalPaid', label: t('reports.col.totalPaid', { currency: hotelConfig.defaultCurrency }) },
+      { key: 'balance', label: t('reports.col.balanceDue', { currency: hotelConfig.defaultCurrency }) }
     ]);
     downloadCsv(`outstanding-balances-${range.from}-to-${range.to}`, csv);
   };
 
   const handleDownloadCancellationsCsv = () => {
     const csv = toCsv(cancellationsReport.rows, [
-      { key: 'bookingCode', label: 'Booking Code' },
-      { key: 'guestName', label: 'Guest Name' },
-      { key: 'roomNumber', label: 'Room #' },
-      { key: 'checkInDate', label: 'Scheduled Check-In' },
-      { key: 'cancelledAt', label: 'Cancelled / No-Show Date' },
-      { key: 'isNoShow', label: 'Status', format: (val) => (val ? 'No-Show' : 'Cancelled') },
-      { key: 'feeKept', label: `Fee Retained (${hotelConfig.defaultCurrency})` },
-      { key: 'refund', label: `Refund Issued (${hotelConfig.defaultCurrency})` },
-      { key: 'reason', label: 'Reason' },
-      { key: 'feeOverrideReason', label: 'Fee Override Reason' }
+      { key: 'bookingCode', label: t('reports.col.bookingCode') },
+      { key: 'guestName', label: t('reports.col.guestName') },
+      { key: 'roomNumber', label: t('reports.col.roomNumber') },
+      { key: 'checkInDate', label: t('reports.col.scheduledCheckIn') },
+      { key: 'cancelledAt', label: t('reports.col.cancelledDate') },
+      { key: 'isNoShow', label: t('reports.col.status'), format: (val) => (val ? 'No-Show' : 'Cancelled') },
+      { key: 'feeKept', label: t('reports.col.feeRetained', { currency: hotelConfig.defaultCurrency }) },
+      { key: 'refund', label: t('reports.col.refundIssued', { currency: hotelConfig.defaultCurrency }) },
+      { key: 'reason', label: t('reports.col.reason') },
+      { key: 'feeOverrideReason', label: t('reports.col.feeOverrideReason') }
     ]);
     downloadCsv(`cancellations-and-noshows-${range.from}-to-${range.to}`, csv);
   };
 
   // PDF Section definitions for single & full export
   const getRevenueSection = (): ReportPdfSection => ({
-    title: 'Revenue by Category',
-    note: "Charges posted during this period (a stay's room charge is posted at check-in)",
+    title: t('reports.revenueByCategory'),
+    note: t('reports.revenueNote'),
     columns: [
-      { label: 'Category', key: 'category', align: 'left' },
-      { label: 'Type', key: 'type', align: 'left' },
-      { label: 'Amount (FCFA)', key: 'amount', align: 'right' }
+      { label: t('reports.col.category'), key: 'category', align: 'left' },
+      { label: t('reports.col.type'), key: 'type', align: 'left' },
+      { label: t('reports.col.amount', { currency: hotelConfig.defaultCurrency }), key: 'amount', align: 'right' }
     ],
     rows: revenueReport.rows.map((row) => ({
-      category: formatCategoryLabel(row.category),
+      category: tFolioCategory(t, row.category),
       type:
         row.amount < 0 || row.category === 'discount' || row.category === 'room_charge_void'
-          ? 'Credit / Reduction'
-          : 'Charge',
+          ? t('reports.type.credit')
+          : t('reports.type.charge'),
       amount: formatPdfMoney(row.amount)
     })),
     totalRow: {
-      category: 'Total Net Revenue',
+      category: t('reports.totalNetRevenueLabel'),
       type: '',
       amount: formatPdfMoney(revenueReport.total)
     }
   });
 
   const getPaymentsSection = (): ReportPdfSection => ({
-    title: 'Payments by Method',
-    note: 'Cash and electronic collections net of guest refunds',
+    title: t('reports.paymentsByMethod'),
+    note: t('reports.paymentsNote'),
     columns: [
-      { label: 'Payment Method', key: 'method', align: 'left' },
-      { label: 'Net Collected (FCFA)', key: 'amount', align: 'right' }
+      { label: t('reports.col.paymentMethod'), key: 'method', align: 'left' },
+      { label: t('reports.col.netCollected', { currency: hotelConfig.defaultCurrency }), key: 'amount', align: 'right' }
     ],
     rows: paymentsReport.rows.map((row) => ({
-      method: formatMethodLabel(String(row.method)),
+      method: tPaymentMethod(t, String(row.method)),
       amount: formatPdfMoney(row.amount)
     })),
     totalRow: {
-      method: 'Total Collections (Net)',
+      method: t('reports.totalCollectionsLabel'),
       amount: formatPdfMoney(paymentsReport.total)
     }
   });
 
   const getOccupancySection = (): ReportPdfSection => ({
-    title: 'Occupancy and ADR',
-    note: 'Room revenue earned per night, from nightly rates. Uses the current number of active rooms.',
+    title: t('reports.occupancyAndAdr'),
+    note: t('reports.occupancyNote'),
     columns: [
-      { label: 'Night (Date)', key: 'date', align: 'left' },
-      { label: 'Occupied Rooms', key: 'occupied', align: 'right' },
-      { label: 'Active Rooms', key: 'total', align: 'right' },
-      { label: 'Occupancy (%)', key: 'percent', align: 'right' }
+      { label: t('reports.col.nightDate'), key: 'date', align: 'left' },
+      { label: t('reports.col.occupiedRooms'), key: 'occupied', align: 'right' },
+      { label: t('reports.col.totalRooms'), key: 'total', align: 'right' },
+      { label: t('reports.col.occupancyRate'), key: 'percent', align: 'right' }
     ],
     rows: occupancyReport.rows.map((row) => ({
       date: row.date,
@@ -270,36 +221,36 @@ export const ReportsView: React.FC = () => {
       percent: `${row.occupancyPercent}%`
     })),
     totalRow: {
-      date: 'Summary Period',
-      occupied: `${occupancyReport.totalOccupiedNights} nights`,
-      total: `${occupancyReport.totalRooms} rooms`,
-      percent: `Avg ${occupancyReport.averageOccupancyPercent}% | ADR: ${formatPdfMoney(occupancyReport.adr)} FCFA`
+      date: t('reports.periodSummary'),
+      occupied: `${occupancyReport.totalOccupiedNights}`,
+      total: `${occupancyReport.totalRooms}`,
+      percent: `${t('reports.avgOccupancy', { pct: occupancyReport.averageOccupancyPercent })} | ${t('reports.periodAdr', { amount: formatPdfMoney(occupancyReport.adr) })}`
     }
   });
 
   const getOutstandingSection = (): ReportPdfSection => ({
-    title: 'Outstanding In-House Balances',
-    note: 'Currently checked-in guests with unpaid charges and pending settlement',
+    title: t('reports.outstandingBalances'),
+    note: t('reports.outstandingNote'),
     columns: [
-      { label: 'Booking', key: 'booking', align: 'left' },
-      { label: 'Guest Name', key: 'guest', align: 'left' },
-      { label: 'Room #', key: 'room', align: 'left' },
-      { label: 'Stay Dates', key: 'stay', align: 'left' },
-      { label: 'Total Charges (FCFA)', key: 'charges', align: 'right' },
-      { label: 'Paid (FCFA)', key: 'paid', align: 'right' },
-      { label: 'Balance Due (FCFA)', key: 'balance', align: 'right' }
+      { label: t('reports.col.bookingCode'), key: 'booking', align: 'left' },
+      { label: t('reports.col.guestName'), key: 'guest', align: 'left' },
+      { label: t('reports.col.roomNumber'), key: 'room', align: 'left' },
+      { label: t('reports.col.checkIn'), key: 'stay', align: 'left' },
+      { label: t('reports.col.totalCharges', { currency: hotelConfig.defaultCurrency }), key: 'charges', align: 'right' },
+      { label: t('reports.col.totalPaid', { currency: hotelConfig.defaultCurrency }), key: 'paid', align: 'right' },
+      { label: t('reports.col.balanceDue', { currency: hotelConfig.defaultCurrency }), key: 'balance', align: 'right' }
     ],
     rows: outstandingReport.rows.map((row) => ({
       booking: row.bookingCode,
       guest: row.guestName,
-      room: `Room #${row.roomNumber}`,
-      stay: `${row.checkInDate} to ${row.checkOutDate}`,
+      room: `#${row.roomNumber}`,
+      stay: `${row.checkInDate} -> ${row.checkOutDate}`,
       charges: formatPdfMoney(row.totalCharges),
       paid: formatPdfMoney(row.totalPaid),
       balance: formatPdfMoney(row.balance)
     })),
     totalRow: {
-      booking: 'Total Pending Receivables',
+      booking: t('reports.totalOutstanding', { amount: formatPdfMoney(outstandingReport.total) }),
       guest: '',
       room: '',
       stay: '',
@@ -310,22 +261,22 @@ export const ReportsView: React.FC = () => {
   });
 
   const getCancellationsSection = (): ReportPdfSection => ({
-    title: 'Cancellations and No-Shows',
-    note: 'Cancelled reservations and no-shows within the date range, audited with penalties and refunds',
+    title: t('reports.cancellationsAndNoShows'),
+    note: t('reports.cancellationsNote'),
     columns: [
-      { label: 'Booking', key: 'booking', align: 'left' },
-      { label: 'Guest Name', key: 'guest', align: 'left' },
-      { label: 'Room #', key: 'room', align: 'left' },
-      { label: 'Status', key: 'status', align: 'left' },
-      { label: 'Date', key: 'date', align: 'left' },
-      { label: 'Fee Kept (FCFA)', key: 'fee', align: 'right' },
-      { label: 'Refund (FCFA)', key: 'refund', align: 'right' },
-      { label: 'Reason / Override', key: 'reason', align: 'left' }
+      { label: t('reports.col.bookingCode'), key: 'booking', align: 'left' },
+      { label: t('reports.col.guestName'), key: 'guest', align: 'left' },
+      { label: t('reports.col.roomNumber'), key: 'room', align: 'left' },
+      { label: t('reports.col.status'), key: 'status', align: 'left' },
+      { label: t('reports.col.cancelledDate'), key: 'date', align: 'left' },
+      { label: t('reports.col.feeRetained', { currency: hotelConfig.defaultCurrency }), key: 'fee', align: 'right' },
+      { label: t('reports.col.refundIssued', { currency: hotelConfig.defaultCurrency }), key: 'refund', align: 'right' },
+      { label: t('reports.col.reason'), key: 'reason', align: 'left' }
     ],
     rows: cancellationsReport.rows.map((row) => ({
       booking: row.bookingCode,
       guest: row.guestName,
-      room: `Room #${row.roomNumber}`,
+      room: `#${row.roomNumber}`,
       status: row.isNoShow ? 'No-Show' : 'Cancelled',
       date: row.cancelledAt ? row.cancelledAt.slice(0, 10) : row.checkInDate,
       fee: formatPdfMoney(row.feeKept),
@@ -333,7 +284,7 @@ export const ReportsView: React.FC = () => {
       reason: [row.reason, row.feeOverrideReason ? `[Override: ${row.feeOverrideReason}]` : ''].filter(Boolean).join(' ')
     })),
     totalRow: {
-      booking: 'Total Retained / Refunded',
+      booking: t('reports.totalFeesRetained', { amount: formatPdfMoney(cancellationsReport.totalFeeKept) }),
       guest: '',
       room: '',
       status: '',
@@ -351,12 +302,13 @@ export const ReportsView: React.FC = () => {
     from: fromDate,
     to: toDate,
     generatedBy: currentUser?.name || 'Staff',
-    generatedAt: `${businessDate || new Date().toISOString().slice(0, 10)} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+    generatedAt: `${businessDate || new Date().toISOString().slice(0, 10)} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+    tOrLang: t
   });
 
   const handleDownloadFullPdf = () => {
     const doc = buildReportPdf({
-      ...getPdfMeta('Hotel Management & Operations Report'),
+      ...getPdfMeta(t('reports.title')),
       sections: [
         getRevenueSection(),
         getPaymentsSection(),
@@ -370,7 +322,7 @@ export const ReportsView: React.FC = () => {
 
   const handleDownloadRevenuePdf = () => {
     const doc = buildReportPdf({
-      ...getPdfMeta('Revenue by Category Report'),
+      ...getPdfMeta(t('reports.revenueByCategory')),
       sections: [getRevenueSection()]
     });
     downloadReportPdf(`revenue-by-category-${fromDate}-to-${toDate}.pdf`, doc);
@@ -378,7 +330,7 @@ export const ReportsView: React.FC = () => {
 
   const handleDownloadPaymentsPdf = () => {
     const doc = buildReportPdf({
-      ...getPdfMeta('Payments by Method Report'),
+      ...getPdfMeta(t('reports.paymentsByMethod')),
       sections: [getPaymentsSection()]
     });
     downloadReportPdf(`payments-by-method-${fromDate}-to-${toDate}.pdf`, doc);
@@ -386,7 +338,7 @@ export const ReportsView: React.FC = () => {
 
   const handleDownloadOccupancyPdf = () => {
     const doc = buildReportPdf({
-      ...getPdfMeta('Occupancy and ADR Report'),
+      ...getPdfMeta(t('reports.occupancyAndAdr')),
       sections: [getOccupancySection()]
     });
     downloadReportPdf(`occupancy-and-adr-${fromDate}-to-${toDate}.pdf`, doc);
@@ -394,7 +346,7 @@ export const ReportsView: React.FC = () => {
 
   const handleDownloadOutstandingPdf = () => {
     const doc = buildReportPdf({
-      ...getPdfMeta('Outstanding In-House Balances Report'),
+      ...getPdfMeta(t('reports.outstandingBalances')),
       sections: [getOutstandingSection()]
     });
     downloadReportPdf(`outstanding-balances-${fromDate}-to-${toDate}.pdf`, doc);
@@ -402,7 +354,7 @@ export const ReportsView: React.FC = () => {
 
   const handleDownloadCancellationsPdf = () => {
     const doc = buildReportPdf({
-      ...getPdfMeta('Cancellations and No-Shows Report'),
+      ...getPdfMeta(t('reports.cancellationsAndNoShows')),
       sections: [getCancellationsSection()]
     });
     downloadReportPdf(`cancellations-and-noshows-${fromDate}-to-${toDate}.pdf`, doc);
@@ -433,11 +385,11 @@ export const ReportsView: React.FC = () => {
             )}
           </div>
           <div className="text-right text-xs">
-            <h2 className="text-lg font-bold">MANAGEMENT REPORT</h2>
+            <h2 className="text-lg font-bold">{t('reports.title')}</h2>
             <p className="font-semibold text-slate-800">Branch: {activeBranchName}</p>
             <p className="text-slate-600">Period: {fromDate} to {toDate}</p>
             <p className="text-slate-400 text-[10px] mt-1">
-              Printed on {new Date().toLocaleString()} by {currentUser?.name} ({currentUser?.role})
+              {t('pdf.printedBy', { name: currentUser?.name || 'Staff', date: new Date().toLocaleString() })}
             </p>
           </div>
         </div>
@@ -449,28 +401,28 @@ export const ReportsView: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
-              Management & Operational Reports
+              {t('reports.title')}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Financial auditing, revenue breakdown, room occupancy metrics, and debtor analysis.
+              {t('reports.subtitle')}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleDownloadFullPdf}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
-              title="Download full PDF report with all five sections"
+              title={t('reports.exportFullPdf')}
             >
               <FileText className="w-4 h-4" />
-              <span>Download full report (PDF)</span>
+              <span>{t('reports.exportFullPdf')}</span>
             </button>
             <button
               onClick={() => window.print()}
               className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
-              title="Print entire report"
+              title={t('common.print')}
             >
               <Printer className="w-4 h-4 text-slate-300" />
-              <span>Print</span>
+              <span>{t('common.print')}</span>
             </button>
           </div>
         </div>
@@ -481,7 +433,7 @@ export const ReportsView: React.FC = () => {
           <div>
             <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-slate-500" />
-              <span>Property Branch</span>
+              <span>{t('reports.branchScope')}</span>
             </label>
             <select
               value={selectedBranchId}
@@ -489,7 +441,7 @@ export const ReportsView: React.FC = () => {
               className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
             >
               {isOwner && (
-                <option value="all">All Branches (Consolidated Portfolio)</option>
+                <option value="all">{t('reports.allBranches')}</option>
               )}
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -503,7 +455,7 @@ export const ReportsView: React.FC = () => {
           <div>
             <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-500" />
-              <span>From Date</span>
+              <span>{t('reports.from')}</span>
             </label>
             <input
               type="date"
@@ -517,7 +469,7 @@ export const ReportsView: React.FC = () => {
           <div>
             <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-500" />
-              <span>To Date</span>
+              <span>{t('reports.to')}</span>
             </label>
             <input
               type="date"
@@ -550,39 +502,39 @@ export const ReportsView: React.FC = () => {
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Net Revenue</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">{t('reports.netRevenueTotal', { amount: '' })}</span>
           <div className="text-xl font-bold text-slate-900 mt-1 font-mono">
             {formatMoney(revenueReport.total)}
           </div>
-          <span className="text-[10px] text-slate-400 mt-1 block">Charges net of discounts & voids</span>
+          <span className="text-[10px] text-slate-400 mt-1 block">{t('reports.revenueNote')}</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Total Collections</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">{t('reports.netCollectionsTotal', { amount: '' })}</span>
           <div className="text-xl font-bold text-emerald-700 mt-1 font-mono">
             {formatMoney(paymentsReport.total)}
           </div>
-          <span className="text-[10px] text-emerald-600 mt-1 block">Net of refunds across all methods</span>
+          <span className="text-[10px] text-emerald-600 mt-1 block">{t('reports.paymentsNote')}</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Occupancy & ADR</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">{t('reports.occupancyAndAdr')}</span>
           <div className="text-xl font-bold text-indigo-700 mt-1 font-mono flex items-baseline gap-2">
             <span>{occupancyReport.averageOccupancyPercent}%</span>
             <span className="text-xs font-semibold text-slate-600">ADR: {formatMoney(occupancyReport.adr)}</span>
           </div>
           <span className="text-[10px] text-indigo-600 mt-1 block">
-            {occupancyReport.totalOccupiedNights} room nights occupied
+            {t('reports.totalOccupiedNights', { nights: occupancyReport.totalOccupiedNights })}
           </span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Outstanding Balances</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">{t('reports.outstandingBalances')}</span>
           <div className="text-xl font-bold text-amber-700 mt-1 font-mono">
             {formatMoney(outstandingReport.total)}
           </div>
           <span className="text-[10px] text-amber-600 mt-1 block">
-            {outstandingReport.rows.length} checked-in guests with due balance
+            {t('reports.outstandingNote')}
           </span>
         </div>
       </div>
@@ -593,9 +545,9 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-emerald-600 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Revenue by Category</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('reports.revenueByCategory')}</h3>
               <p className="text-[11px] text-slate-500">
-                Charges posted during this period (a stay's room charge is posted at check-in)
+                {t('reports.revenueNote')}
               </p>
             </div>
           </div>
@@ -603,19 +555,19 @@ export const ReportsView: React.FC = () => {
             <button
               onClick={handleDownloadRevenuePdf}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Download Revenue by category as PDF"
+              title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>Download PDF</span>
+              <span>{t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadRevenueCsv}
               disabled={revenueReport.rows.length === 0}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title="Download Revenue by category as CSV"
+              title={t('reports.exportCsv')}
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Download CSV</span>
+              <span>{t('reports.exportCsv')}</span>
             </button>
           </div>
         </div>
@@ -623,17 +575,16 @@ export const ReportsView: React.FC = () => {
         {revenueReport.rows.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs">
             <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="font-semibold text-slate-700">No revenue data available</p>
-            <p className="text-slate-400 mt-0.5">No billable charges or discounts were recorded in the selected period.</p>
+            <p className="font-semibold text-slate-700">{t('pdf.noData')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-4">Transaction Category</th>
-                  <th className="py-2.5 px-4 text-center">Type</th>
-                  <th className="py-2.5 px-4 text-right">Amount ({hotelConfig.defaultCurrency})</th>
+                  <th className="py-2.5 px-4">{t('reports.col.category')}</th>
+                  <th className="py-2.5 px-4 text-center">{t('reports.col.type')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.amount', { currency: hotelConfig.defaultCurrency })}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -643,7 +594,7 @@ export const ReportsView: React.FC = () => {
                   return (
                     <tr key={row.category} className="hover:bg-slate-50/70">
                       <td className="py-2.5 px-4 font-semibold text-slate-800">
-                        {formatCategoryLabel(row.category)}
+                        {tFolioCategory(t, row.category)}
                       </td>
                       <td className="py-2.5 px-4 text-center">
                         <span
@@ -653,7 +604,7 @@ export const ReportsView: React.FC = () => {
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}
                         >
-                          {isNegative ? 'Reduction / Credit' : 'Revenue Charge'}
+                          {isNegative ? t('reports.type.credit') : t('reports.type.charge')}
                         </span>
                       </td>
                       <td
@@ -670,7 +621,7 @@ export const ReportsView: React.FC = () => {
               <tfoot className="bg-slate-100/80 font-bold border-t-2 border-slate-300">
                 <tr>
                   <td colSpan={2} className="py-3 px-4 text-slate-800 uppercase tracking-wider text-[11px]">
-                    Total Net Revenue
+                    {t('reports.totalNetRevenueLabel')}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-slate-950 text-sm">
                     {formatMoney(revenueReport.total)}
@@ -688,9 +639,9 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-indigo-600 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Payments by Method</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('reports.paymentsByMethod')}</h3>
               <p className="text-[11px] text-slate-500">
-                Cash and digital payment collections. Guest refunds directly reduce the corresponding channel.
+                {t('reports.paymentsNote')}
               </p>
             </div>
           </div>
@@ -698,19 +649,19 @@ export const ReportsView: React.FC = () => {
             <button
               onClick={handleDownloadPaymentsPdf}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Download Payments by method as PDF"
+              title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>Download PDF</span>
+              <span>{t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadPaymentsCsv}
               disabled={paymentsReport.rows.length === 0}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title="Download Payments by method as CSV"
+              title={t('reports.exportCsv')}
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Download CSV</span>
+              <span>{t('reports.exportCsv')}</span>
             </button>
           </div>
         </div>
@@ -718,16 +669,15 @@ export const ReportsView: React.FC = () => {
         {paymentsReport.rows.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs">
             <CreditCard className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="font-semibold text-slate-700">No payment records found</p>
-            <p className="text-slate-400 mt-0.5">No guest payments or refunds were logged during this range.</p>
+            <p className="font-semibold text-slate-700">{t('pdf.noData')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-4">Payment Method / Gateway</th>
-                  <th className="py-2.5 px-4 text-right">Net Collections ({hotelConfig.defaultCurrency})</th>
+                  <th className="py-2.5 px-4">{t('reports.col.paymentMethod')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.netCollected', { currency: hotelConfig.defaultCurrency })}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -735,7 +685,7 @@ export const ReportsView: React.FC = () => {
                   <tr key={row.method} className="hover:bg-slate-50/70">
                     <td className="py-2.5 px-4 font-semibold text-slate-800 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                      <span>{formatMethodLabel(String(row.method))}</span>
+                      <span>{tPaymentMethod(t, String(row.method))}</span>
                     </td>
                     <td className="py-2.5 px-4 text-right font-mono font-semibold text-emerald-700 whitespace-nowrap">
                       {formatMoney(row.amount)}
@@ -746,7 +696,7 @@ export const ReportsView: React.FC = () => {
               <tfoot className="bg-slate-100/80 font-bold border-t-2 border-slate-300">
                 <tr>
                   <td className="py-3 px-4 text-slate-800 uppercase tracking-wider text-[11px]">
-                    Total Payments Received (Net of Refunds)
+                    {t('reports.totalCollectionsLabel')}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-emerald-800 text-sm">
                     {formatMoney(paymentsReport.total)}
@@ -764,9 +714,9 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2">
             <BedDouble className="w-5 h-5 text-teal-600 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Occupancy and ADR</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('reports.occupancyAndAdr')}</h3>
               <p className="text-[11px] text-slate-500">
-                Room revenue earned per night, from nightly rates
+                {t('reports.occupancyNote')}
               </p>
             </div>
           </div>
@@ -774,19 +724,19 @@ export const ReportsView: React.FC = () => {
             <button
               onClick={handleDownloadOccupancyPdf}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Download Occupancy and ADR as PDF"
+              title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>Download PDF</span>
+              <span>{t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadOccupancyCsv}
               disabled={occupancyReport.rows.length === 0}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title="Download Occupancy and ADR as CSV"
+              title={t('reports.exportCsv')}
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Download CSV</span>
+              <span>{t('reports.exportCsv')}</span>
             </button>
           </div>
         </div>
@@ -794,19 +744,19 @@ export const ReportsView: React.FC = () => {
         {/* Occupancy Summary Stats Bar */}
         <div className="p-4 bg-teal-50/40 border-b border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           <div>
-            <span className="text-[10px] text-slate-500 uppercase font-semibold">Active Inventory</span>
-            <div className="font-bold text-slate-900 mt-0.5">{occupancyReport.totalRooms} Rooms</div>
+            <span className="text-[10px] text-slate-500 uppercase font-semibold">{t('reports.col.totalRooms')}</span>
+            <div className="font-bold text-slate-900 mt-0.5">{occupancyReport.totalRooms}</div>
           </div>
           <div>
-            <span className="text-[10px] text-slate-500 uppercase font-semibold">Room Nights Occupied</span>
-            <div className="font-bold text-teal-700 mt-0.5">{occupancyReport.totalOccupiedNights} Nights</div>
+            <span className="text-[10px] text-slate-500 uppercase font-semibold">{t('reports.totalOccupiedNights', { nights: occupancyReport.totalOccupiedNights })}</span>
+            <div className="font-bold text-teal-700 mt-0.5">{occupancyReport.totalOccupiedNights}</div>
           </div>
           <div>
-            <span className="text-[10px] text-slate-500 uppercase font-semibold">Average Occupancy</span>
+            <span className="text-[10px] text-slate-500 uppercase font-semibold">{t('reports.avgOccupancy', { pct: occupancyReport.averageOccupancyPercent })}</span>
             <div className="font-bold text-slate-900 mt-0.5">{occupancyReport.averageOccupancyPercent}%</div>
           </div>
           <div>
-            <span className="text-[10px] text-slate-500 uppercase font-semibold">Average Daily Rate (ADR)</span>
+            <span className="text-[10px] text-slate-500 uppercase font-semibold">{t('reports.periodAdr', { amount: formatMoney(occupancyReport.adr) })}</span>
             <div className="font-bold text-slate-900 mt-0.5 font-mono">{formatMoney(occupancyReport.adr)}</div>
           </div>
         </div>
@@ -814,8 +764,7 @@ export const ReportsView: React.FC = () => {
         {occupancyReport.rows.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs">
             <BedDouble className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="font-semibold text-slate-700">No occupancy data available</p>
-            <p className="text-slate-400 mt-0.5">No nights found within the specified date range.</p>
+            <p className="font-semibold text-slate-700">{t('pdf.noData')}</p>
           </div>
         ) : (
           <div>
@@ -823,10 +772,10 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200 sticky top-0">
                   <tr>
-                    <th className="py-2.5 px-4">Night (Date)</th>
-                    <th className="py-2.5 px-4 text-center">Occupied Rooms</th>
-                    <th className="py-2.5 px-4 text-center">Total Active Rooms</th>
-                    <th className="py-2.5 px-4 text-right">Occupancy Rate (%)</th>
+                    <th className="py-2.5 px-4">{t('reports.col.nightDate')}</th>
+                    <th className="py-2.5 px-4 text-center">{t('reports.col.occupiedRooms')}</th>
+                    <th className="py-2.5 px-4 text-center">{t('reports.col.totalRooms')}</th>
+                    <th className="py-2.5 px-4 text-right">{t('reports.col.occupancyRate')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -857,9 +806,9 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Outstanding In-House Balances</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('reports.outstandingBalances')}</h3>
               <p className="text-[11px] text-slate-500">
-                Currently checked-in guests with unpaid charges and pending settlement.
+                {t('reports.outstandingNote')}
               </p>
             </div>
           </div>
@@ -867,19 +816,19 @@ export const ReportsView: React.FC = () => {
             <button
               onClick={handleDownloadOutstandingPdf}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Download Outstanding Balances as PDF"
+              title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>Download PDF</span>
+              <span>{t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadOutstandingCsv}
               disabled={outstandingReport.rows.length === 0}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title="Download Outstanding Balances as CSV"
+              title={t('reports.exportCsv')}
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Download CSV</span>
+              <span>{t('reports.exportCsv')}</span>
             </button>
           </div>
         </div>
@@ -887,21 +836,20 @@ export const ReportsView: React.FC = () => {
         {outstandingReport.rows.length === 0 ? (
           <div className="p-8 text-center text-emerald-700 text-xs">
             <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-            <p className="font-bold text-slate-800">All Guest Folios Balanced</p>
-            <p className="text-slate-500 mt-0.5">There are no checked-in guests with outstanding receivables.</p>
+            <p className="font-bold text-slate-800">{t('reports.noOutstanding')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-4">Booking / Guest</th>
-                  <th className="py-2.5 px-4 text-center">Room #</th>
-                  <th className="py-2.5 px-4">Phone</th>
-                  <th className="py-2.5 px-4">Stay Dates</th>
-                  <th className="py-2.5 px-4 text-right">Total Charges</th>
-                  <th className="py-2.5 px-4 text-right">Amount Paid</th>
-                  <th className="py-2.5 px-4 text-right">Balance Due</th>
+                  <th className="py-2.5 px-4">{t('reports.col.bookingCode')} / {t('reports.col.guestName')}</th>
+                  <th className="py-2.5 px-4 text-center">{t('reports.col.roomNumber')}</th>
+                  <th className="py-2.5 px-4">{t('reports.col.phone')}</th>
+                  <th className="py-2.5 px-4">{t('reports.col.checkIn')} / {t('reports.col.checkOut')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.totalCharges', { currency: hotelConfig.defaultCurrency })}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.totalPaid', { currency: hotelConfig.defaultCurrency })}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.balanceDue', { currency: hotelConfig.defaultCurrency })}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -912,7 +860,7 @@ export const ReportsView: React.FC = () => {
                       <span className="font-mono text-[10px] text-slate-400">{row.bookingCode}</span>
                     </td>
                     <td className="py-2.5 px-4 text-center font-bold text-slate-700">
-                      Room #{row.roomNumber}
+                      #{row.roomNumber}
                     </td>
                     <td className="py-2.5 px-4 text-slate-600 font-mono text-[11px]">
                       {row.guestPhone}
@@ -935,7 +883,7 @@ export const ReportsView: React.FC = () => {
               <tfoot className="bg-slate-100/80 font-bold border-t-2 border-slate-300">
                 <tr>
                   <td colSpan={6} className="py-3 px-4 text-slate-800 uppercase tracking-wider text-[11px]">
-                    Total Pending Receivables
+                    {t('reports.totalOutstanding', { amount: formatMoney(outstandingReport.total) })}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-amber-800 text-sm">
                     {formatMoney(outstandingReport.total)}
@@ -953,9 +901,9 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2">
             <UserX className="w-5 h-5 text-rose-600 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Cancellations & No-Shows</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('reports.cancellationsAndNoShows')}</h3>
               <p className="text-[11px] text-slate-500">
-                Cancelled reservations and no-shows within the date range, audited with penalties and refunds.
+                {t('reports.cancellationsNote')}
               </p>
             </div>
           </div>
@@ -963,19 +911,19 @@ export const ReportsView: React.FC = () => {
             <button
               onClick={handleDownloadCancellationsPdf}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Download Cancellations and No-Shows as PDF"
+              title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>Download PDF</span>
+              <span>{t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadCancellationsCsv}
               disabled={cancellationsReport.rows.length === 0}
               className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title="Download Cancellations and No-Shows as CSV"
+              title={t('reports.exportCsv')}
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Download CSV</span>
+              <span>{t('reports.exportCsv')}</span>
             </button>
           </div>
         </div>
@@ -983,20 +931,19 @@ export const ReportsView: React.FC = () => {
         {cancellationsReport.rows.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs">
             <UserX className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="font-semibold text-slate-700">No cancellations or no-shows</p>
-            <p className="text-slate-400 mt-0.5">Zero booking cancellations or no-shows recorded during this reporting window.</p>
+            <p className="font-semibold text-slate-700">{t('reports.noCancellations')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-4">Booking / Guest</th>
-                  <th className="py-2.5 px-4 text-center">Status</th>
-                  <th className="py-2.5 px-4">Date Recorded</th>
-                  <th className="py-2.5 px-4 text-right">Fee Kept</th>
-                  <th className="py-2.5 px-4 text-right">Refund Issued</th>
-                  <th className="py-2.5 px-4">Reason & Audit Overrides</th>
+                  <th className="py-2.5 px-4">{t('reports.col.bookingCode')} / {t('reports.col.guestName')}</th>
+                  <th className="py-2.5 px-4 text-center">{t('reports.col.status')}</th>
+                  <th className="py-2.5 px-4">{t('reports.col.cancelledDate')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.feeRetained', { currency: hotelConfig.defaultCurrency })}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.refundIssued', { currency: hotelConfig.defaultCurrency })}</th>
+                  <th className="py-2.5 px-4">{t('reports.col.reason')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1005,7 +952,7 @@ export const ReportsView: React.FC = () => {
                     <td className="py-2.5 px-4">
                       <div className="font-bold text-slate-900">{row.guestName}</div>
                       <span className="font-mono text-[10px] text-slate-400">
-                        {row.bookingCode} • Room #{row.roomNumber}
+                        {row.bookingCode} • #{row.roomNumber}
                       </span>
                     </td>
                     <td className="py-2.5 px-4 text-center">
@@ -1043,7 +990,7 @@ export const ReportsView: React.FC = () => {
               <tfoot className="bg-slate-100/80 font-bold border-t-2 border-slate-300">
                 <tr>
                   <td colSpan={3} className="py-3 px-4 text-slate-800 uppercase tracking-wider text-[11px]">
-                    Total Retained / Refunded
+                    {t('reports.totalFeesRetained', { amount: formatMoney(cancellationsReport.totalFeeKept) })}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-slate-950 text-sm">
                     {formatMoney(cancellationsReport.totalFeeKept)}

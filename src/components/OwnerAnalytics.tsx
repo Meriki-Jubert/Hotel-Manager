@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
 import {
   BarChart3,
   TrendingUp,
@@ -17,8 +18,10 @@ import {
 } from 'lucide-react';
 import { PaymentMethod } from '../types/hms';
 import { sumPaymentsByMethod } from '../utils/folio';
+import { tPaymentMethod } from '../i18n/labels';
 
 export const OwnerAnalytics: React.FC = () => {
+  const { t } = useT();
   const {
     rooms,
     reservations,
@@ -124,10 +127,10 @@ export const OwnerAnalytics: React.FC = () => {
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-indigo-600" />
-            Executive Business Intelligence & Owner Analytics
+            {t('analytics.title')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Real-time financial performance, occupancy yield, and historical audit ledger
+            {t('analytics.subtitle')}
           </p>
         </div>
 
@@ -141,7 +144,7 @@ export const OwnerAnalytics: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Real-Time KPIs
+              {t('analytics.realTimeKpis')}
             </button>
             <button
               onClick={() => setActiveSubTab('audits')}
@@ -151,7 +154,7 @@ export const OwnerAnalytics: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Night Audit Archive ({nightAuditReports.length})
+              {t('analytics.auditArchive', { count: nightAuditReports.length })}
             </button>
           </div>
         </div>
@@ -163,54 +166,54 @@ export const OwnerAnalytics: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
               <div className="flex items-center justify-between text-slate-500 text-xs">
-                <span className="font-semibold uppercase tracking-wider text-[11px]">Today's Est. Revenue</span>
+                <span className="font-semibold uppercase tracking-wider text-[11px]">{t('analytics.todayEstRevenue')}</span>
                 <DollarSign className="w-4 h-4 text-emerald-600" />
               </div>
               <div className="text-2xl font-bold font-mono text-slate-900 mt-2">
                 {formatMoney(totalRevenue)}
               </div>
               <div className="text-[11px] text-slate-500 mt-1 flex justify-between">
-                <span>Rooms: {formatMoney(roomRevenueToday)}</span>
-                <span>F&B: {formatMoney(posRevenueToday)}</span>
+                <span>{t('analytics.roomsRev', { amount: formatMoney(roomRevenueToday) })}</span>
+                <span>{t('analytics.fnbRev', { amount: formatMoney(posRevenueToday) })}</span>
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
               <div className="flex items-center justify-between text-slate-500 text-xs">
-                <span className="font-semibold uppercase tracking-wider text-[11px]">Occupancy Rate</span>
+                <span className="font-semibold uppercase tracking-wider text-[11px]">{t('analytics.occupancyRate')}</span>
                 <Percent className="w-4 h-4 text-blue-600" />
               </div>
               <div className="text-2xl font-bold font-mono text-emerald-700 mt-2">
                 {occupancyRate.toFixed(1)}%
               </div>
               <div className="text-[11px] text-slate-500 mt-1">
-                {occupiedRooms} of {totalRooms} rooms occupied in-house
+                {t('analytics.roomsOccupiedSub', { occupied: occupiedRooms, total: totalRooms })}
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
               <div className="flex items-center justify-between text-slate-500 text-xs">
-                <span className="font-semibold uppercase tracking-wider text-[11px]">ADR (Avg Daily Rate)</span>
+                <span className="font-semibold uppercase tracking-wider text-[11px]">{t('analytics.adr')}</span>
                 <TrendingUp className="w-4 h-4 text-indigo-600" />
               </div>
               <div className="text-2xl font-bold font-mono text-slate-900 mt-2">
                 {formatMoney(adr)}
               </div>
               <div className="text-[11px] text-slate-500 mt-1">
-                Average yield per sold room tonight
+                {t('analytics.adrSub')}
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
               <div className="flex items-center justify-between text-slate-500 text-xs">
-                <span className="font-semibold uppercase tracking-wider text-[11px]">RevPAR</span>
+                <span className="font-semibold uppercase tracking-wider text-[11px]">{t('analytics.revPar')}</span>
                 <Bed className="w-4 h-4 text-purple-600" />
               </div>
               <div className="text-2xl font-bold font-mono text-slate-900 mt-2">
                 {formatMoney(revPar)}
               </div>
               <div className="text-[11px] text-slate-500 mt-1">
-                Total room revenue ÷ {totalRooms} available rooms
+                {t('analytics.revParSub', { total: totalRooms })}
               </div>
             </div>
           </div>
@@ -222,15 +225,15 @@ export const OwnerAnalytics: React.FC = () => {
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                     <Building className="w-4 h-4 text-teal-600" />
-                    Multi-Branch Performance Ledger & Benchmark Comparison
+                    {t('analytics.multiBranchLedger')}
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Live breakdown of occupancy yield, room revenue, and ADR across active branches
+                    {t('analytics.multiBranchSub')}
                   </p>
                 </div>
                 {activeBranchId === 'all' && (
                   <span className="text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full border border-indigo-200 shrink-0">
-                    Consolidated Enterprise View
+                    {t('analytics.enterpriseView')}
                   </span>
                 )}
               </div>
@@ -239,15 +242,15 @@ export const OwnerAnalytics: React.FC = () => {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 uppercase text-[10px] font-bold text-slate-600 border-b border-slate-200">
                     <tr>
-                      <th className="py-2.5 px-4">Branch / City</th>
-                      <th className="py-2.5 px-3 text-center">Business Date</th>
-                      <th className="py-2.5 px-3 text-center">Rooms (Total/Occ)</th>
-                      <th className="py-2.5 px-3 text-center">Occupancy %</th>
-                      <th className="py-2.5 px-3 text-right">Room Rev.</th>
-                      <th className="py-2.5 px-3 text-right">POS Rev.</th>
-                      <th className="py-2.5 px-3 text-right">Total Rev.</th>
-                      <th className="py-2.5 px-3 text-right">ADR</th>
-                      <th className="py-2.5 px-3 text-right">RevPAR</th>
+                      <th className="py-2.5 px-4">{t('analytics.colBranch')}</th>
+                      <th className="py-2.5 px-3 text-center">{t('analytics.colDate')}</th>
+                      <th className="py-2.5 px-3 text-center">{t('analytics.colRooms')}</th>
+                      <th className="py-2.5 px-3 text-center">{t('analytics.colOcc')}</th>
+                      <th className="py-2.5 px-3 text-right">{t('analytics.colRoomRev')}</th>
+                      <th className="py-2.5 px-3 text-right">{t('analytics.colPosRev')}</th>
+                      <th className="py-2.5 px-3 text-right">{t('analytics.colTotalRev')}</th>
+                      <th className="py-2.5 px-3 text-right">{t('analytics.colAdr')}</th>
+                      <th className="py-2.5 px-3 text-right">{t('analytics.colRevPar')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -266,13 +269,13 @@ export const OwnerAnalytics: React.FC = () => {
                                 {item.branch.name}
                                 {activeBranchId === item.branch.id && (
                                   <span className="text-[10px] font-bold text-teal-700 bg-teal-100 px-1.5 py-0.2 rounded">
-                                    Active
+                                    {t('analytics.activeBadge')}
                                   </span>
                                 )}
                               </div>
                               <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
                                 <MapPin className="w-3 h-3 text-slate-400" />
-                                {item.branch.city || 'Location unassigned'}
+                                {item.branch.city || t('analytics.unassignedLocation')}
                               </div>
                             </div>
                           </div>
@@ -319,7 +322,7 @@ export const OwnerAnalytics: React.FC = () => {
                     <tfoot className="bg-slate-50 border-t-2 border-slate-300 font-bold text-slate-900">
                       <tr>
                         <td className="py-3 px-4">
-                          <span>Consolidated Total ({branchComparison.length} Branches)</span>
+                          <span>{t('analytics.consolidatedTotal', { count: branchComparison.length })}</span>
                         </td>
                         <td className="py-3 px-3 text-center text-slate-400 font-mono">-</td>
                         <td className="py-3 px-3 text-center font-mono">
@@ -371,7 +374,7 @@ export const OwnerAnalytics: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-emerald-600" />
-                  Cash Flow by Payment Gateway (MTN MoMo, Orange & Cash)
+                  {t('analytics.cashFlowGateway')}
                 </h3>
                 <span className="text-xs font-mono font-bold text-emerald-700">
                   {formatMoney(totalCollected)}
@@ -380,11 +383,11 @@ export const OwnerAnalytics: React.FC = () => {
 
               <div className="space-y-3">
                 {[
-                  { id: 'momo', label: 'MTN Mobile Money', color: 'bg-yellow-400', amount: paymentsByMethod['momo'] || 0 },
-                  { id: 'orange_money', label: 'Orange Money', color: 'bg-orange-500', amount: paymentsByMethod['orange_money'] || 0 },
-                  { id: 'cash', label: 'Cash in Hand (FCFA)', color: 'bg-emerald-500', amount: paymentsByMethod['cash'] || 0 },
-                  { id: 'card', label: 'Bank Card / POS', color: 'bg-blue-500', amount: paymentsByMethod['card'] || 0 },
-                  { id: 'bank_transfer', label: 'Direct Wire Transfer', color: 'bg-indigo-500', amount: paymentsByMethod['bank_transfer'] || 0 }
+                  { id: 'momo', label: t('analytics.momoLabel'), color: 'bg-yellow-400', amount: paymentsByMethod['momo'] || 0 },
+                  { id: 'orange_money', label: t('analytics.orangeLabel'), color: 'bg-orange-500', amount: paymentsByMethod['orange_money'] || 0 },
+                  { id: 'cash', label: t('analytics.cashLabel'), color: 'bg-emerald-500', amount: paymentsByMethod['cash'] || 0 },
+                  { id: 'card', label: t('analytics.cardLabel'), color: 'bg-blue-500', amount: paymentsByMethod['card'] || 0 },
+                  { id: 'bank_transfer', label: t('analytics.bankLabel'), color: 'bg-indigo-500', amount: paymentsByMethod['bank_transfer'] || 0 }
                 ].map((item) => {
                   const pct = totalCollected > 0 ? (item.amount / totalCollected) * 100 : 0;
                   return (
@@ -412,7 +415,7 @@ export const OwnerAnalytics: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <Bed className="w-4 h-4 text-indigo-600" />
-                  Room Category Revenue Contribution
+                  {t('analytics.roomCategoryContribution')}
                 </h3>
               </div>
 
@@ -428,8 +431,8 @@ export const OwnerAnalytics: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex justify-between text-[11px] text-slate-500">
-                        <span>{item.occupied} Room(s) Active</span>
-                        <span>{pct.toFixed(1)}% of nightly yield</span>
+                        <span>{t('analytics.activeRoomsSub', { count: item.occupied })}</span>
+                        <span>{t('analytics.nightlyYieldSub', { pct: pct.toFixed(1) })}</span>
                       </div>
                     </div>
                   );
@@ -444,10 +447,10 @@ export const OwnerAnalytics: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center">
             <h3 className="font-bold text-sm text-slate-900">
-              End-of-Day Night Audit Historical Reports
+              {t('analytics.auditArchiveTitle')}
             </h3>
             <span className="text-xs text-slate-500 font-mono">
-              Audits logged: {nightAuditReports.length}
+              {t('analytics.auditsLogged', { count: nightAuditReports.length })}
             </span>
           </div>
 
@@ -455,14 +458,14 @@ export const OwnerAnalytics: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4">Audit Date</th>
-                  <th className="py-3 px-4">Occupancy %</th>
-                  <th className="py-3 px-4">Gross Revenue</th>
-                  <th className="py-3 px-4">ADR</th>
-                  <th className="py-3 px-4">RevPAR</th>
-                  <th className="py-3 px-4">Cash / MoMo Float</th>
-                  <th className="py-3 px-4">Discrepancy</th>
-                  <th className="py-3 px-4">Audited By</th>
+                  <th className="py-3 px-4">{t('analytics.colAuditDate')}</th>
+                  <th className="py-3 px-4">{t('analytics.colOcc')}</th>
+                  <th className="py-3 px-4">{t('analytics.colGrossRev')}</th>
+                  <th className="py-3 px-4">{t('analytics.colAdr')}</th>
+                  <th className="py-3 px-4">{t('analytics.colRevPar')}</th>
+                  <th className="py-3 px-4">{t('analytics.colFloat')}</th>
+                  <th className="py-3 px-4">{t('analytics.colDiscrepancy')}</th>
+                  <th className="py-3 px-4">{t('analytics.colAuditedBy')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
@@ -484,7 +487,7 @@ export const OwnerAnalytics: React.FC = () => {
                       {formatMoney(audit.revPar)}
                     </td>
                     <td className="py-3 px-4 font-mono text-slate-600 text-[11px]">
-                      Cash: {formatMoney(audit.cashCollected)} | MoMo: {formatMoney(audit.momoCollected)}
+                      {t('analytics.cashMomoFormat', { cash: formatMoney(audit.cashCollected), momo: formatMoney(audit.momoCollected) })}
                     </td>
                     <td className="py-3 px-4 font-mono font-bold">
                       <span
@@ -496,7 +499,7 @@ export const OwnerAnalytics: React.FC = () => {
                             : 'text-rose-600'
                         }
                       >
-                        {audit.discrepancy === 0 ? '0 (Balanced)' : formatMoney(audit.discrepancy)}
+                        {audit.discrepancy === 0 ? t('analytics.balanced') : formatMoney(audit.discrepancy)}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-slate-600">
@@ -512,3 +515,4 @@ export const OwnerAnalytics: React.FC = () => {
     </div>
   );
 };
+
