@@ -22,7 +22,7 @@ interface MaintenanceViewProps {
 }
 
 export const MaintenanceView: React.FC<MaintenanceViewProps> = ({ onOpenNewTicket }) => {
-  const { t } = useT();
+  const { t, formatDate } = useT();
   const { maintenanceTickets, updateMaintenanceStatus, formatMoney, activeBranchId } = useHMS();
 
   if (activeBranchId === 'all') {
@@ -162,7 +162,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({ onOpenNewTicke
 
               <div className="pt-3 border-t border-slate-100 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-500 text-[11px]">
-                  <span>{t('maintenance.reportedAt', { date: ticket.reportedAt })}</span>
+                  <span>{t('maintenance.reportedAt', { date: formatDate(ticket.reportedAt) })}</span>
                   <span>{t('maintenance.reportedBy', { name: ticket.reportedBy?.split(' ')[0] || '' })}</span>
                 </div>
 
@@ -205,7 +205,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({ onOpenNewTicke
                   {ticket.status === 'Resolved' && (
                     <span className="w-full py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>{t('maintenance.resolvedOn', { date: ticket.resolvedAt?.split(' ')[0] || t('housekeeping.today') })}</span>
+                      <span>{t('maintenance.resolvedOn', { date: ticket.resolvedAt ? formatDate(ticket.resolvedAt) : t('housekeeping.today') })}</span>
                     </span>
                   )}
                 </div>

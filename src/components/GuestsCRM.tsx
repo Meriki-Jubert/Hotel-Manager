@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const GuestsCRM: React.FC = () => {
-  const { t } = useT();
+  const { t, formatDate, formatNumber } = useT();
   const { guests, allReservations, allTransactions, formatMoney, addGuest } = useHMS();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -228,7 +228,7 @@ export const GuestsCRM: React.FC = () => {
                   <div>
                     <h3 className="font-bold text-sm text-slate-900">{guest.fullName}</h3>
                     <p className="text-[10px] text-slate-500 font-mono">
-                      {t('crm.addedOn', { nationality: guest.nationality, date: guest.createdAt })}
+                      {t('crm.addedOn', { nationality: guest.nationality, date: formatDate(guest.createdAt) })}
                     </p>
                   </div>
                   <span
@@ -276,7 +276,7 @@ export const GuestsCRM: React.FC = () => {
                 <div>
                   <span className="text-slate-400 text-[10px] block">{t('crm.lifetimeStays')}</span>
                   <span className="font-bold font-mono text-slate-800">
-                    {t('crm.visitsCount', { count: stats.visits })}
+                    {t('crm.visitsCount', { count: formatNumber(stats.visits) })}
                   </span>
                 </div>
                 <div className="text-right">

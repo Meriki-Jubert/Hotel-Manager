@@ -25,7 +25,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { t } = useT();
+  const { t, formatDate, formatNumber } = useT();
   const {
     roomTypes,
     rooms,
@@ -351,7 +351,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div>
               <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('editRes.newRate')}</span>
-              <span className="font-mono font-bold text-slate-800">{t('editRes.rateBreakdown', { nights, rate: formatMoney(nightlyRate) })}</span>
+              <span className="font-mono font-bold text-slate-800">{t('editRes.rateBreakdown', { nights: formatNumber(nights), rate: formatMoney(nightlyRate) })}</span>
             </div>
             <div>
               <span className="text-slate-500 block text-[10px] uppercase font-bold">{t('editRes.totalStay')}</span>

@@ -32,7 +32,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   onSuccess,
   initialRoom
 }) => {
-  const { t } = useT();
+  const { t, formatDate, formatNumber } = useT();
   const {
     roomTypes,
     rooms,
@@ -428,7 +428,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  {t('newRes.todayHotelDate', { date: businessDate })}
+                  {t('newRes.todayHotelDate', { date: formatDate(businessDate) })}
                 </span>
               </div>
 
@@ -445,7 +445,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-champagne-gold-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  {t('newRes.duration', { nights })}
+                  {t('newRes.duration', { nights: formatNumber(nights) })}
                 </span>
               </div>
             </div>

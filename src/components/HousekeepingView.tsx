@@ -17,7 +17,7 @@ interface HousekeepingViewProps {
 }
 
 export const HousekeepingView: React.FC<HousekeepingViewProps> = ({ onReportMaintenance }) => {
-  const { t } = useT();
+  const { t, formatDate } = useT();
   const { rooms, updateRoomStatus, roomTypes, showNotification, activeBranchId } = useHMS();
 
   if (activeBranchId === 'all') {
