@@ -10,15 +10,14 @@ import {
   Power,
   Search,
   AlertTriangle,
-  X,
-  CheckCircle2,
-  Coffee,
-  Wine,
-  Sparkles
+  X
 } from 'lucide-react';
+import { useT } from '../../i18n/LanguageContext';
+import { tMenuCategory, tPosStockStatus, tPosActiveStatus } from '../../i18n/labels';
 
 export const MenuSettings: React.FC = () => {
   const { posItems, addPosItem, updatePosItem, togglePosItemActive, deletePosItem, formatMoney } = useHMS();
+  const { t } = useT();
 
   // Filter state
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -81,7 +80,7 @@ export const MenuSettings: React.FC = () => {
     );
 
     if (!validation.valid) {
-      setFormError(validation.error || 'Invalid item details.');
+      setFormError(validation.error || t('menu.errInvalidDetails'));
       return;
     }
 
@@ -95,7 +94,7 @@ export const MenuSettings: React.FC = () => {
         image: formImage.trim() || undefined
       });
       if (!res.success) {
-        setFormError(res.error || 'Failed to update item.');
+        setFormError(res.error || t('menu.errUpdateFailed'));
         return;
       }
     } else {
@@ -108,7 +107,7 @@ export const MenuSettings: React.FC = () => {
         image: formImage.trim() || undefined
       });
       if (!res.success) {
-        setFormError(res.error || 'Failed to add item.');
+        setFormError(res.error || t('menu.errAddFailed'));
         return;
       }
     }
@@ -141,10 +140,10 @@ export const MenuSettings: React.FC = () => {
         <div>
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <UtensilsCrossed className="w-5 h-5 text-indigo-600" />
-            Restaurant Menu & Services Catalog
+            {t('menu.headerTitle')}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Hotel-wide inventory for Restaurant, Bar, Room Service, Laundry, and Guest Amenities ({posItems.length} items total)
+            {t('menu.headerSubtitle', { count: posItems.length })}
           </p>
         </div>
 
@@ -154,7 +153,7 @@ export const MenuSettings: React.FC = () => {
           className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Menu Item</span>
+          <span>{t('menu.addItemBtn')}</span>
         </button>
       </div>
 
@@ -171,7 +170,7 @@ export const MenuSettings: React.FC = () => {
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
-            All Categories ({posItems.length})
+            {t('menu.allCategories', { count: posItems.length })}
           </button>
           {POS_CATEGORIES.map((cat) => {
             const count = posItems.filter((i) => i.category === cat).length;
@@ -186,7 +185,7 @@ export const MenuSettings: React.FC = () => {
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
-                {cat} ({count})
+                {tMenuCategory(t, cat)} ({count})
               </button>
             );
           })}
@@ -197,7 +196,7 @@ export const MenuSettings: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search items..."
+            placeholder={t('menu.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -213,12 +212,10 @@ export const MenuSettings: React.FC = () => {
           </div>
           <div className="max-w-md mx-auto space-y-1">
             <h4 className="font-bold text-slate-900 text-sm">
-              {posItems.length === 0 ? 'No Menu Items Configured' : 'No Matching Items Found'}
+              {posItems.length === 0 ? t('menu.noItemsTitle') : t('menu.noMatchingTitle')}
             </h4>
             <p className="text-xs text-slate-500">
-              {posItems.length === 0
-                ? 'Start by creating food, beverages, snacks, laundry packages or hotel service amenities.'
-                : 'Try adjusting your search query or selecting a different category filter.'}
+              {posItems.length === 0 ? t('menu.noItemsDesc') : t('menu.noMatchingDesc')}
             </p>
           </div>
           {posItems.length === 0 && (
@@ -228,7 +225,7 @@ export const MenuSettings: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Add First Item</span>
+              <span>{t('menu.addFirstBtn')}</span>
             </button>
           )}
         </div>
@@ -238,12 +235,12 @@ export const MenuSettings: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-4">Item Name</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4 text-right">Price</th>
-                  <th className="py-3 px-4 text-center">In stock today</th>
-                  <th className="py-3 px-4 text-center">On the menu</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4">{t('menu.colName')}</th>
+                  <th className="py-3 px-4">{t('menu.colCategory')}</th>
+                  <th className="py-3 px-4 text-right">{t('menu.colPrice')}</th>
+                  <th className="py-3 px-4 text-center">{t('menu.colInStock')}</th>
+                  <th className="py-3 px-4 text-center">{t('menu.colOnMenu')}</th>
+                  <th className="py-3 px-4 text-right">{t('menu.colActions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -277,7 +274,7 @@ export const MenuSettings: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">
-                          {item.category}
+                          {tMenuCategory(t, item.category)}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
@@ -292,10 +289,10 @@ export const MenuSettings: React.FC = () => {
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
                               : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
                           }`}
-                          title="Click to toggle: In stock today"
+                          title={t('menu.toggleInStockTooltip')}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${item.available ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                          {item.available ? 'In stock today' : 'Out of stock'}
+                          {tPosStockStatus(t, item.available)}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -307,10 +304,10 @@ export const MenuSettings: React.FC = () => {
                               ? 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
                               : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
                           }`}
-                          title="Click to toggle: On the menu"
+                          title={t('menu.toggleOnMenuTooltip')}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-teal-500' : 'bg-slate-400'}`} />
-                          {isActive ? 'On the menu' : 'Off the menu'}
+                          {tPosActiveStatus(t, isActive)}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -319,7 +316,7 @@ export const MenuSettings: React.FC = () => {
                             type="button"
                             onClick={() => openEditModal(item)}
                             className="p-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer transition-colors"
-                            title="Edit menu item"
+                            title={t('menu.editItemTooltip')}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -331,7 +328,7 @@ export const MenuSettings: React.FC = () => {
                                 ? 'border-amber-200 text-amber-700 hover:bg-amber-50'
                                 : 'border-teal-200 text-teal-700 hover:bg-teal-50'
                             }`}
-                            title={isActive ? 'Deactivate menu item' : 'Activate menu item'}
+                            title={isActive ? t('menu.deactivateItemTooltip') : t('menu.activateItemTooltip')}
                           >
                             <Power className="w-3.5 h-3.5" />
                           </button>
@@ -339,7 +336,7 @@ export const MenuSettings: React.FC = () => {
                             type="button"
                             onClick={() => setDeletingItem(item)}
                             className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
-                            title="Delete menu item"
+                            title={t('menu.deleteItemTooltip')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -361,7 +358,7 @@ export const MenuSettings: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <UtensilsCrossed className="w-5 h-5 text-indigo-600" />
-                {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
+                {editingItem ? t('menu.editItemTitle') : t('menu.addItemTitle')}
               </h3>
               <button
                 type="button"
@@ -382,11 +379,11 @@ export const MenuSettings: React.FC = () => {
             <form onSubmit={handleSaveItem} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Item Name <span className="text-rose-500">*</span>
+                  {t('menu.formName')}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Ndolé Royal with Smoked Fish"
+                  placeholder={t('menu.formNamePlaceholder')}
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -397,7 +394,7 @@ export const MenuSettings: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Category <span className="text-rose-500">*</span>
+                    {t('menu.formCategory')}
                   </label>
                   <select
                     value={formCategory}
@@ -406,7 +403,7 @@ export const MenuSettings: React.FC = () => {
                   >
                     {POS_CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>
-                        {cat}
+                        {tMenuCategory(t, cat)}
                       </option>
                     ))}
                   </select>
@@ -414,7 +411,7 @@ export const MenuSettings: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Price (FCFA) <span className="text-rose-500">*</span>
+                    {t('menu.formPrice', { currency: 'FCFA' })}
                   </label>
                   <input
                     type="number"
@@ -431,11 +428,11 @@ export const MenuSettings: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Image URL (Optional)
+                  {t('menu.formImage')}
                 </label>
                 <input
                   type="url"
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder={t('menu.formImagePlaceholder')}
                   value={formImage}
                   onChange={(e) => setFormImage(e.target.value)}
                   className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -448,10 +445,10 @@ export const MenuSettings: React.FC = () => {
                     type="checkbox"
                     checked={formIsActive}
                     onChange={(e) => setFormIsActive(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
-                  <span>On the menu</span>
-                  <span className="text-[10px] text-slate-400 font-normal">(Active catalog item)</span>
+                  <span>{t('menu.status.onMenu')}</span>
+                  <span className="text-[10px] text-slate-400 font-normal">{t('menu.formOnMenuDesc')}</span>
                 </label>
 
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
@@ -459,10 +456,10 @@ export const MenuSettings: React.FC = () => {
                     type="checkbox"
                     checked={formAvailable}
                     onChange={(e) => setFormAvailable(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
-                  <span>In stock today</span>
-                  <span className="text-[10px] text-slate-400 font-normal">(Available for ordering on POS)</span>
+                  <span>{t('menu.status.inStock')}</span>
+                  <span className="text-[10px] text-slate-400 font-normal">{t('menu.formInStockDesc')}</span>
                 </label>
               </div>
 
@@ -472,13 +469,13 @@ export const MenuSettings: React.FC = () => {
                   onClick={closeModal}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm cursor-pointer"
                 >
-                  {editingItem ? 'Save Changes' : 'Create Item'}
+                  {editingItem ? t('common.saveChanges') : t('menu.createItem')}
                 </button>
               </div>
             </form>
@@ -494,12 +491,11 @@ export const MenuSettings: React.FC = () => {
               <div className="p-2.5 rounded-full bg-rose-100">
                 <AlertTriangle className="w-5 h-5 text-rose-700" />
               </div>
-              <h3 className="font-bold text-sm text-slate-900">Delete Menu Item</h3>
+              <h3 className="font-bold text-sm text-slate-900">{t('menu.deleteItemTitle')}</h3>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Are you sure you want to delete <strong className="text-slate-900">"{deletingItem.name}"</strong>?
-              Past charges recorded on guest folios will preserve their own copy of this item and won't be affected.
+              {t('menu.deleteItemPrompt', { name: deletingItem.name })}
             </p>
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -508,14 +504,14 @@ export const MenuSettings: React.FC = () => {
                 onClick={() => setDeletingItem(null)}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
                 className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm cursor-pointer"
               >
-                Delete Item
+                {t('menu.deleteConfirmBtn')}
               </button>
             </div>
           </div>

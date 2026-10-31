@@ -18,10 +18,11 @@ import {
 } from 'lucide-react';
 import { useT } from '../../i18n/LanguageContext';
 import { translate } from '../../i18n/translate';
+import { tCancellationFeeType, tCancellationFeeTypeLong } from '../../i18n/labels';
 
 export const CancellationPolicySettings: React.FC = () => {
   const { hotelConfig, updateHotelConfig, currentUser, formatMoney } = useHMS();
-  const { lang } = useT();
+  const { t, lang } = useT();
 
   const isManagerOrOwner = currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
@@ -92,33 +93,33 @@ export const CancellationPolicySettings: React.FC = () => {
     const val = Number(tierValue);
 
     if (isNaN(days) || days < 0 || !Number.isInteger(days)) {
-      setTierError('Days before arrival must be a non-negative whole number (0 or greater).');
+      setTierError(t('policy.errDaysNonNegative'));
       return;
     }
 
     if (isNaN(val)) {
-      setTierError('Fee value is invalid.');
+      setTierError(t('policy.errFeeInvalid'));
       return;
     }
 
     if (tierFeeType === 'percent') {
       if (val < 0 || val > 100) {
-        setTierError('Percentage must be between 0 and 100%.');
+        setTierError(t('policy.errPercentRange'));
         return;
       }
     } else {
       if (val <= 0) {
-        setTierError('Nights charge must be greater than 0.');
+        setTierError(t('policy.errNightsPositive'));
         return;
       }
     }
 
     // Check uniqueness of daysBeforeArrival
     const duplicate = policyTiers.some(
-      (t, i) => t.daysBeforeArrival === days && (editingTierIndex === null || i !== editingTierIndex)
+      (tierItem, i) => tierItem.daysBeforeArrival === days && (editingTierIndex === null || i !== editingTierIndex)
     );
     if (duplicate) {
-      setTierError(`A tier for ${days} day(s) before arrival already exists.`);
+      setTierError(t('policy.errTierExists', { days }));
       return;
     }
 
@@ -152,42 +153,42 @@ export const CancellationPolicySettings: React.FC = () => {
 
     const nsVal = Number(noShowValue);
     if (isNaN(nsVal)) {
-      setPolicySaveError('No-show fee value is required.');
+      setPolicySaveError(t('policy.errNoShowRequired'));
       return;
     }
     if (noShowFeeType === 'percent') {
       if (nsVal < 0 || nsVal > 100) {
-        setPolicySaveError('No-show fee percentage must be between 0 and 100%.');
+        setPolicySaveError(t('policy.errNoShowPercentRange'));
         return;
       }
     } else {
       if (nsVal <= 0) {
-        setPolicySaveError('No-show nights charge must be greater than 0.');
+        setPolicySaveError(t('policy.errNoShowNightsPositive'));
         return;
       }
     }
 
     // Validate tier uniqueness & ranges
     const seenDays = new Set<number>();
-    for (const t of policyTiers) {
-      if (t.daysBeforeArrival < 0 || !Number.isInteger(t.daysBeforeArrival)) {
-        setPolicySaveError('All tier days must be 0 or greater.');
+    for (const tierItem of policyTiers) {
+      if (tierItem.daysBeforeArrival < 0 || !Number.isInteger(tierItem.daysBeforeArrival)) {
+        setPolicySaveError(t('policy.errAllTierDaysPositive'));
         return;
       }
-      if (seenDays.has(t.daysBeforeArrival)) {
-        setPolicySaveError(`Duplicate tier for ${t.daysBeforeArrival} day(s) before arrival.`);
+      if (seenDays.has(tierItem.daysBeforeArrival)) {
+        setPolicySaveError(t('policy.errDuplicateTier', { days: tierItem.daysBeforeArrival }));
         return;
       }
-      seenDays.add(t.daysBeforeArrival);
+      seenDays.add(tierItem.daysBeforeArrival);
 
-      if (t.feeType === 'percent') {
-        if (t.value < 0 || t.value > 100) {
-          setPolicySaveError(`Tier fee for ${t.daysBeforeArrival} days must be between 0 and 100%.`);
+      if (tierItem.feeType === 'percent') {
+        if (tierItem.value < 0 || tierItem.value > 100) {
+          setPolicySaveError(t('policy.errTierPercentRange', { days: tierItem.daysBeforeArrival }));
           return;
         }
       } else {
-        if (t.value <= 0) {
-          setPolicySaveError(`Tier fee for ${t.daysBeforeArrival} days must be greater than 0 nights.`);
+        if (tierItem.value <= 0) {
+          setPolicySaveError(t('policy.errTierNightsPositive', { days: tierItem.daysBeforeArrival }));
           return;
         }
       }
@@ -208,11 +209,11 @@ export const CancellationPolicySettings: React.FC = () => {
       cancellationPolicy: updatedPolicy
     });
     if (!res.success) {
-      setPolicySaveError(res.error || 'Failed to save cancellation policy.');
+      setPolicySaveError(res.error || t('policy.errSaveFailed'));
       setPolicySaveSuccess(null);
       return;
     }
-    setPolicySaveSuccess('Cancellation policy saved successfully and persisted across sessions.');
+    setPolicySaveSuccess(t('policy.saveSuccess'));
   };
 
   // Live simulation state
@@ -267,26 +268,26 @@ export const CancellationPolicySettings: React.FC = () => {
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
               <span>
-                <strong>Read-Only View:</strong> Manager or Owner access is required to modify cancellation policies and tiers.
+                <strong>{t('policy.readOnlyNoticeTitle')}:</strong> {t('policy.readOnlyNotice')}
               </span>
             </div>
             <span className="text-[11px] bg-amber-200 text-amber-900 px-2.5 py-1 rounded-full font-bold">
-              View Only
+              {t('policy.viewOnlyBadge')}
             </span>
           </div>
 
           {/* Policy Overview Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">General Terms</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.generalTerms')}</span>
               <div className="mt-1 text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-rose-600" />
-                <span>{getCancellationPolicySummary(hotelConfig.cancellationPolicy)}</span>
+                <span>{getCancellationPolicySummary(hotelConfig.cancellationPolicy, lang)}</span>
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Non-Refundable Rates</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.nonRefundableRates')}</span>
               <div className="mt-1 text-sm font-bold text-slate-900 flex items-center gap-2">
                 <span
                   className={`inline-block w-2.5 h-2.5 rounded-full ${
@@ -294,19 +295,19 @@ export const CancellationPolicySettings: React.FC = () => {
                   }`}
                 />
                 <span>
-                  {hotelConfig.cancellationPolicy?.allowNonRefundable ? 'Allowed & Active' : 'Disabled'}
+                  {hotelConfig.cancellationPolicy?.allowNonRefundable ? t('policy.allowedActive') : t('policy.disabled')}
                 </span>
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">No-Show Penalty</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.noShowPenalty')}</span>
               <div className="mt-1 text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                 <span>
                   {hotelConfig.cancellationPolicy?.noShow?.feeType === 'percent'
-                    ? `${hotelConfig.cancellationPolicy.noShow.value}% of booking total`
-                    : `${hotelConfig.cancellationPolicy?.noShow?.value || 1} night(s) charge`}
+                    ? t('policy.noShowSummaryPercent', { value: hotelConfig.cancellationPolicy.noShow.value })
+                    : t('policy.noShowSummaryNights', { count: hotelConfig.cancellationPolicy?.noShow?.value || 1 })}
                 </span>
               </div>
             </div>
@@ -316,11 +317,11 @@ export const CancellationPolicySettings: React.FC = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm text-slate-900">Cancellation Tiers</h3>
-                <p className="text-xs text-slate-500">Tier rules applied depending on days prior to arrival.</p>
+                <h3 className="font-bold text-sm text-slate-900">{t('policy.cancellationTiers')}</h3>
+                <p className="text-xs text-slate-500">{t('policy.cancellationTiersSubtitle')}</p>
               </div>
               <span className="text-xs font-mono font-bold text-slate-600">
-                {hotelConfig.cancellationPolicy?.tiers?.length || 0} active tier(s)
+                {t('policy.activeTiersCount', { count: hotelConfig.cancellationPolicy?.tiers?.length || 0 })}
               </span>
             </div>
 
@@ -328,35 +329,35 @@ export const CancellationPolicySettings: React.FC = () => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] font-bold border-b border-slate-200">
                   <tr>
-                    <th className="py-3 px-4">Notice Window</th>
-                    <th className="py-3 px-4">Fee Type</th>
-                    <th className="py-3 px-4">Fee Value</th>
-                    <th className="py-3 px-4">Effective Rule</th>
+                    <th className="py-3 px-4">{t('policy.colNoticeWindow')}</th>
+                    <th className="py-3 px-4">{t('policy.colFeeType')}</th>
+                    <th className="py-3 px-4">{t('policy.colFeeValue')}</th>
+                    <th className="py-3 px-4">{t('policy.colEffectiveRule')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {(hotelConfig.cancellationPolicy?.tiers || []).length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-6 text-center text-slate-400 italic">
-                        No cancellation tiers defined. Standard cancellations are free outside no-shows.
+                        {t('policy.noTiersDefinedReadOnly')}
                       </td>
                     </tr>
                   ) : (
-                    (hotelConfig.cancellationPolicy?.tiers || []).map((t, idx) => (
+                    (hotelConfig.cancellationPolicy?.tiers || []).map((tierItem, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/70">
                         <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                          ≤ {t.daysBeforeArrival} day{t.daysBeforeArrival === 1 ? '' : 's'} before arrival
+                          {t('policy.noticeWindowValue', { days: tierItem.daysBeforeArrival })}
                         </td>
                         <td className="py-3 px-4 capitalize text-slate-700">
-                          {t.feeType === 'percent' ? 'Percentage' : 'Nights Charge'}
+                          {tCancellationFeeType(t, tierItem.feeType)}
                         </td>
                         <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                          {t.feeType === 'percent' ? `${t.value}%` : `${t.value} night(s)`}
+                          {tierItem.feeType === 'percent' ? `${tierItem.value}%` : t('policy.nightsCount', { count: tierItem.value })}
                         </td>
                         <td className="py-3 px-4 text-slate-600">
-                          {t.feeType === 'percent'
-                            ? `Charge ${t.value}% of total stay`
-                            : `Charge ${t.value} night(s) rate`}
+                          {tierItem.feeType === 'percent'
+                            ? t('policy.rulePercentDesc', { value: tierItem.value })
+                            : t('policy.ruleNightsDesc', { count: tierItem.value })}
                         </td>
                       </tr>
                     ))
@@ -371,16 +372,16 @@ export const CancellationPolicySettings: React.FC = () => {
             <div className="border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-600" />
-                Live Fee Calculation Simulator
+                {t('policy.simTitle')}
               </h3>
               <p className="text-xs text-slate-500">
-                Test how the hotel's cancellation policy calculates suggested fees for any reservation scenario.
+                {t('policy.simSubtitle')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Days Before Arrival</label>
+                <label className="block font-bold text-slate-700 mb-1">{t('policy.simDaysBefore')}</label>
                 <input
                   type="number"
                   value={simDaysBefore}
@@ -389,7 +390,7 @@ export const CancellationPolicySettings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Stay Duration (Nights)</label>
+                <label className="block font-bold text-slate-700 mb-1">{t('policy.simStayDuration')}</label>
                 <input
                   type="number"
                   min={1}
@@ -399,7 +400,7 @@ export const CancellationPolicySettings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Nightly Rate ({hotelConfig.defaultCurrency})</label>
+                <label className="block font-bold text-slate-700 mb-1">{t('policy.simNightlyRate', { currency: hotelConfig.defaultCurrency })}</label>
                 <input
                   type="number"
                   min={0}
@@ -417,7 +418,7 @@ export const CancellationPolicySettings: React.FC = () => {
                     onChange={(e) => setSimIsNoShow(e.target.checked)}
                     className="w-4 h-4 text-indigo-600 rounded border-slate-300"
                   />
-                  <span>Marked as No-Show</span>
+                  <span>{t('policy.simMarkedNoShow')}</span>
                 </label>
                 {hotelConfig.cancellationPolicy?.allowNonRefundable && (
                   <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer text-xs">
@@ -427,7 +428,7 @@ export const CancellationPolicySettings: React.FC = () => {
                       onChange={(e) => setSimRateType(e.target.checked ? 'non_refundable' : 'flexible')}
                       className="w-4 h-4 text-indigo-600 rounded border-slate-300"
                     />
-                    <span>Non-refundable Rate</span>
+                    <span>{t('policy.simNonRefundableRate')}</span>
                   </label>
                 )}
               </div>
@@ -435,14 +436,14 @@ export const CancellationPolicySettings: React.FC = () => {
 
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Calculation Output</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.simOutput')}</span>
                 <p className="font-semibold text-slate-800 text-sm mt-0.5">{translate(lang, simResult.ruleKey, simResult.ruleVars)}</p>
                 <span className="text-slate-500 text-[11px] mt-0.5 block">
-                  Total Booking: {formatMoney(simStayNights * simNightlyRate)}
+                  {t('policy.simTotalBooking', { amount: formatMoney(simStayNights * simNightlyRate) })}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Suggested Fee</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.simSuggestedFee')}</span>
                 <span className="text-base font-mono font-bold text-rose-600">
                   {formatMoney(simResult.suggestedFee)}
                 </span>
@@ -458,10 +459,10 @@ export const CancellationPolicySettings: React.FC = () => {
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-rose-600" />
-                Property Cancellation Policy & Tier Settings
+                {t('policy.editorTitle')}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Configure tiered cancellation windows, no-show penalties, and non-refundable booking availability.
+                {t('policy.editorSubtitle')}
               </p>
             </div>
             <button
@@ -469,7 +470,7 @@ export const CancellationPolicySettings: React.FC = () => {
               className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition-colors shrink-0 cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Save Policy Settings</span>
+              <span>{t('policy.saveSettingsBtn')}</span>
             </button>
           </div>
 
@@ -491,10 +492,10 @@ export const CancellationPolicySettings: React.FC = () => {
           <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span className="text-slate-600">Current Guest Policy Display:</span>
-              <span className="font-bold text-indigo-950">{getCancellationPolicySummary(draftPolicy)}</span>
+              <span className="text-slate-600">{t('policy.guestPolicyDisplay')}</span>
+              <span className="font-bold text-indigo-950">{getCancellationPolicySummary(draftPolicy, lang)}</span>
             </div>
-            <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider">Live Preview</span>
+            <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider">{t('policy.livePreviewBadge')}</span>
           </div>
 
           {/* Top settings row: Non-refundable toggle & No-show rule */}
@@ -503,9 +504,9 @@ export const CancellationPolicySettings: React.FC = () => {
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-xs text-slate-900">Allow Non-Refundable Bookings</h4>
+                  <h4 className="font-bold text-xs text-slate-900">{t('policy.allowNonRefundableTitle')}</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Permit front-desk staff to mark bookings as non-refundable. Cancellations or no-shows incur 100% of stay cost.
+                    {t('policy.allowNonRefundableDesc')}
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -523,21 +524,21 @@ export const CancellationPolicySettings: React.FC = () => {
               </div>
               <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${allowNonRefundable ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                <span>Status: {allowNonRefundable ? 'Available on booking forms' : 'Disabled across property'}</span>
+                <span>{t('policy.statusLabel', { status: allowNonRefundable ? t('policy.statusAvailableBooking') : t('policy.statusDisabledProperty') })}</span>
               </div>
             </div>
 
             {/* No-show rule */}
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-3">
               <div>
-                <h4 className="font-bold text-xs text-slate-900">No-Show Rule & Default Penalty</h4>
+                <h4 className="font-bold text-xs text-slate-900">{t('policy.noShowRuleTitle')}</h4>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Fee automatically calculated when reservations are marked as No-Show.
+                  {t('policy.noShowRuleDesc')}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Fee Type</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t('policy.feeTypeLabel')}</label>
                   <select
                     value={noShowFeeType}
                     onChange={(e) => {
@@ -546,13 +547,13 @@ export const CancellationPolicySettings: React.FC = () => {
                     }}
                     className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:bg-white"
                   >
-                    <option value="nights">Nights Charge</option>
-                    <option value="percent">Percentage of Total (%)</option>
+                    <option value="nights">{t('policy.feeType.nights')}</option>
+                    <option value="percent">{t('policy.feeType.percent')}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Fee Value {noShowFeeType === 'percent' ? '(0 - 100%)' : '(Nights > 0)'}
+                    {noShowFeeType === 'percent' ? t('policy.feeValuePercentHint') : t('policy.feeValueNightsHint')}
                   </label>
                   <input
                     type="number"
@@ -576,10 +577,10 @@ export const CancellationPolicySettings: React.FC = () => {
               <div>
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <Layers className="w-4 h-4 text-indigo-600" />
-                  Cancellation Policy Tiers
+                  {t('policy.tiersTitle')}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Define fees based on days remaining until check-in. The matching tier with the lowest daysBeforeArrival applies.
+                  {t('policy.tiersSubtitle')}
                 </p>
               </div>
               <button
@@ -588,7 +589,7 @@ export const CancellationPolicySettings: React.FC = () => {
                 className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
-                <span>Add Tier</span>
+                <span>{t('policy.addTierBtn')}</span>
               </button>
             </div>
 
@@ -596,11 +597,11 @@ export const CancellationPolicySettings: React.FC = () => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] font-bold border-b border-slate-200">
                   <tr>
-                    <th className="py-3 px-4">Notice Window</th>
-                    <th className="py-3 px-4">Fee Structure</th>
-                    <th className="py-3 px-4">Penalty Value</th>
-                    <th className="py-3 px-4">Rule Explanation</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3 px-4">{t('policy.colNoticeWindow')}</th>
+                    <th className="py-3 px-4">{t('policy.colFeeStructure')}</th>
+                    <th className="py-3 px-4">{t('policy.colPenaltyValue')}</th>
+                    <th className="py-3 px-4">{t('policy.colRuleExplanation')}</th>
+                    <th className="py-3 px-4 text-right">{t('policy.colActions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
@@ -608,30 +609,30 @@ export const CancellationPolicySettings: React.FC = () => {
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-slate-400">
                         <Clock className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-                        <p className="text-xs italic">No cancellation tiers defined yet.</p>
+                        <p className="text-xs italic">{t('policy.noTiersYet')}</p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Cancellations will be free of charge until arrival date. Click "Add Tier" to create penalty tiers.
+                          {t('policy.noTiersYetDesc')}
                         </p>
                       </td>
                     </tr>
                   ) : (
-                    policyTiers.map((tier, idx) => (
+                    policyTiers.map((tierItem, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/70">
                         <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                          ≤ {tier.daysBeforeArrival} day{tier.daysBeforeArrival === 1 ? '' : 's'} before arrival
+                          {t('policy.noticeWindowValue', { days: tierItem.daysBeforeArrival })}
                         </td>
                         <td className="py-3.5 px-4">
                           <span className="capitalize px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-800">
-                            {tier.feeType === 'percent' ? 'Percentage' : 'Nights Charge'}
+                            {tCancellationFeeType(t, tierItem.feeType)}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                          {tier.feeType === 'percent' ? `${tier.value}%` : `${tier.value} night(s)`}
+                          {tierItem.feeType === 'percent' ? `${tierItem.value}%` : t('policy.nightsCount', { count: tierItem.value })}
                         </td>
                         <td className="py-3.5 px-4 text-slate-600 text-xs">
-                          {tier.feeType === 'percent'
-                            ? `Charge ${tier.value}% of booking total`
-                            : `Charge ${tier.value} night(s) base room rate`}
+                          {tierItem.feeType === 'percent'
+                            ? t('policy.rulePercentDesc', { value: tierItem.value })
+                            : t('policy.ruleNightsDesc', { count: tierItem.value })}
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -639,7 +640,7 @@ export const CancellationPolicySettings: React.FC = () => {
                               type="button"
                               onClick={() => openEditTier(idx)}
                               className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                              title="Edit tier"
+                              title={t('policy.editTierTooltip')}
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
@@ -647,7 +648,7 @@ export const CancellationPolicySettings: React.FC = () => {
                               type="button"
                               onClick={() => handleDeleteTier(idx)}
                               className="p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete tier"
+                              title={t('policy.deleteTierTooltip')}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -667,34 +668,39 @@ export const CancellationPolicySettings: React.FC = () => {
               <div>
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-rose-600" />
-                  Live Cancellation Simulation & Validation
+                  {t('policy.simValidationTitle')}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Verify your policy behavior against real-time sample bookings computed via calculateCancellationFee.
+                  {t('policy.simValidationSubtitle')}
                 </p>
               </div>
               <span className="text-[11px] font-mono bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full font-bold border border-rose-200">
-                Live Engine
+                {t('policy.liveEngineBadge')}
               </span>
             </div>
 
             {/* Example summary callout */}
             <div className="p-3 bg-slate-900 text-white rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Example Scenario</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">{t('policy.exampleScenario')}</span>
                 <span className="font-mono text-xs text-amber-300">
-                  Cancel {simDaysBefore} day{simDaysBefore === 1 ? '' : 's'} before a {simStayNights}-night stay at {formatMoney(simNightlyRate)} per night ➔ Fee {formatMoney(simResult.suggestedFee)}
+                  {t('policy.exampleScenarioDesc', {
+                    days: simDaysBefore,
+                    nights: simStayNights,
+                    rate: formatMoney(simNightlyRate),
+                    fee: formatMoney(simResult.suggestedFee)
+                  })}
                 </span>
               </div>
               <span className="text-[11px] text-slate-300 shrink-0">
-                Rule: <span className="text-white font-semibold">{translate(lang, simResult.ruleKey, simResult.ruleVars)}</span>
+                {t('policy.ruleLabel')} <span className="text-white font-semibold">{translate(lang, simResult.ruleKey, simResult.ruleVars)}</span>
               </span>
             </div>
 
             {/* Interactive Simulator Controls */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs pt-1">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Days Before Arrival</label>
+                <label className="block font-bold text-slate-700 mb-1">{t('policy.simDaysBefore')}</label>
                 <input
                   type="number"
                   value={simDaysBefore}
@@ -703,7 +709,7 @@ export const CancellationPolicySettings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Stay Duration (Nights)</label>
+                <label className="block font-bold text-slate-700 mb-1">{t('policy.simStayDuration')}</label>
                 <input
                   type="number"
                   min={1}
@@ -713,7 +719,7 @@ export const CancellationPolicySettings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Nightly Rate ({hotelConfig.defaultCurrency})</label>
+                <label className="block font-bold text-slate-700 mb-1">{t('policy.simNightlyRate', { currency: hotelConfig.defaultCurrency })}</label>
                 <input
                   type="number"
                   min={0}
@@ -731,7 +737,7 @@ export const CancellationPolicySettings: React.FC = () => {
                     onChange={(e) => setSimIsNoShow(e.target.checked)}
                     className="w-4 h-4 text-rose-600 rounded border-slate-300 cursor-pointer"
                   />
-                  <span>Marked as No-Show</span>
+                  <span>{t('policy.simMarkedNoShow')}</span>
                 </label>
                 {allowNonRefundable && (
                   <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer text-xs">
@@ -741,7 +747,7 @@ export const CancellationPolicySettings: React.FC = () => {
                       onChange={(e) => setSimRateType(e.target.checked ? 'non_refundable' : 'flexible')}
                       className="w-4 h-4 text-rose-600 rounded border-slate-300 cursor-pointer"
                     />
-                    <span>Non-refundable Rate</span>
+                    <span>{t('policy.simNonRefundableRate')}</span>
                   </label>
                 )}
               </div>
@@ -750,16 +756,16 @@ export const CancellationPolicySettings: React.FC = () => {
             {/* Calculation Output Cards */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Stay Amount</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.totalStayAmount')}</span>
                 <span className="text-sm font-mono font-bold text-slate-900 mt-0.5 block">
                   {formatMoney(simStayNights * simNightlyRate)}
                 </span>
                 <span className="text-[11px] text-slate-500 mt-0.5 block">
-                  {simStayNights} night(s) × {formatMoney(simNightlyRate)}
+                  {t('policy.nightsTimesRate', { nights: simStayNights, rate: formatMoney(simNightlyRate) })}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Suggested Fee</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.suggestedFee')}</span>
                 <span className="text-base font-mono font-bold text-rose-600 mt-0.5 block">
                   {formatMoney(simResult.suggestedFee)}
                 </span>
@@ -768,12 +774,12 @@ export const CancellationPolicySettings: React.FC = () => {
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Estimated Guest Refund</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">{t('policy.estimatedRefund')}</span>
                 <span className="text-sm font-mono font-bold text-emerald-700 mt-0.5 block">
                   {formatMoney(Math.max(0, simStayNights * simNightlyRate - simResult.suggestedFee))}
                 </span>
                 <span className="text-[11px] text-slate-500 mt-0.5 block">
-                  Assuming 100% advance deposit
+                  {t('policy.assumingDeposit')}
                 </span>
               </div>
             </div>
@@ -786,7 +792,7 @@ export const CancellationPolicySettings: React.FC = () => {
               className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Save Cancellation Policy</span>
+              <span>{t('policy.savePolicyBtn')}</span>
             </button>
           </div>
         </form>
@@ -800,7 +806,7 @@ export const CancellationPolicySettings: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-rose-400" />
                 <h3 className="font-bold text-sm">
-                  {editingTierIndex !== null ? 'Edit Cancellation Tier' : 'Add Cancellation Tier'}
+                  {editingTierIndex !== null ? t('policy.editTierTitle') : t('policy.addTierTitle')}
                 </h3>
               </div>
               <button
@@ -822,7 +828,7 @@ export const CancellationPolicySettings: React.FC = () => {
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Days Before Arrival (≤ N days) <span className="text-rose-500">*</span>
+                  {t('policy.tierDaysLabel')}
                 </label>
                 <input
                   type="number"
@@ -833,27 +839,27 @@ export const CancellationPolicySettings: React.FC = () => {
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Applies when cancellation occurs N or fewer days before arrival (0 = arrival day).
+                  {t('policy.tierDaysHint')}
                 </p>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Fee Type <span className="text-rose-500">*</span>
+                  {t('policy.feeTypeLabel')} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={tierFeeType}
                   onChange={(e) => setTierFeeType(e.target.value as CancellationFeeType)}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500"
                 >
-                  <option value="nights">Number of Nights Charge</option>
-                  <option value="percent">Percentage of Stay Total (%)</option>
+                  <option value="nights">{t('policy.feeType.nightsLong')}</option>
+                  <option value="percent">{t('policy.feeType.percentLong')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Fee Value {tierFeeType === 'percent' ? '(0 - 100%)' : '(Nights > 0)'} <span className="text-rose-500">*</span>
+                  {tierFeeType === 'percent' ? t('policy.tierValuePercentLabel') : t('policy.tierValueNightsLabel')}
                 </label>
                 <input
                   type="number"
@@ -872,13 +878,13 @@ export const CancellationPolicySettings: React.FC = () => {
                   onClick={() => setShowTierModal(false)}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow-xs cursor-pointer"
                 >
-                  {editingTierIndex !== null ? 'Save Changes' : 'Add Tier'}
+                  {editingTierIndex !== null ? t('common.saveChanges') : t('policy.addTierBtn')}
                 </button>
               </div>
             </form>

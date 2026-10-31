@@ -398,4 +398,84 @@ export function tRoomTypeCategory(t: TFunction, category: string): string {
   }
 }
 
+/**
+ * Shared helper for translating staff roles
+ */
+export function tStaffRole(t: TFunction, role: string): string {
+  switch (role) {
+    case 'owner':
+      return t('role.owner');
+    case 'manager':
+      return t('role.manager');
+    case 'front_desk':
+      return t('role.frontDesk');
+    case 'housekeeping':
+      return t('role.housekeeping');
+    default:
+      return role.replace(/_/g, ' ');
+  }
+}
+
+/**
+ * Shared helper for translating cancellation fee types
+ */
+export function tCancellationFeeType(t: TFunction, feeType: string): string {
+  switch (feeType) {
+    case 'nights':
+      return t('policy.feeType.nights');
+    case 'percent':
+      return t('policy.feeType.percent');
+    default:
+      return feeType;
+  }
+}
+
+export function tCancellationFeeTypeLong(t: TFunction, feeType: string): string {
+  switch (feeType) {
+    case 'nights':
+      return t('policy.feeType.nightsLong');
+    case 'percent':
+      return t('policy.feeType.percentLong');
+    default:
+      return feeType;
+  }
+}
+
+/**
+ * Shared helper for translating POS / Menu categories
+ */
+export function tMenuCategory(t: TFunction, category: string): string {
+  switch (category) {
+    case 'Meals':
+      return t('menu.cat.meals');
+    case 'Beverages':
+      return t('menu.cat.beverages');
+    case 'Breakfast':
+      return t('menu.cat.breakfast');
+    case 'Snacks':
+      return t('menu.cat.snacks');
+    case 'Laundry':
+      return t('menu.cat.laundry');
+    case 'Room Amenities':
+      return t('menu.cat.roomAmenities');
+    default:
+      return category;
+  }
+}
+
+/**
+ * Shared helper for POS item stock status (available)
+ */
+export function tPosStockStatus(t: TFunction, available: boolean): string {
+  return available ? t('menu.status.inStock') : t('menu.status.outOfStock');
+}
+
+/**
+ * Shared helper for POS item active status (on menu)
+ */
+export function tPosActiveStatus(t: TFunction, active: boolean): string {
+  return active ? t('menu.status.onMenu') : t('menu.status.offMenu');
+}
+
+
 

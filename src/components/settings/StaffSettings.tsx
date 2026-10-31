@@ -7,12 +7,12 @@ import {
   ShieldCheck,
   KeyRound,
   Edit3,
-  Power,
   X,
   AlertCircle,
-  GitBranch,
   History
 } from 'lucide-react';
+import { useT } from '../../i18n/LanguageContext';
+import { tStaffRole } from '../../i18n/labels';
 
 export const StaffSettings: React.FC = () => {
   const {
@@ -25,6 +25,7 @@ export const StaffSettings: React.FC = () => {
     updateStaff,
     resetStaffPassword
   } = useHMS();
+  const { t } = useT();
 
   const defaultBranchId = branches[0]?.id || 'branch-1';
 
@@ -101,13 +102,13 @@ export const StaffSettings: React.FC = () => {
         phone: staffFormPhone
       });
       if (!res.success) {
-        setStaffFormError(res.error || 'Failed to update staff member.');
+        setStaffFormError(res.error || t('staff.errUpdateFailed'));
         return;
       }
       setShowAddStaffModal(false);
     } else {
       if (!staffFormPassword || staffFormPassword.length < 8) {
-        setStaffFormError('Password must be at least 8 characters long.');
+        setStaffFormError(t('staff.errPasswordLength'));
         return;
       }
       setStaffFormSubmitting(true);
@@ -123,7 +124,7 @@ export const StaffSettings: React.FC = () => {
           phone: staffFormPhone
         });
         if (!res.success) {
-          setStaffFormError(res.error || 'Failed to add staff member.');
+          setStaffFormError(res.error || t('staff.errAddFailed'));
           return;
         }
         setShowAddStaffModal(false);
@@ -139,11 +140,11 @@ export const StaffSettings: React.FC = () => {
     setResetPwError(null);
 
     if (!resetPwValue || resetPwValue.length < 8) {
-      setResetPwError('Password must be at least 8 characters long.');
+      setResetPwError(t('staff.errPasswordLength'));
       return;
     }
     if (resetPwValue !== resetPwConfirm) {
-      setResetPwError('Passwords do not match.');
+      setResetPwError(t('staff.errPasswordMismatch'));
       return;
     }
 
@@ -151,7 +152,7 @@ export const StaffSettings: React.FC = () => {
     try {
       const res = await resetStaffPassword(resetPasswordStaff.id, resetPwValue);
       if (!res.success) {
-        setResetPwError(res.error || 'Failed to reset password.');
+        setResetPwError(res.error || t('staff.errResetFailed'));
         return;
       }
       setResetPasswordStaff(null);
@@ -166,26 +167,26 @@ export const StaffSettings: React.FC = () => {
         <div>
           <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
             <Users className="w-4 h-4 text-blue-600" />
-            Staff Accounts & Role Permissions
+            {t('staff.headerTitle')}
           </h3>
           <p className="text-xs text-slate-500">
-            Manage property staff, assign secure roles (Owner, Manager, Front Desk, Housekeeping), and monitor browser-side accounts.
+            {t('staff.headerSubtitle')}
           </p>
         </div>
 
         <button
           onClick={openAddStaff}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all shrink-0"
+          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all shrink-0 cursor-pointer"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>Add Staff Member</span>
+          <span>{t('staff.addStaffBtn')}</span>
         </button>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-800 flex items-start gap-2">
         <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
         <div>
-          <strong>Browser Storage Notice:</strong> Accounts are stored in this browser for now. Server-side authentication will replace this when the backend is added.
+          <strong>{t('staff.noticeTitle')}:</strong> {t('staff.noticeText')}
         </div>
       </div>
 
@@ -194,12 +195,12 @@ export const StaffSettings: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200">
               <tr>
-                <th className="py-3 px-4">Staff Member</th>
-                <th className="py-3 px-4">Username & Email</th>
-                <th className="py-3 px-4">Role & Title</th>
-                <th className="py-3 px-4">Assigned Branch</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4">{t('staff.colMember')}</th>
+                <th className="py-3 px-4">{t('staff.colUserEmail')}</th>
+                <th className="py-3 px-4">{t('staff.colRoleTitle')}</th>
+                <th className="py-3 px-4">{t('staff.colBranch')}</th>
+                <th className="py-3 px-4">{t('staff.colStatus')}</th>
+                <th className="py-3 px-4 text-right">{t('staff.colActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -215,11 +216,11 @@ export const StaffSettings: React.FC = () => {
                         {staff.name}
                         {isSelf && (
                           <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">
-                            You
+                            {t('staff.youBadge')}
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">{staff.phone || 'No phone'}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{staff.phone || t('staff.noPhone')}</span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="font-mono text-slate-800 font-semibold">{staff.username}</div>
@@ -235,48 +236,48 @@ export const StaffSettings: React.FC = () => {
                           ? 'bg-emerald-100 text-emerald-800'
                           : 'bg-amber-100 text-amber-800'
                       }`}>
-                        {staff.role.replace('_', ' ')}
+                        {tStaffRole(t, staff.role)}
                       </span>
                       <span className="text-[10px] text-slate-500 block mt-0.5">{staff.title}</span>
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-semibold text-slate-800">
-                        {staff.role === 'owner' ? 'All Branches (Owner)' : (staffBranch?.name || 'Main Branch')}
+                        {staff.role === 'owner' ? t('staff.allBranchesOwner') : (staffBranch?.name || t('staff.mainBranch'))}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                         isDeactivated ? 'bg-slate-200 text-slate-700' : 'bg-emerald-100 text-emerald-800'
                       }`}>
-                        {isDeactivated ? 'Deactivated' : 'Active'}
+                        {isDeactivated ? t('staff.statusDeactivated') : t('staff.statusActive')}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => openResetPasswordModal(staff)}
-                          className="text-[11px] font-semibold px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors flex items-center gap-1"
-                          title="Reset Password"
+                          className="text-[11px] font-semibold px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                          title={t('staff.resetPwTooltip')}
                         >
                           <KeyRound className="w-3 h-3" />
-                          <span>Reset Pw</span>
+                          <span>{t('staff.resetPwBtn')}</span>
                         </button>
 
                         <button
                           onClick={() => toggleStaffActive(staff.id, isDeactivated)}
-                          className={`text-[11px] font-semibold px-2 py-1 rounded transition-colors ${
+                          className={`text-[11px] font-semibold px-2 py-1 rounded transition-colors cursor-pointer ${
                             isDeactivated
                               ? 'text-emerald-700 hover:bg-emerald-50'
                               : 'text-amber-700 hover:bg-amber-50'
                           }`}
                         >
-                          {isDeactivated ? 'Reactivate' : 'Deactivate'}
+                          {isDeactivated ? t('staff.reactivateBtn') : t('staff.deactivateBtn')}
                         </button>
 
                         <button
                           onClick={() => openEditStaff(staff)}
-                          className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded"
-                          title="Edit Staff"
+                          className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded cursor-pointer"
+                          title={t('staff.editStaffTooltip')}
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
@@ -294,10 +295,10 @@ export const StaffSettings: React.FC = () => {
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3 shadow-xs">
         <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
           <History className="w-4 h-4 text-slate-600" />
-          Staff Activity Log & Sign-In History
+          {t('staff.activityLogTitle')}
         </h4>
         {staffActivityLogs.length === 0 ? (
-          <p className="text-xs text-slate-500 py-3 text-center">No staff activity recorded yet.</p>
+          <p className="text-xs text-slate-500 py-3 text-center">{t('staff.noActivity')}</p>
         ) : (
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {staffActivityLogs.map((log) => (
@@ -324,7 +325,7 @@ export const StaffSettings: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-400" />
                 <h3 className="font-bold text-sm sm:text-base">
-                  {editingStaff ? `Edit Staff: ${editingStaff.name}` : 'Add New Staff Member'}
+                  {editingStaff ? t('staff.editModalTitle', { name: editingStaff.name }) : t('staff.addModalTitle')}
                 </h3>
               </div>
               <button
@@ -344,12 +345,12 @@ export const StaffSettings: React.FC = () => {
               )}
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Full Name *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('staff.formFullName')}</label>
                 <input
                   type="text"
                   value={staffFormName}
                   onChange={(e) => setStaffFormName(e.target.value)}
-                  placeholder="e.g. Marie Claire"
+                  placeholder={t('staff.formFullNamePlaceholder')}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
@@ -357,12 +358,12 @@ export const StaffSettings: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Username *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('staff.formUsername')}</label>
                   <input
                     type="text"
                     value={staffFormUsername}
                     onChange={(e) => setStaffFormUsername(e.target.value)}
-                    placeholder="e.g. marie"
+                    placeholder={t('staff.formUsernamePlaceholder')}
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono lowercase font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -370,7 +371,7 @@ export const StaffSettings: React.FC = () => {
 
                 {!editingStaff && (
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Password (min 8) *</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{t('staff.formPassword')}</label>
                     <input
                       type="password"
                       value={staffFormPassword}
@@ -385,23 +386,23 @@ export const StaffSettings: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Role *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('staff.formRole')}</label>
                   <select
                     value={staffFormRole}
                     onChange={(e) => setStaffFormRole(e.target.value as UserRole)}
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
-                    <option value="front_desk" className="text-slate-900">Front Desk</option>
-                    <option value="housekeeping" className="text-slate-900">Housekeeping</option>
-                    <option value="manager" className="text-slate-900">Manager</option>
-                    <option value="owner" className="text-slate-900">Owner</option>
+                    <option value="front_desk" className="text-slate-900">{tStaffRole(t, 'front_desk')}</option>
+                    <option value="housekeeping" className="text-slate-900">{tStaffRole(t, 'housekeeping')}</option>
+                    <option value="manager" className="text-slate-900">{tStaffRole(t, 'manager')}</option>
+                    <option value="owner" className="text-slate-900">{tStaffRole(t, 'owner')}</option>
                   </select>
                 </div>
 
                 {staffFormRole !== 'owner' && (
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Assigned Branch *</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{t('staff.formBranch')}</label>
                     <select
                       value={staffFormBranchId}
                       onChange={(e) => setStaffFormBranchId(e.target.value)}
@@ -420,35 +421,35 @@ export const StaffSettings: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Job Title</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('staff.formJobTitle')}</label>
                   <input
                     type="text"
                     value={staffFormTitle}
                     onChange={(e) => setStaffFormTitle(e.target.value)}
-                    placeholder="e.g. Senior Receptionist"
+                    placeholder={t('staff.formJobTitlePlaceholder')}
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('staff.formPhone')}</label>
                   <input
                     type="tel"
                     value={staffFormPhone}
                     onChange={(e) => setStaffFormPhone(e.target.value)}
-                    placeholder="+237 ..."
+                    placeholder={t('staff.formPhonePlaceholder')}
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Email Address</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('staff.formEmail')}</label>
                 <input
                   type="email"
                   value={staffFormEmail}
                   onChange={(e) => setStaffFormEmail(e.target.value)}
-                  placeholder="staff@hotel.com"
+                  placeholder={t('staff.formEmailPlaceholder')}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -457,16 +458,16 @@ export const StaffSettings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddStaffModal(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold"
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={staffFormSubmitting}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
-                  {staffFormSubmitting ? 'Saving...' : editingStaff ? 'Save Changes' : 'Create Staff Account'}
+                  {staffFormSubmitting ? t('common.saving') : editingStaff ? t('common.saveChanges') : t('staff.createAccountBtn')}
                 </button>
               </div>
             </form>
@@ -481,11 +482,11 @@ export const StaffSettings: React.FC = () => {
             <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <KeyRound className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bold text-sm">Reset Password: {resetPasswordStaff.name}</h3>
+                <h3 className="font-bold text-sm">{t('staff.resetModalTitle', { name: resetPasswordStaff.name })}</h3>
               </div>
               <button
                 onClick={() => setResetPasswordStaff(null)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -500,7 +501,7 @@ export const StaffSettings: React.FC = () => {
               )}
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">New Password (min 8 characters) *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('staff.formNewPassword')}</label>
                 <input
                   type="password"
                   value={resetPwValue}
@@ -512,7 +513,7 @@ export const StaffSettings: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Confirm New Password *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('staff.formConfirmPassword')}</label>
                 <input
                   type="password"
                   value={resetPwConfirm}
@@ -527,16 +528,16 @@ export const StaffSettings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setResetPasswordStaff(null)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold"
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={resetPwSubmitting}
-                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-sm"
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
-                  {resetPwSubmitting ? 'Updating...' : 'Update Password'}
+                  {resetPwSubmitting ? t('staff.updatingPw') : t('staff.updatePwBtn')}
                 </button>
               </div>
             </form>
