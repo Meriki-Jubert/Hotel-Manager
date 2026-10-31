@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { useT } from '../../i18n/LanguageContext';
 
 export interface DeactivatePromptState {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export const DeactivatePromptModal: React.FC<DeactivatePromptModalProps> = ({
   onCancel,
   onConfirm
 }) => {
+  const { t } = useT();
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 p-5 space-y-4 animate-in fade-in zoom-in-95">
@@ -40,14 +43,14 @@ export const DeactivatePromptModal: React.FC<DeactivatePromptModalProps> = ({
             onClick={onCancel}
             className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm cursor-pointer"
           >
-            Deactivate Instead
+            {t('settings.deactivateInstead')}
           </button>
         </div>
       </div>

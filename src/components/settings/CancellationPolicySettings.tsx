@@ -436,7 +436,7 @@ export const CancellationPolicySettings: React.FC = () => {
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Calculation Output</span>
-                <p className="font-semibold text-slate-800 text-sm mt-0.5">{simResult.ruleText}</p>
+                <p className="font-semibold text-slate-800 text-sm mt-0.5">{translate(lang, simResult.ruleKey, simResult.ruleVars)}</p>
                 <span className="text-slate-500 text-[11px] mt-0.5 block">
                   Total Booking: {formatMoney(simStayNights * simNightlyRate)}
                 </span>
@@ -687,7 +687,7 @@ export const CancellationPolicySettings: React.FC = () => {
                 </span>
               </div>
               <span className="text-[11px] text-slate-300 shrink-0">
-                Rule: <span className="text-white font-semibold">{simResult.ruleText}</span>
+                Rule: <span className="text-white font-semibold">{translate(lang, simResult.ruleKey, simResult.ruleVars)}</span>
               </span>
             </div>
 

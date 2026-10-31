@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
+import { useT } from '../../i18n/LanguageContext';
 import {
   Building,
   Save,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 
 export const ProfileSettings: React.FC = () => {
+  const { t } = useT();
   const { hotelConfig, updateHotelConfig, currentUser } = useHMS();
   const isManagerOrOwner = currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
@@ -47,18 +49,18 @@ export const ProfileSettings: React.FC = () => {
 
     if (taxEnabled) {
       if (!taxLabel.trim()) {
-        setTaxError('Tax label is required (e.g. VAT, TVA, GST).');
+        setTaxError(t('tax.errLabelRequired'));
         return;
       }
       const numRate = Number(taxRate);
       if (isNaN(numRate) || numRate < 0 || numRate > 100) {
-        setTaxError('Tax rate must be between 0 and 100%.');
+        setTaxError(t('tax.errRateRange'));
         return;
       }
       // Check up to 2 decimal places
       const decimals = String(taxRate).split('.')[1];
       if (decimals && decimals.length > 2) {
-        setTaxError('Tax rate cannot have more than 2 decimal places.');
+        setTaxError(t('tax.errDecimals'));
         return;
       }
     }
@@ -73,7 +75,7 @@ export const ProfileSettings: React.FC = () => {
     });
 
     if (!res.success) {
-      setTaxError(res.error || 'Failed to update tax settings.');
+      setTaxError(res.error || t('tax.errSaveFail'));
       setTaxSavedNotice(false);
       return;
     }
@@ -89,7 +91,7 @@ export const ProfileSettings: React.FC = () => {
 
     const numRate = Number(usdExchangeRate);
     if (usdExchangeRate === '' || isNaN(numRate) || !Number.isInteger(numRate) || numRate <= 0) {
-      setProfileError('USD Exchange rate must be a whole number greater than 0.');
+      setProfileError(t('profile.rateWholeNumberErr'));
       return;
     }
 
@@ -108,11 +110,11 @@ export const ProfileSettings: React.FC = () => {
     });
 
     if (!res.success) {
-      setProfileError(res.error || 'Failed to save property profile.');
+      setProfileError(res.error || t('profile.saveFail'));
       return;
     }
 
-    setProfileSuccess('Property profile saved successfully.');
+    setProfileSuccess(t('profile.saveSuccess'));
     setTimeout(() => setProfileSuccess(null), 4000);
   };
 
@@ -121,7 +123,7 @@ export const ProfileSettings: React.FC = () => {
     const newCurr = e.target.value as 'FCFA' | 'USD';
     const res = updateHotelConfig({ defaultCurrency: newCurr });
     if (!res.success) {
-      setCurrencyError(res.error || 'Failed to update default currency.');
+      setCurrencyError(res.error || t('currency.updateFail'));
     }
   };
 
@@ -132,9 +134,9 @@ export const ProfileSettings: React.FC = () => {
         <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
           <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
             <Building className="w-4 h-4 text-emerald-600" />
-            Property Identity & Official Contact Info
+            {t('profile.title')}
           </h3>
-          <span className="text-[11px] text-slate-400">Single-Tenant Hotel Profile</span>
+          <span className="text-[11px] text-slate-400">{t('profile.singleTenant')}</span>
         </div>
 
         <form onSubmit={handleSaveHotelProfile} className="space-y-4 text-xs">
@@ -151,104 +153,104 @@ export const ProfileSettings: React.FC = () => {
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Hotel Property Name *</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.name')}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. My Hotel"
+                placeholder={t('profile.namePlaceholder')}
                 required
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Tagline / Slogan</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.tagline')}</label>
               <input
                 type="text"
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. Luxury Boutique & Suites"
+                placeholder={t('profile.taglinePlaceholder')}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">City / Region</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.city')}</label>
               <input
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. Buea"
+                placeholder={t('profile.cityPlaceholder')}
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Physical Street Address</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.address')}</label>
               <input
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. Main Street, Suite 100"
+                placeholder={t('profile.addressPlaceholder')}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Reception Phone</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.phone')}</label>
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. +237 600 000 000"
+                placeholder={t('profile.phonePlaceholder')}
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Official Reception Email</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. frontdesk@myhotel.com"
+                placeholder={t('profile.emailPlaceholder')}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Tax ID / NIU (Cameroon)</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.taxId')}</label>
               <input
                 type="text"
                 value={taxId}
                 onChange={(e) => setTaxId(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. M01234567890X"
+                placeholder={t('profile.taxIdPlaceholder')}
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Commercial Registry (RCCM)</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.registryNumber')}</label>
               <input
                 type="text"
                 value={registryNumber}
                 onChange={(e) => setRegistryNumber(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. RC/BUE/2026/B/100"
+                placeholder={t('profile.registryNumberPlaceholder')}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Standard Check-In Time</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.checkInTime')}</label>
               <input
                 type="time"
                 value={checkInTime}
@@ -258,7 +260,7 @@ export const ProfileSettings: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Standard Check-Out Time</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.checkOutTime')}</label>
               <input
                 type="time"
                 value={checkOutTime}
@@ -274,7 +276,7 @@ export const ProfileSettings: React.FC = () => {
               className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Save Property Profile</span>
+              <span>{t('profile.saveBtn')}</span>
             </button>
           </div>
         </form>
@@ -288,9 +290,9 @@ export const ProfileSettings: React.FC = () => {
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-emerald-600" />
-                Currency & USD Exchange Rate
+                {t('currency.title')}
               </h3>
-              <p className="text-[11px] text-slate-500">Configure default currency and conversion rate</p>
+              <p className="text-[11px] text-slate-500">{t('currency.subtitle')}</p>
             </div>
           </div>
 
@@ -301,19 +303,19 @@ export const ProfileSettings: React.FC = () => {
               </div>
             )}
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Default Display Currency</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('currency.defaultDisplay')}</label>
               <select
                 value={hotelConfig.defaultCurrency}
                 onChange={handleCurrencyChange}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="FCFA">Central African CFA Franc (FCFA)</option>
-                <option value="USD">US Dollar (USD)</option>
+                <option value="FCFA">{t('currency.optFcfa')}</option>
+                <option value="USD">{t('currency.optUsd')}</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">USD Exchange Rate (1 USD = X FCFA)</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t('currency.rateLabel')}</label>
               <input
                 type="number"
                 value={usdExchangeRate}
@@ -324,13 +326,13 @@ export const ProfileSettings: React.FC = () => {
                 step="1"
               />
               <p className="text-[11px] text-slate-500 mt-1">
-                Used when converting rates and folios to USD (e.g. 600 FCFA/USD). Click "Save Property Profile" to persist.
+                {t('currency.rateHint')}
               </p>
             </div>
 
             {isManagerOrOwner && (
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Default System Language</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('settings.defaultLanguageTitle')}</label>
                 {languageError && (
                   <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 mb-2 font-semibold">
                     {languageError}
@@ -342,16 +344,16 @@ export const ProfileSettings: React.FC = () => {
                     setLanguageError(null);
                     const res = updateHotelConfig({ defaultLanguage: e.target.value as 'en' | 'fr' });
                     if (!res.success) {
-                      setLanguageError(res.error || 'Failed to update default language.');
+                      setLanguageError(res.error || t('settings.defaultLanguageFail'));
                     }
                   }}
                   className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="en">English (EN)</option>
-                  <option value="fr">Français (FR)</option>
+                  <option value="en">{t('settings.langEn')}</option>
+                  <option value="fr">{t('settings.langFr')}</option>
                 </select>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Default language for new devices and unauthenticated visitor sessions.
+                  {t('settings.defaultLanguageHelp')}
                 </p>
               </div>
             )}
@@ -365,9 +367,9 @@ export const ProfileSettings: React.FC = () => {
               <div>
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <Percent className="w-4 h-4 text-indigo-600" />
-                  Taxes & Fiscal Settings
+                  {t('tax.title')}
                 </h3>
-                <p className="text-[11px] text-slate-500">Configure tax-inclusive rate calculation on invoices</p>
+                <p className="text-[11px] text-slate-500">{t('tax.subtitle')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -384,7 +386,7 @@ export const ProfileSettings: React.FC = () => {
             </div>
 
             <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
-              Prices are entered and charged tax-inclusive. The invoice shows the tax portion.
+              {t('tax.notice')}
             </p>
 
             {taxError && (
@@ -396,13 +398,13 @@ export const ProfileSettings: React.FC = () => {
             {taxSavedNotice && (
               <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-1.5 font-medium">
                 <Check className="w-4 h-4 text-emerald-600" />
-                <span>Tax configuration saved successfully!</span>
+                <span>{t('tax.saveSuccess')}</span>
               </div>
             )}
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tax Label (e.g. VAT, TVA, GST)</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('tax.labelField')}</label>
                 <input
                   type="text"
                   value={taxLabel}
@@ -417,7 +419,7 @@ export const ProfileSettings: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tax Rate (0-100%, up to 2 decimal places)</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('tax.rateField')}</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -444,7 +446,7 @@ export const ProfileSettings: React.FC = () => {
                   className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>Save Tax Settings</span>
+                  <span>{t('tax.saveBtn')}</span>
                 </button>
               </div>
             </div>
@@ -455,11 +457,10 @@ export const ProfileSettings: React.FC = () => {
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-xl shadow-md space-y-3 text-xs">
           <div className="flex items-center gap-2 text-champagne-gold-400 font-bold text-sm">
             <Sparkles className="w-4 h-4" />
-            <span>Single-Install Architecture</span>
+            <span>{t('arch.title')}</span>
           </div>
           <p className="text-slate-300 text-[11px] leading-relaxed">
-            This deployment serves exclusively <strong>{hotelConfig.name || 'your hotel'}</strong>.
-            All room categories, inventory, folios, and financial reports belong to this single property.
+            {t('arch.description', { name: hotelConfig.name || t('arch.defaultHotel') })}
           </p>
         </div>
       </div>

@@ -294,3 +294,108 @@ export function tVipTier(t: TFunction, tier: string): string {
   }
 }
 
+/**
+ * Shared helper for translating bed configurations
+ */
+export function tBedType(t: TFunction, bedType: string): string {
+  switch (bedType) {
+    case 'Queen Bed':
+      return t('bed.queen');
+    case 'King Bed':
+      return t('bed.king');
+    case 'California King':
+      return t('bed.californiaKing');
+    case '2x King Beds':
+      return t('bed.twoKing');
+    case 'Single Bed':
+      return t('bed.single');
+    case 'Twin Beds':
+      return t('bed.twin');
+    case '2x Twin Beds':
+      return t('bed.twoTwin');
+    case 'Double Bed':
+      return t('bed.double');
+    default:
+      return bedType;
+  }
+}
+
+/**
+ * Shared helper for translating room amenities
+ */
+export function tRoomAmenity(t: TFunction, amenity: string): string {
+  switch (amenity) {
+    case 'Free Wi-Fi':
+      return t('amenity.wifi');
+    case 'High-Speed Wi-Fi':
+      return t('amenity.highSpeedWifi');
+    case 'Smart TV':
+      return t('amenity.smartTv');
+    case 'Hot Shower':
+      return t('amenity.hotShower');
+    case 'AC':
+      return t('amenity.ac');
+    case 'Inverter AC':
+      return t('amenity.inverterAc');
+    case 'Ceiling Fan':
+      return t('amenity.ceilingFan');
+    case 'En-suite Shower':
+      return t('amenity.ensuiteShower');
+    case 'Desk':
+      return t('amenity.desk');
+    case 'Work Desk':
+      return t('amenity.workDesk');
+    case 'Mini Refrigerator':
+      return t('amenity.miniFridge');
+    case 'Balcony':
+      return t('amenity.balcony');
+    case 'Panoramic Mt. Fako View':
+      return t('amenity.fakoView');
+    case 'Living Lounge':
+      return t('amenity.livingLounge');
+    case 'Bathtub & Rain Shower':
+      return t('amenity.bathtubShower');
+    case 'Complimentary Breakfast':
+      return t('amenity.breakfast');
+    case 'Espresso Machine':
+      return t('amenity.espresso');
+    case 'Safe':
+      return t('amenity.safe');
+    case 'Top Floor Terrace':
+      return t('amenity.terrace');
+    case 'Dining Suite':
+      return t('amenity.diningSuite');
+    case 'Jacuzzi':
+      return t('amenity.jacuzzi');
+    case 'Butler Service':
+      return t('amenity.butler');
+    case 'Kitchenette':
+      return t('amenity.kitchenette');
+    case 'Private Bar':
+      return t('amenity.privateBar');
+    default:
+      return amenity;
+  }
+}
+
+/**
+ * Shared helper for translating room type categories
+ */
+export function tRoomTypeCategory(t: TFunction, category: string): string {
+  switch (category) {
+    case 'Standard':
+      return t('roomCategory.standard');
+    case 'Deluxe':
+      return t('roomCategory.deluxe');
+    case 'Executive':
+      return t('roomCategory.executive');
+    case 'Suite':
+      return t('roomCategory.suite');
+    case 'Presidential':
+      return t('roomCategory.presidential');
+    default:
+      return category;
+  }
+}
+
+

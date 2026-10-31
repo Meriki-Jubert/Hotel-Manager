@@ -155,11 +155,11 @@ export const ReportsView: React.FC = () => {
       { key: 'roomNumber', label: t('reports.col.roomNumber') },
       { key: 'checkInDate', label: t('reports.col.scheduledCheckIn') },
       { key: 'cancelledAt', label: t('reports.col.cancelledDate') },
-      { key: 'isNoShow', label: t('reports.col.status'), format: (val) => (val ? 'No-Show' : 'Cancelled') },
+      { key: 'isNoShow', label: t('reports.col.status'), format: (val) => (val ? t('reports.statusNoShow') : t('reports.statusCancelled')) },
       { key: 'feeKept', label: t('reports.col.feeRetained', { currency: hotelConfig.defaultCurrency }) },
       { key: 'refund', label: t('reports.col.refundIssued', { currency: hotelConfig.defaultCurrency }) },
       { key: 'reason', label: t('reports.col.reason') },
-      { key: 'feeOverrideReason', label: t('reports.col.feeOverrideReason') }
+      { key: 'feeOverrideReason', label: t('reports.col.feeOverrideReason'), format: (val) => val ? `${t('reports.override')}: ${val}` : '' }
     ]);
     downloadCsv(`cancellations-and-noshows-${range.from}-to-${range.to}`, csv);
   };
@@ -277,11 +277,11 @@ export const ReportsView: React.FC = () => {
       booking: row.bookingCode,
       guest: row.guestName,
       room: `#${row.roomNumber}`,
-      status: row.isNoShow ? 'No-Show' : 'Cancelled',
+      status: row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled'),
       date: row.cancelledAt ? row.cancelledAt.slice(0, 10) : row.checkInDate,
       fee: formatPdfMoney(row.feeKept),
       refund: formatPdfMoney(row.refund),
-      reason: [row.reason, row.feeOverrideReason ? `[Override: ${row.feeOverrideReason}]` : ''].filter(Boolean).join(' ')
+      reason: [row.reason, row.feeOverrideReason ? `[${t('reports.override')}: ${row.feeOverrideReason}]` : ''].filter(Boolean).join(' ')
     })),
     totalRow: {
       booking: t('reports.totalFeesRetained', { amount: formatPdfMoney(cancellationsReport.totalFeeKept) }),
@@ -486,14 +486,14 @@ export const ReportsView: React.FC = () => {
               onClick={() => setMonthPreset(0)}
               className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold transition-colors cursor-pointer text-center"
             >
-              This Month
+              {t('reports.thisMonth')}
             </button>
             <button
               type="button"
               onClick={() => setMonthPreset(-1)}
               className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold transition-colors cursor-pointer text-center"
             >
-              Last Month
+              {t('reports.lastMonth')}
             </button>
           </div>
         </div>
@@ -794,7 +794,7 @@ export const ReportsView: React.FC = () => {
             </div>
             {/* Note under the Occupancy table */}
             <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 font-medium">
-              Uses the current number of active rooms.
+              {t('reports.occupancyActiveRoomsNote')}
             </div>
           </div>
         )}
@@ -963,7 +963,7 @@ export const ReportsView: React.FC = () => {
                             : 'bg-amber-100 text-amber-800 border border-amber-300'
                         }`}
                       >
-                        {row.isNoShow ? 'No-Show' : 'Cancelled'}
+                        {row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled')}
                       </span>
                     </td>
                     <td className="py-2.5 px-4 text-slate-600 font-mono text-[11px]">
@@ -979,7 +979,7 @@ export const ReportsView: React.FC = () => {
                       <p className="text-slate-800 font-medium">{row.reason || 'No reason specified'}</p>
                       {row.feeOverrideReason && (
                         <p className="text-[10px] text-amber-700 bg-amber-50 p-1 rounded mt-1 border border-amber-200">
-                          <span className="font-bold">Override:</span> {row.feeOverrideReason}
+                          <span className="font-bold">{t('reports.override')}:</span> {row.feeOverrideReason}
                           {row.feeOverriddenBy ? ` (${row.feeOverriddenBy})` : ''}
                         </p>
                       )}

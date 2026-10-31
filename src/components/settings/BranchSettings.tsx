@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
+import { useT } from '../../i18n/LanguageContext';
 import { Branch } from '../../types/hms';
 import { DeactivatePromptModal, DeactivatePromptState } from './shared';
 import {
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 
 export const BranchSettings: React.FC = () => {
+  const { t } = useT();
   const {
     branches,
     activeBranchId,
@@ -68,11 +70,11 @@ export const BranchSettings: React.FC = () => {
     const bCity = branchFormCity.trim();
 
     if (!bName) {
-      setBranchFormError('Branch name is required.');
+      setBranchFormError(t('branch.errNameRequired'));
       return;
     }
     if (!bCity) {
-      setBranchFormError('Branch city is required.');
+      setBranchFormError(t('branch.errCityRequired'));
       return;
     }
 
@@ -85,7 +87,7 @@ export const BranchSettings: React.FC = () => {
         isActive: branchFormActive
       });
       if (!res.success) {
-        setBranchFormError(res.error || 'Failed to update branch.');
+        setBranchFormError(res.error || t('branch.errUpdateFail'));
         return;
       }
     } else {
@@ -97,7 +99,7 @@ export const BranchSettings: React.FC = () => {
         isActive: branchFormActive
       });
       if (!res.success) {
-        setBranchFormError(res.error || 'Failed to create branch.');
+        setBranchFormError(res.error || t('branch.errCreateFail'));
         return;
       }
     }
@@ -113,8 +115,8 @@ export const BranchSettings: React.FC = () => {
           isOpen: true,
           type: 'branch',
           id: b.id,
-          title: `Cannot Delete "${b.name}"`,
-          message: `${res.error} Would you like to deactivate this branch instead? Deactivated branches are preserved in historical records and invoices but will be hidden from new reservations.`
+          title: t('branch.deactivatePromptTitle', { name: b.name }),
+          message: t('branch.deactivatePromptMessage', { error: res.error || '' })
         });
       }
     }
@@ -132,10 +134,10 @@ export const BranchSettings: React.FC = () => {
         <div>
           <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-teal-600" />
-            Hotel Branch Locations & Multi-Property Network
+            {t('branch.title')}
           </h3>
           <p className="text-xs text-slate-500">
-            Manage branch properties in different cities. Each branch has its own independent rooms inventory, Business Date, and Night Audit ledger.
+            {t('branch.subtitle')}
           </p>
         </div>
 
@@ -144,7 +146,7 @@ export const BranchSettings: React.FC = () => {
           className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg text-xs shadow-sm transition-all shrink-0 cursor-pointer"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>Add New Branch</span>
+          <span>{t('branch.addNew')}</span>
         </button>
       </div>
 
@@ -174,13 +176,13 @@ export const BranchSettings: React.FC = () => {
                       <h4 className="font-bold text-slate-900 text-sm">{b.name}</h4>
                       {isCurrent && (
                         <span className="text-[10px] font-bold bg-teal-100 text-teal-800 px-1.5 py-0.2 rounded">
-                          Current
+                          {t('branch.current')}
                         </span>
                       )}
                     </div>
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>{b.city || 'No city set'}</span>
+                      <span>{b.city || t('branch.noCity')}</span>
                     </div>
                   </div>
 
@@ -189,23 +191,23 @@ export const BranchSettings: React.FC = () => {
                       b.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
                     }`}
                   >
-                    {b.isActive ? 'Active' : 'Deactivated'}
+                    {b.isActive ? t('settings.active') : t('settings.deactivated')}
                   </span>
                 </div>
 
                 <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                   {b.address && (
                     <div className="truncate">
-                      <strong className="text-slate-700">Address:</strong> {b.address}
+                      <strong className="text-slate-700">{t('branch.address')}</strong> {b.address}
                     </div>
                   )}
                   {b.phone && (
                     <div>
-                      <strong className="text-slate-700">Phone:</strong> {b.phone}
+                      <strong className="text-slate-700">{t('branch.phone')}</strong> {b.phone}
                     </div>
                   )}
                   <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
-                    <span className="text-slate-500">Business Date:</span>
+                    <span className="text-slate-500">{t('branch.businessDate')}</span>
                     <span className="font-mono font-bold text-slate-800">{bDate}</span>
                   </div>
                 </div>
@@ -213,11 +215,11 @@ export const BranchSettings: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1">
                   <div className="p-2 rounded-lg bg-purple-50/70 border border-purple-100">
                     <div className="text-sm font-bold font-mono text-purple-900">{bRooms.length}</div>
-                    <div className="text-[10px] text-purple-700">Rooms ({bOcc} Occ)</div>
+                    <div className="text-[10px] text-purple-700">{t('branch.roomsOcc', { occ: bOcc })}</div>
                   </div>
                   <div className="p-2 rounded-lg bg-blue-50/70 border border-blue-100">
                     <div className="text-sm font-bold font-mono text-blue-900">{bRes.length}</div>
-                    <div className="text-[10px] text-blue-700">Reservations</div>
+                    <div className="text-[10px] text-blue-700">{t('branch.reservationsCount', { count: bRes.length })}</div>
                   </div>
                 </div>
               </div>
@@ -231,17 +233,17 @@ export const BranchSettings: React.FC = () => {
                       ? 'text-emerald-700 hover:bg-emerald-50'
                       : 'text-amber-700 hover:bg-amber-50'
                   }`}
-                  title={!b.isActive ? 'Activate branch' : 'Deactivate from new bookings'}
+                  title={!b.isActive ? t('branch.activateTooltip') : t('branch.deactivateTooltip')}
                 >
                   <Power className="w-3.5 h-3.5" />
-                  <span>{!b.isActive ? 'Activate' : 'Deactivate'}</span>
+                  <span>{!b.isActive ? t('branch.activate') : t('branch.deactivate')}</span>
                 </button>
 
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => openEditBranch(b)}
                     className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded cursor-pointer"
-                    title="Edit Branch Information"
+                    title={t('branch.editTooltip')}
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
@@ -249,7 +251,7 @@ export const BranchSettings: React.FC = () => {
                   <button
                     onClick={() => handleDeleteBranch(b)}
                     className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded cursor-pointer"
-                    title="Delete Branch"
+                    title={t('branch.deleteTooltip')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -268,7 +270,7 @@ export const BranchSettings: React.FC = () => {
               <div className="flex items-center gap-2">
                 <GitBranch className="w-5 h-5 text-teal-400" />
                 <h3 className="font-bold text-sm sm:text-base">
-                  {editingBranch ? `Edit Branch: ${editingBranch.name}` : 'Add New Branch Location'}
+                  {editingBranch ? t('branch.modalEditTitle', { name: editingBranch.name }) : t('branch.modalAddTitle')}
                 </h3>
               </div>
               <button
@@ -288,47 +290,47 @@ export const BranchSettings: React.FC = () => {
               )}
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Branch Name *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('branch.fieldName')}</label>
                 <input
                   type="text"
                   value={branchFormName}
                   onChange={(e) => setBranchFormName(e.target.value)}
-                  placeholder="e.g. Limbe Oceanview, Douala Business Suites"
+                  placeholder={t('branch.placeholderName')}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">City / Location *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('branch.fieldCity')}</label>
                 <input
                   type="text"
                   value={branchFormCity}
                   onChange={(e) => setBranchFormCity(e.target.value)}
-                  placeholder="e.g. Limbe, Douala, Yaoundé"
+                  placeholder={t('branch.placeholderCity')}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Physical Address</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('branch.fieldAddress')}</label>
                 <input
                   type="text"
                   value={branchFormAddress}
                   onChange={(e) => setBranchFormAddress(e.target.value)}
-                  placeholder="e.g. Down Beach Road, Limbe"
+                  placeholder={t('branch.placeholderAddress')}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Branch Direct Phone</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('branch.fieldPhone')}</label>
                 <input
                   type="tel"
                   value={branchFormPhone}
                   onChange={(e) => setBranchFormPhone(e.target.value)}
-                  placeholder="e.g. +237 670 11 22 33"
+                  placeholder={t('branch.placeholderPhone')}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
@@ -342,7 +344,7 @@ export const BranchSettings: React.FC = () => {
                   className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
                 />
                 <label htmlFor="branchActiveCheckbox" className="font-semibold text-slate-700 cursor-pointer">
-                  Branch is Active (Available for bookings & check-ins)
+                  {t('branch.activeCheckbox')}
                 </label>
               </div>
 
@@ -352,13 +354,13 @@ export const BranchSettings: React.FC = () => {
                   onClick={() => setShowAddBranchModal(false)}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
-                  {editingBranch ? 'Save Branch Details' : 'Create Branch'}
+                  {editingBranch ? t('branch.saveDetails') : t('branch.createBranch')}
                 </button>
               </div>
             </form>

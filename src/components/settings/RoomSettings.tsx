@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
+import { useT } from '../../i18n/LanguageContext';
 import { Room } from '../../types/hms';
 import { DeactivatePromptModal, DeactivatePromptState } from './shared';
+import { tRoomStatus } from '../../i18n/labels';
 import {
   Bed,
   PlusCircle,
@@ -17,6 +19,7 @@ export interface RoomSettingsProps {
 }
 
 export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomTypes }) => {
+  const { t } = useT();
   const {
     roomTypes,
     allRooms,
@@ -121,23 +124,23 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
 
     const num = roomFormNumber.trim();
     if (!num) {
-      setRoomFormError('Room number is required.');
+      setRoomFormError(t('rooms.errNumRequired'));
       return;
     }
     if (!roomFormTypeId) {
-      setRoomFormError('Please select a room type.');
+      setRoomFormError(t('rooms.errSelectType'));
       return;
     }
     if (!roomFormBranchId) {
-      setRoomFormError('Please select a branch.');
+      setRoomFormError(t('rooms.errSelectBranch'));
       return;
     }
     if (roomFormFloor === undefined || isNaN(Number(roomFormFloor))) {
-      setRoomFormError('Floor must be a valid number.');
+      setRoomFormError(t('rooms.errFloorValid'));
       return;
     }
     if (!roomFormPrice || Number(roomFormPrice) <= 0) {
-      setRoomFormError('Price per night must be greater than 0.');
+      setRoomFormError(t('rooms.errPricePositive'));
       return;
     }
 
@@ -151,7 +154,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
         image: roomFormImage.trim() || undefined
       });
       if (!res.success) {
-        setRoomFormError(res.error || 'Failed to update room.');
+        setRoomFormError(res.error || t('rooms.errUpdateFail'));
         return;
       }
     } else {
@@ -164,7 +167,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
         image: roomFormImage.trim() || undefined
       });
       if (!res.success) {
-        setRoomFormError(res.error || 'Failed to create room.');
+        setRoomFormError(res.error || t('rooms.errCreateFail'));
         return;
       }
     }
@@ -177,23 +180,23 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
     setBulkError(null);
 
     if (!bulkTypeId) {
-      setBulkError('Please select a room type.');
+      setBulkError(t('rooms.errSelectType'));
       return;
     }
     if (!bulkBranchId) {
-      setBulkError('Please select a branch.');
+      setBulkError(t('rooms.errSelectBranch'));
       return;
     }
     if (isNaN(bulkStartNum) || isNaN(bulkEndNum)) {
-      setBulkError('Start and End room numbers must be valid numbers.');
+      setBulkError(t('rooms.errStartEndValid'));
       return;
     }
     if (bulkStartNum > bulkEndNum) {
-      setBulkError('Start room number cannot be greater than End room number.');
+      setBulkError(t('rooms.errStartGreaterThanEnd'));
       return;
     }
     if (!bulkPrice || Number(bulkPrice) <= 0) {
-      setBulkError('Price per night must be greater than 0.');
+      setBulkError(t('rooms.errPricePositive'));
       return;
     }
 
@@ -207,7 +210,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
     });
 
     if (!res.success) {
-      setBulkError(res.error || 'Failed to bulk-add rooms.');
+      setBulkError(res.error || t('rooms.errBulkFail'));
       return;
     }
 
@@ -222,8 +225,8 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
           isOpen: true,
           type: 'room',
           id: r.id,
-          title: `Cannot Delete Room #${r.roomNumber}`,
-          message: `${res.error} Would you like to deactivate this room instead? Deactivated rooms will remain in financial audit logs but won't be offered for new bookings.`
+          title: t('rooms.deactivatePromptTitle', { number: r.roomNumber }),
+          message: t('rooms.deactivatePromptMessage', { error: res.error || '', number: r.roomNumber })
         });
       }
     }
@@ -241,23 +244,23 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
         <div>
           <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
             <Bed className="w-4 h-4 text-purple-600" />
-            Physical Rooms Inventory & Numbers
+            {t('rooms.title')}
           </h3>
           <p className="text-xs text-slate-500">
-            Manage individual rooms, assign floor levels and room categories, or bulk-generate rooms
+            {t('rooms.subtitle')}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {hasMultipleActiveBranches && (
             <div className="flex items-center gap-1.5 text-xs bg-slate-100 p-1 rounded-lg border border-slate-200">
-              <span className="font-semibold text-slate-600 pl-1">Branch:</span>
+              <span className="font-semibold text-slate-600 pl-1">{t('rooms.branchLabel')}</span>
               <select
                 value={roomFilterBranchId}
                 onChange={(e) => setRoomFilterBranchId(e.target.value)}
                 className="p-1 bg-white border border-slate-300 rounded text-xs font-semibold focus:outline-none"
               >
-                <option value="all">All Branches ({allRooms.length})</option>
+                <option value="all">{t('rooms.allBranchesOption', { count: allRooms.length })}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name} ({allRooms.filter((r) => r.branchId === b.id).length})
@@ -278,7 +281,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs shadow-sm transition-all cursor-pointer"
           >
             <Hash className="w-4 h-4 text-champagne-gold-400" />
-            <span>Bulk Add Rooms</span>
+            <span>{t('rooms.bulkAddBtn')}</span>
           </button>
 
           <button
@@ -292,7 +295,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
             className="flex items-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Add Single Room</span>
+            <span>{t('rooms.addSingleBtn')}</span>
           </button>
         </div>
       </div>
@@ -302,9 +305,9 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
           <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 mx-auto flex items-center justify-center">
             <Bed className="w-6 h-6" />
           </div>
-          <h4 className="font-bold text-sm text-slate-800">No Hotel Rooms Created Yet</h4>
+          <h4 className="font-bold text-sm text-slate-800">{t('rooms.emptyTitle')}</h4>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Add individual rooms or use the Bulk Add feature (e.g. rooms 101 to 110 on Floor 1) to quickly populate your property.
+            {t('rooms.emptyDesc')}
           </p>
           <div className="flex justify-center gap-3">
             <button
@@ -317,14 +320,14 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
               }}
               className="px-4 py-2 bg-purple-600 text-white font-bold rounded-lg text-xs shadow-sm cursor-pointer"
             >
-              {roomTypes.length === 0 ? 'Create Room Types First' : 'Add Single Room'}
+              {roomTypes.length === 0 ? t('rooms.createTypesFirst') : t('rooms.addSingleBtn')}
             </button>
             {roomTypes.length > 0 && (
               <button
                 onClick={openBulkAddModal}
                 className="px-4 py-2 bg-slate-900 text-white font-bold rounded-lg text-xs shadow-sm cursor-pointer"
               >
-                Bulk Add Rooms (Fast)
+                {t('rooms.bulkAddFast')}
               </button>
             )}
           </div>
@@ -335,16 +338,16 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4">Room #</th>
+                  <th className="py-3 px-4">{t('rooms.colRoomNum')}</th>
                   {hasMultipleActiveBranches && (
-                    <th className="py-3 px-4">Branch</th>
+                    <th className="py-3 px-4">{t('rooms.colBranch')}</th>
                   )}
-                  <th className="py-3 px-4">Floor</th>
-                  <th className="py-3 px-4">Room Category</th>
-                  <th className="py-3 px-4 text-right">Nightly Price</th>
-                  <th className="py-3 px-4">Current Status</th>
-                  <th className="py-3 px-4">Inventory State</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4">{t('rooms.colFloor')}</th>
+                  <th className="py-3 px-4">{t('rooms.colCategory')}</th>
+                  <th className="py-3 px-4 text-right">{t('rooms.colPrice')}</th>
+                  <th className="py-3 px-4">{t('rooms.colStatus')}</th>
+                  <th className="py-3 px-4">{t('rooms.colInventoryState')}</th>
+                  <th className="py-3 px-4 text-right">{t('rooms.colActions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -369,7 +372,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                       {hasMultipleActiveBranches && (
                         <td className="py-3 px-4">
                           <span className="font-semibold text-slate-800">
-                            {rBranch?.name || 'Main Branch'}
+                            {rBranch?.name || t('rooms.mainBranch')}
                           </span>
                           {rBranch?.city && (
                             <span className="text-[10px] text-slate-400 block">
@@ -379,11 +382,11 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                         </td>
                       )}
                       <td className="py-3 px-4 text-slate-600">
-                        Floor {r.floor}
+                        {t('rooms.floorNum', { floor: r.floor })}
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-semibold text-slate-800">
-                          {rType?.name || 'Unknown Type'}
+                          {rType?.name || t('rooms.unknownType')}
                         </span>
                         {rType && (
                           <span className="ml-1.5 font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
@@ -407,7 +410,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                                 : 'bg-amber-500'
                             }`}
                           />
-                          {r.status}
+                          {tRoomStatus(t, r.status)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -418,7 +421,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                               : 'bg-emerald-100 text-emerald-800'
                           }`}
                         >
-                          {isDeactivated ? 'Deactivated' : 'Active'}
+                          {isDeactivated ? t('settings.deactivated') : t('settings.active')}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -430,15 +433,15 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                                 ? 'text-emerald-700 hover:bg-emerald-50'
                                 : 'text-amber-700 hover:bg-amber-50'
                             }`}
-                            title={isDeactivated ? 'Activate room' : 'Deactivate room'}
+                            title={isDeactivated ? t('rooms.activateTooltip') : t('rooms.deactivateTooltip')}
                           >
-                            {isDeactivated ? 'Activate' : 'Deactivate'}
+                            {isDeactivated ? t('rooms.activate') : t('rooms.deactivate')}
                           </button>
 
                           <button
                             onClick={() => openEditRoom(r)}
                             className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded cursor-pointer"
-                            title="Edit Room"
+                            title={t('rooms.editTooltip')}
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -446,7 +449,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                           <button
                             onClick={() => handleDeleteRoom(r)}
                             className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded cursor-pointer"
-                            title="Delete Room"
+                            title={t('rooms.deleteTooltip')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -469,7 +472,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
               <div className="flex items-center gap-2">
                 <Bed className="w-5 h-5 text-purple-400" />
                 <h3 className="font-bold text-sm sm:text-base">
-                  {editingRoom ? `Edit Room #${editingRoom.roomNumber}` : 'Add New Hotel Room'}
+                  {editingRoom ? t('rooms.modalEditTitle', { number: editingRoom.roomNumber }) : t('rooms.modalAddTitle')}
                 </h3>
               </div>
               <button
@@ -490,19 +493,19 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Room Number *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldRoomNumber')}</label>
                   <input
                     type="text"
                     value={roomFormNumber}
                     onChange={(e) => setRoomFormNumber(e.target.value)}
-                    placeholder="e.g. 101"
+                    placeholder={t('rooms.placeholderRoomNum')}
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Floor Level *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldFloorLevel')}</label>
                   <input
                     type="number"
                     value={roomFormFloor}
@@ -514,7 +517,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Branch *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldBranch')}</label>
                 <select
                   value={roomFormBranchId}
                   onChange={(e) => setRoomFormBranchId(e.target.value)}
@@ -523,17 +526,17 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                 >
                   {branches.filter((b) => b.isActive).map((b) => (
                     <option key={b.id} value={b.id} className="text-slate-900">
-                      {b.name} ({b.city || 'No city'})
+                      {b.name} ({b.city || t('rooms.noCity')})
                     </option>
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Rooms are created per branch and room numbers are unique within that branch.
+                  {t('rooms.branchHint')}
                 </p>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Room Type Category *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldCategory')}</label>
                 <select
                   value={roomFormTypeId}
                   onChange={(e) => handleRoomTypeSelectionChange(e.target.value)}
@@ -547,12 +550,12 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Selecting a category automatically sets the nightly rate default below.
+                  {t('rooms.categoryHint')}
                 </p>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Nightly Price (FCFA) *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldPrice')}</label>
                 <input
                   type="number"
                   step="500"
@@ -565,12 +568,12 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Optional Photo URL</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldPhotoUrl')}</label>
                 <input
                   type="url"
                   value={roomFormImage}
                   onChange={(e) => setRoomFormImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder={t('rooms.placeholderPhoto')}
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
@@ -581,13 +584,13 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                   onClick={() => setShowAddRoomModal(false)}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
-                  {editingRoom ? 'Save Changes' : 'Create Room'}
+                  {editingRoom ? t('rooms.saveChanges') : t('rooms.createRoom')}
                 </button>
               </div>
             </form>
@@ -602,7 +605,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
             <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Hash className="w-5 h-5 text-champagne-gold-400" />
-                <h3 className="font-bold text-sm sm:text-base">Bulk Add Hotel Rooms</h3>
+                <h3 className="font-bold text-sm sm:text-base">{t('rooms.bulkModalTitle')}</h3>
               </div>
               <button
                 onClick={() => setShowBulkAddModal(false)}
@@ -614,7 +617,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
 
             <form onSubmit={handleExecuteBulkAdd} className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
               <p className="text-slate-600 text-xs">
-                Quickly populate a corridor or floor with sequential room numbers (e.g. rooms 101 to 110).
+                {t('rooms.bulkDesc')}
               </p>
 
               {bulkError && (
@@ -625,7 +628,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
               )}
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Target Branch *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('rooms.bulkTargetBranch')}</label>
                 <select
                   value={bulkBranchId}
                   onChange={(e) => setBulkBranchId(e.target.value)}
@@ -634,14 +637,14 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                 >
                   {branches.filter((b) => b.isActive).map((b) => (
                     <option key={b.id} value={b.id} className="text-slate-900">
-                      {b.name} ({b.city || 'No city'})
+                      {b.name} ({b.city || t('rooms.noCity')})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Room Type Category *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldCategory')}</label>
                 <select
                   value={bulkTypeId}
                   onChange={(e) => handleBulkTypeSelectionChange(e.target.value)}
@@ -658,7 +661,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Floor Level *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('rooms.bulkFloorLevel')}</label>
                   <input
                     type="number"
                     value={bulkFloor}
@@ -669,7 +672,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Start Room # *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('rooms.bulkStartNum')}</label>
                   <input
                     type="number"
                     value={bulkStartNum}
@@ -681,7 +684,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">End Room # *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('rooms.bulkEndNum')}</label>
                   <input
                     type="number"
                     value={bulkEndNum}
@@ -694,7 +697,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Price per Night (FCFA) *</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('rooms.bulkPrice')}</label>
                 <input
                   type="number"
                   step="500"
@@ -707,11 +710,11 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
               </div>
 
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 text-[11px]">
-                <strong>Preview:</strong> Will generate{' '}
-                <span className="font-bold text-slate-900">
-                  {Math.max(0, bulkEndNum - bulkStartNum + 1)}
-                </span>{' '}
-                rooms on Floor {bulkFloor}. All rooms will start with status <strong>AVAILABLE</strong>.
+                <strong>{t('rooms.bulkPreviewLabel')}</strong>{' '}
+                {t('rooms.bulkPreviewText', {
+                  count: Math.max(0, bulkEndNum - bulkStartNum + 1),
+                  floor: bulkFloor
+                })}
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
@@ -720,13 +723,13 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
                   onClick={() => setShowBulkAddModal(false)}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold cursor-pointer"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm cursor-pointer"
                 >
-                  Generate Rooms Batch
+                  {t('rooms.bulkGenerateBtn')}
                 </button>
               </div>
             </form>

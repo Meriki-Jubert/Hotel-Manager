@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { useT } from '../i18n/LanguageContext';
 import { ProfileSettings } from './settings/ProfileSettings';
 import { BranchSettings } from './settings/BranchSettings';
 import { RoomTypeSettings } from './settings/RoomTypeSettings';
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export const HotelSettingsView: React.FC = () => {
+  const { t } = useT();
   const {
     branches,
     roomTypes,
@@ -36,10 +38,10 @@ export const HotelSettingsView: React.FC = () => {
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Settings className="w-5 h-5 text-indigo-600" />
-            Hotel Configuration & Inventory Management
+            {t('settings.shellTitle')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manager & Owner scope: Property branding, branch locations, currency conversion, room categories, and room inventory control
+            {t('settings.shellSubtitle')}
           </p>
         </div>
 
@@ -54,7 +56,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <Building className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Property & Currency</span>
+            <span>{t('settings.tabProfile')}</span>
           </button>
 
           <button
@@ -66,7 +68,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <GitBranch className="w-3.5 h-3.5 text-teal-600" />
-            <span>Branches ({branches.length})</span>
+            <span>{t('settings.tabBranches', { count: branches.length })}</span>
           </button>
 
           <button
@@ -78,7 +80,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <Layers className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Room Types ({roomTypes.length})</span>
+            <span>{t('settings.tabRoomTypes', { count: roomTypes.length })}</span>
           </button>
 
           <button
@@ -90,7 +92,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <Bed className="w-3.5 h-3.5 text-purple-600" />
-            <span>Hotel Rooms ({allRooms.length})</span>
+            <span>{t('settings.tabRooms', { count: allRooms.length })}</span>
           </button>
 
           <button
@@ -102,7 +104,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <Users className="w-3.5 h-3.5 text-blue-600" />
-            <span>Staff Management ({staffUsers.length})</span>
+            <span>{t('settings.tabStaff', { count: staffUsers.length })}</span>
           </button>
           <button
             onClick={() => setActiveSettingsTab('cancellation')}
@@ -113,7 +115,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <Clock className="w-3.5 h-3.5 text-rose-600" />
-            <span>Cancellation Policy</span>
+            <span>{t('settings.tabCancellation')}</span>
           </button>
 
           <button
@@ -125,7 +127,7 @@ export const HotelSettingsView: React.FC = () => {
             }`}
           >
             <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
-            <span>Menu & Services ({posItems.length})</span>
+            <span>{t('settings.tabMenu', { count: posItems.length })}</span>
           </button>
         </div>
       </div>
