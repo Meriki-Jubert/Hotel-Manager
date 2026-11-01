@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { Reservation, PaymentMethod } from '../types/hms';
 import { validateSplitPayment } from '../utils/folioAdjustments';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { tPaymentMethod } from '../i18n/labels';
 import {
   X,
@@ -101,7 +102,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
       if (res.success) {
         onSuccess();
       } else {
-        setErrorMsg(res.error || t('checkOut.errFail'));
+        setErrorMsg(resultMessage(t, res, 'checkOut.errFail'));
       }
       return;
     }
@@ -115,7 +116,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
     if (res.success) {
       onSuccess();
     } else {
-      setErrorMsg(res.error || t('checkOut.errFail'));
+      setErrorMsg(resultMessage(t, res, 'checkOut.errFail'));
     }
   };
 

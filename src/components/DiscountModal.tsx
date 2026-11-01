@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { Reservation } from '../types/hms';
 import { calculateDiscount } from '../utils/folioAdjustments';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { Tag, X, AlertCircle, Percent, DollarSign, Check } from 'lucide-react';
 
 interface DiscountModalProps {
@@ -67,7 +68,7 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
     if (result.success) {
       onClose();
     } else {
-      setErrorMsg(result.error || t('discountModal.errFail'));
+      setErrorMsg(resultMessage(t, result, 'discountModal.errFail'));
     }
   };
 

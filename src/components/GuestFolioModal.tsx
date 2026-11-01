@@ -7,6 +7,7 @@ import { DiscountModal } from './DiscountModal';
 import { PaymentReceiptModal } from './PaymentReceiptModal';
 import { useT } from '../i18n/LanguageContext';
 import { translate, Language } from '../i18n/translate';
+import { resultMessage } from '../i18n/messages';
 import { tFolioCategory, tPaymentMethod, tRoomMoveReason } from '../i18n/labels';
 import {
   X,
@@ -159,7 +160,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
       );
 
       if (!res.success) {
-        setSplitError(res.error || t('guestFolio.errSplitFail'));
+        setSplitError(resultMessage(t, res, 'guestFolio.errSplitFail'));
         return;
       }
 

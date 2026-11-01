@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { useT } from '../../i18n/LanguageContext';
+import { resultMessage } from '../../i18n/messages';
 import { tMenuCategory, tPosStockStatus, tPosActiveStatus } from '../../i18n/labels';
 
 export const MenuSettings: React.FC = () => {
@@ -94,7 +95,7 @@ export const MenuSettings: React.FC = () => {
         image: formImage.trim() || undefined
       });
       if (!res.success) {
-        setFormError(res.error || t('menu.errUpdateFailed'));
+        setFormError(resultMessage(t, res, 'menu.errUpdateFailed'));
         return;
       }
     } else {
@@ -107,7 +108,7 @@ export const MenuSettings: React.FC = () => {
         image: formImage.trim() || undefined
       });
       if (!res.success) {
-        setFormError(res.error || t('menu.errAddFailed'));
+        setFormError(resultMessage(t, res, 'menu.errAddFailed'));
         return;
       }
     }

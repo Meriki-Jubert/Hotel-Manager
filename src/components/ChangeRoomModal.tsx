@@ -5,6 +5,7 @@ import { calculateRoomMoveAdjustment } from '../utils/stayChanges';
 import { checkAvailability } from '../utils/availability';
 import { listNights, getLocalDateString } from '../utils/dateUtils';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { tRoomMoveReason } from '../i18n/labels';
 import { Shuffle, Check, AlertCircle, X } from 'lucide-react';
 
@@ -147,7 +148,7 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
     if (result.success) {
       onClose();
     } else {
-      setErrorMessage(result.error || t('changeRoom.errFail'));
+      setErrorMessage(resultMessage(t, result, 'changeRoom.errFail'));
     }
   };
 

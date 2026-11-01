@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { STAFF_USERS } from '../data/mockData';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import {
   Hotel,
   Calendar,
@@ -95,7 +96,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <div className="flex items-center gap-2 max-w-7xl mx-auto w-full">
             <span className="font-semibold">{t('common.notice')}</span>
-            <span>{notification.message}</span>
+            <span>
+              {notification.key ? t(notification.key, notification.vars) : notification.message}
+            </span>
             <button
               onClick={clearNotification}
               className="ml-auto hover:bg-black/20 p-1 rounded transition-colors"
@@ -535,7 +538,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setNewPasswordInput('');
                     setConfirmPasswordInput('');
                   } else {
-                    setPasswordChangeError(res.error || 'Failed to update password.');
+                    setPasswordChangeError(resultMessage(t, res, 'navbar.errPasswordUpdate'));
                   }
                 } finally {
                   setIsChangingPassword(false);

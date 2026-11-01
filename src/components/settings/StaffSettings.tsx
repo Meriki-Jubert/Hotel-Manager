@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
 import { StaffUser, UserRole } from '../../types/hms';
+import { resultMessage } from '../../i18n/messages';
 import {
   Users,
   PlusCircle,
@@ -102,7 +103,7 @@ export const StaffSettings: React.FC = () => {
         phone: staffFormPhone
       });
       if (!res.success) {
-        setStaffFormError(res.error || t('staff.errUpdateFailed'));
+        setStaffFormError(resultMessage(t, res, 'staff.errUpdateFailed'));
         return;
       }
       setShowAddStaffModal(false);
@@ -124,7 +125,7 @@ export const StaffSettings: React.FC = () => {
           phone: staffFormPhone
         });
         if (!res.success) {
-          setStaffFormError(res.error || t('staff.errAddFailed'));
+          setStaffFormError(resultMessage(t, res, 'staff.errAddFailed'));
           return;
         }
         setShowAddStaffModal(false);
@@ -152,7 +153,7 @@ export const StaffSettings: React.FC = () => {
     try {
       const res = await resetStaffPassword(resetPasswordStaff.id, resetPwValue);
       if (!res.success) {
-        setResetPwError(res.error || t('staff.errResetFailed'));
+        setResetPwError(resultMessage(t, res, 'staff.errResetFailed'));
         return;
       }
       setResetPasswordStaff(null);

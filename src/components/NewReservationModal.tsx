@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { tBookingSource, tPaymentMethod, tVipTier } from '../i18n/labels';
 import { Room, PaymentMethod, BookingSource } from '../types/hms';
 import { getNextLocalDateString, calculateStayNights, isValidDateString } from '../utils/dateUtils';
@@ -232,7 +233,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     });
 
     if (!res.success) {
-      setErrorMsg(res.error || t('newRes.errFail'));
+      setErrorMsg(resultMessage(t, res, 'newRes.errFail'));
       return;
     }
 

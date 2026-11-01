@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useT } from '../../i18n/LanguageContext';
 import { translate } from '../../i18n/translate';
+import { resultMessage } from '../../i18n/messages';
 import { tCancellationFeeType, tCancellationFeeTypeLong } from '../../i18n/labels';
 
 export const CancellationPolicySettings: React.FC = () => {
@@ -209,7 +210,7 @@ export const CancellationPolicySettings: React.FC = () => {
       cancellationPolicy: updatedPolicy
     });
     if (!res.success) {
-      setPolicySaveError(res.error || t('policy.errSaveFailed'));
+      setPolicySaveError(resultMessage(t, res, 'policy.errSaveFailed'));
       setPolicySaveSuccess(null);
       return;
     }

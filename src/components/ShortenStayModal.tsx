@@ -4,6 +4,7 @@ import { Reservation } from '../types/hms';
 import { calculateShortening } from '../utils/stayChanges';
 import { addDaysToLocalDate, getLocalDateString } from '../utils/dateUtils';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { MinusCircle, AlertTriangle, X, ShieldAlert } from 'lucide-react';
 
 interface ShortenStayModalProps {
@@ -77,7 +78,7 @@ export const ShortenStayModal: React.FC<ShortenStayModalProps> = ({ reservation,
     if (result.success) {
       onClose();
     } else {
-      setErrorMessage(result.error || t('shortenStay.errFail'));
+      setErrorMessage(resultMessage(t, result, 'shortenStay.errFail'));
     }
   };
 

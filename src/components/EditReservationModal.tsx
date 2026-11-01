@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { tBookingSource } from '../i18n/labels';
 import { Reservation, BookingSource } from '../types/hms';
 import { calculateStayNights, isValidDateString } from '../utils/dateUtils';
@@ -172,7 +173,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     });
 
     if (!res.success) {
-      setErrorMsg(res.error || t('editRes.errFail'));
+      setErrorMsg(resultMessage(t, res, 'editRes.errFail'));
       return;
     }
 

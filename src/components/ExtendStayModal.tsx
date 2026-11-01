@@ -5,6 +5,7 @@ import { calculateExtension } from '../utils/stayChanges';
 import { checkAvailability } from '../utils/availability';
 import { getNextLocalDateString } from '../utils/dateUtils';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { PlusCircle, AlertCircle, X, Check } from 'lucide-react';
 
 interface ExtendStayModalProps {
@@ -96,7 +97,7 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
     if (result.success) {
       onClose();
     } else {
-      setErrorMessage(result.error || t('extendStay.errFail'));
+      setErrorMessage(resultMessage(t, result, 'extendStay.errFail'));
     }
   };
 

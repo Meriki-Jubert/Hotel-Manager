@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
 import { useT } from '../../i18n/LanguageContext';
+import { resultMessage } from '../../i18n/messages';
 import { Room } from '../../types/hms';
 import { DeactivatePromptModal, DeactivatePromptState } from './shared';
 import { tRoomStatus } from '../../i18n/labels';
@@ -154,7 +155,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
         image: roomFormImage.trim() || undefined
       });
       if (!res.success) {
-        setRoomFormError(res.error || t('rooms.errUpdateFail'));
+        setRoomFormError(resultMessage(t, res, 'rooms.errUpdateFail'));
         return;
       }
     } else {
@@ -167,7 +168,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
         image: roomFormImage.trim() || undefined
       });
       if (!res.success) {
-        setRoomFormError(res.error || t('rooms.errCreateFail'));
+        setRoomFormError(resultMessage(t, res, 'rooms.errCreateFail'));
         return;
       }
     }
@@ -210,7 +211,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
     });
 
     if (!res.success) {
-      setBulkError(res.error || t('rooms.errBulkFail'));
+      setBulkError(resultMessage(t, res, 'rooms.errBulkFail'));
       return;
     }
 
@@ -226,7 +227,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
           type: 'room',
           id: r.id,
           title: t('rooms.deactivatePromptTitle', { number: r.roomNumber }),
-          message: t('rooms.deactivatePromptMessage', { error: res.error || '', number: r.roomNumber })
+          message: t('rooms.deactivatePromptMessage', { error: resultMessage(t, res), number: r.roomNumber })
         });
       }
     }

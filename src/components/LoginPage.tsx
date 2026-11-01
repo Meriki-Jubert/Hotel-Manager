@@ -4,6 +4,7 @@ import { STAFF_USERS } from '../data/mockData';
 import { UserRole } from '../types/hms';
 import { isDemoMode } from '../config/appConfig';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import {
   Hotel,
   KeyRound,
@@ -83,7 +84,7 @@ export const LoginPage: React.FC = () => {
     try {
       const result = await login(username, password);
       if (!result.success) {
-        setErrorMsg(result.error || t('login.invalidCredentials'));
+        setErrorMsg(resultMessage(t, result, 'login.invalidCredentials'));
       }
     } finally {
       setIsSubmitting(false);
@@ -121,7 +122,7 @@ export const LoginPage: React.FC = () => {
         phone: ownerPhone
       });
       if (!result.success) {
-        setOwnerError(result.error || t('ownerSetup.createFailed'));
+        setOwnerError(resultMessage(t, result, 'ownerSetup.createFailed'));
       }
     } finally {
       setIsSubmitting(false);

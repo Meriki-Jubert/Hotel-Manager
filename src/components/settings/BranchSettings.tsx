@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
 import { useT } from '../../i18n/LanguageContext';
+import { resultMessage } from '../../i18n/messages';
 import { Branch } from '../../types/hms';
 import { DeactivatePromptModal, DeactivatePromptState } from './shared';
 import {
@@ -87,7 +88,7 @@ export const BranchSettings: React.FC = () => {
         isActive: branchFormActive
       });
       if (!res.success) {
-        setBranchFormError(res.error || t('branch.errUpdateFail'));
+        setBranchFormError(resultMessage(t, res, 'branch.errUpdateFail'));
         return;
       }
     } else {
@@ -99,7 +100,7 @@ export const BranchSettings: React.FC = () => {
         isActive: branchFormActive
       });
       if (!res.success) {
-        setBranchFormError(res.error || t('branch.errCreateFail'));
+        setBranchFormError(resultMessage(t, res, 'branch.errCreateFail'));
         return;
       }
     }
@@ -116,7 +117,7 @@ export const BranchSettings: React.FC = () => {
           type: 'branch',
           id: b.id,
           title: t('branch.deactivatePromptTitle', { name: b.name }),
-          message: t('branch.deactivatePromptMessage', { error: res.error || '' })
+          message: t('branch.deactivatePromptMessage', { error: resultMessage(t, res) })
         });
       }
     }

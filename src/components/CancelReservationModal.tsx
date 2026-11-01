@@ -5,6 +5,7 @@ import { calculateCancellationFee, CancellationFeeResult } from '../utils/cancel
 import { getFolioTotals } from '../utils/folio';
 import { useT } from '../i18n/LanguageContext';
 import { translate } from '../i18n/translate';
+import { resultMessage } from '../i18n/messages';
 import {
   X,
   AlertCircle,
@@ -111,7 +112,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
       );
 
       if (!res.success) {
-        setErrorMsg(res.error || t('cancelRes.errFail'));
+        setErrorMsg(resultMessage(t, res, 'cancelRes.errFail'));
         return;
       }
 

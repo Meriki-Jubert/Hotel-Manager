@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
 import { useT } from '../../i18n/LanguageContext';
+import { resultMessage } from '../../i18n/messages';
 import {
   Building,
   Save,
@@ -75,7 +76,7 @@ export const ProfileSettings: React.FC = () => {
     });
 
     if (!res.success) {
-      setTaxError(res.error || t('tax.errSaveFail'));
+      setTaxError(resultMessage(t, res, 'tax.errSaveFail'));
       setTaxSavedNotice(false);
       return;
     }
@@ -110,7 +111,7 @@ export const ProfileSettings: React.FC = () => {
     });
 
     if (!res.success) {
-      setProfileError(res.error || t('profile.saveFail'));
+      setProfileError(resultMessage(t, res, 'profile.saveFail'));
       return;
     }
 
@@ -123,7 +124,7 @@ export const ProfileSettings: React.FC = () => {
     const newCurr = e.target.value as 'FCFA' | 'USD';
     const res = updateHotelConfig({ defaultCurrency: newCurr });
     if (!res.success) {
-      setCurrencyError(res.error || t('currency.updateFail'));
+      setCurrencyError(resultMessage(t, res, 'currency.updateFail'));
     }
   };
 
@@ -344,7 +345,7 @@ export const ProfileSettings: React.FC = () => {
                     setLanguageError(null);
                     const res = updateHotelConfig({ defaultLanguage: e.target.value as 'en' | 'fr' });
                     if (!res.success) {
-                      setLanguageError(res.error || t('settings.defaultLanguageFail'));
+                      setLanguageError(resultMessage(t, res, 'settings.defaultLanguageFail'));
                     }
                   }}
                   className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"

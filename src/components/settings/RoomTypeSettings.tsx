@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHMS } from '../../context/HMSContext';
 import { useT } from '../../i18n/LanguageContext';
+import { resultMessage } from '../../i18n/messages';
 import { RoomType } from '../../types/hms';
 import { DeactivatePromptModal, DeactivatePromptState } from './shared';
 import { tBedType, tRoomAmenity } from '../../i18n/labels';
@@ -114,7 +115,7 @@ export const RoomTypeSettings: React.FC = () => {
         image: typeFormImage.trim() || undefined
       });
       if (!res.success) {
-        setTypeFormError(res.error || t('roomType.errUpdateFail'));
+        setTypeFormError(resultMessage(t, res, 'roomType.errUpdateFail'));
         return;
       }
     } else {
@@ -129,7 +130,7 @@ export const RoomTypeSettings: React.FC = () => {
         image: typeFormImage.trim() || undefined
       });
       if (!res.success) {
-        setTypeFormError(res.error || t('roomType.errAddFail'));
+        setTypeFormError(resultMessage(t, res, 'roomType.errAddFail'));
         return;
       }
     }
@@ -146,7 +147,7 @@ export const RoomTypeSettings: React.FC = () => {
           type: 'room_type',
           id: rt.id,
           title: t('roomType.deactivatePromptTitle', { name: rt.name }),
-          message: t('roomType.deactivatePromptMessage', { error: res.error || '' })
+          message: t('roomType.deactivatePromptMessage', { error: resultMessage(t, res) })
         });
       }
     }

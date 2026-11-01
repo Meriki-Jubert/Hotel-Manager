@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { tPaymentMethod, tBookingSource } from '../i18n/labels';
 import { Room, PaymentMethod } from '../types/hms';
 import { getNextLocalDateString } from '../utils/dateUtils';
@@ -151,7 +152,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
       if (res.success && res.reservationId) {
         onSuccess(res.reservationId);
       } else {
-        setErrorMsg(res.error || 'Failed to create reservation.');
+        setErrorMsg(resultMessage(t, res, 'checkInModal.errFail'));
       }
       return;
     }
@@ -177,7 +178,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     if (res.success && res.reservationId) {
       onSuccess(res.reservationId);
     } else {
-      setErrorMsg(res.error || 'Failed to complete check-in.');
+      setErrorMsg(resultMessage(t, res, 'checkInModal.errFail'));
     }
   };
 

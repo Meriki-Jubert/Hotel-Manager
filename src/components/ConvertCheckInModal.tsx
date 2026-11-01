@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
+import { resultMessage } from '../i18n/messages';
 import { tPaymentMethod, tBookingSource, tRoomStatus } from '../i18n/labels';
 import { Reservation, Room, PaymentMethod } from '../types/hms';
 import {
@@ -137,7 +138,7 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
     });
 
     if (!res.success) {
-      setErrorMsg(res.error || 'Failed to check in guest.');
+      setErrorMsg(resultMessage(t, res, 'convertCheckIn.errFail'));
       return;
     }
 

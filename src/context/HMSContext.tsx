@@ -53,7 +53,16 @@ import {
   calculateRoomMoveAdjustment
 } from '../utils/stayChanges';
 import { calculateDiscount, validateSplitPayment } from '../utils/folioAdjustments';
-import { validatePosItem } from '../utils/posItems';
+import { validatePosItem, POS_CATEGORIES } from '../utils/posItems';
+import { fail, Result } from '../i18n/messages';
+import { translate } from '../i18n/translate';
+
+export interface NotificationPayload {
+  message: string;
+  key?: string;
+  vars?: Record<string, string | number>;
+  type: 'success' | 'info' | 'warning';
+}
 
 export type NavTab =
   | 'matrix'
@@ -101,7 +110,7 @@ interface HMSContextType {
   activeTab: NavTab;
   selectedRoom: Room | null;
   selectedReservation: Reservation | null;
-  notification: { message: string; type: 'success' | 'info' | 'warning' } | null;
+  notification: NotificationPayload | null;
 
   // Role Scopes & Permissions
   allowedTabs: NavTab[];
@@ -116,18 +125,18 @@ interface HMSContextType {
   staffUsers: StaffUser[];
   staffActivityLogs: StaffActivityLog[];
   failedLoginLockoutUntil: number;
-  createInitialOwner: (payload: { fullName: string; username: string; password: string; email?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
-  login: (username: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  createInitialOwner: (payload: { fullName: string; username: string; password: string; email?: string; phone?: string }) => Promise<Result>;
+  login: (username: string, password?: string) => Promise<Result>;
   fastLogin: (role: UserRole) => void;
   logout: () => void;
-  addStaff: (data: { name: string; username: string; password: string; role: UserRole; branchId?: string; title?: string; email?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
-  updateStaff: (id: string, data: Partial<Omit<StaffUser, 'id' | 'passwordHash' | 'passwordSalt'>>) => { success: boolean; error?: string };
-  toggleStaffActive: (id: string, active: boolean) => { success: boolean; error?: string };
-  resetStaffPassword: (id: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  changeMyPassword: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  addStaff: (data: { name: string; username: string; password: string; role: UserRole; branchId?: string; title?: string; email?: string; phone?: string }) => Promise<Result>;
+  updateStaff: (id: string, data: Partial<Omit<StaffUser, 'id' | 'passwordHash' | 'passwordSalt'>>) => Result;
+  toggleStaffActive: (id: string, active: boolean) => Result;
+  resetStaffPassword: (id: string, newPassword: string) => Promise<Result>;
+  changeMyPassword: (oldPassword: string, newPassword: string) => Promise<Result>;
 
   // Config Setters
-  updateHotelConfig: (newConfig: Partial<HotelConfig>) => { success: boolean; error?: string };
+  updateHotelConfig: (newConfig: Partial<HotelConfig>) => Result;
   updateRoomTypePricing: (roomTypeId: string, newBasePrice: number) => void;
 
   // General Setters
@@ -135,7 +144,15 @@ interface HMSContextType {
   setActiveTab: (tab: NavTab) => void;
   setSelectedRoom: (room: Room | null) => void;
   setSelectedReservation: (res: Reservation | null) => void;
-  showNotification: (message: string, type?: 'success' | 'info' | 'warning') => void;
+  showNotification: (
+    messageOrObj: string | { key: string; vars?: Record<string, string | number> },
+    type?: 'success' | 'info' | 'warning'
+  ) => void;
+  notify: (
+    key: string,
+    vars?: Record<string, string | number>,
+    type?: 'success' | 'info' | 'warning'
+  ) => void;
   clearNotification: () => void;
 
   // Helpers & Formatter
@@ -199,10 +216,10 @@ interface HMSContextType {
   hasMultipleActiveBranches: boolean;
   branchBusinessDates: Record<string, string>;
   setActiveBranchId: (id: string) => void;
-  addBranch: (branch: Omit<Branch, 'id'>) => { success: boolean; error?: string };
-  updateBranch: (id: string, branch: Partial<Branch>) => { success: boolean; error?: string };
-  deleteBranch: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
-  toggleBranchActive: (id: string, active: boolean) => { success: boolean; error?: string };
+  addBranch: (branch: Omit<Branch, 'id'>) => Result;
+  updateBranch: (id: string, branch: Partial<Branch>) => Result;
+  deleteBranch: (id: string) => Result & { canDeactivateInstead?: boolean };
+  toggleBranchActive: (id: string, active: boolean) => Result;
 
   // Master Unfiltered Collections (for multi-branch analytics and settings inventory)
   allRooms: Room[];
@@ -212,22 +229,22 @@ interface HMSContextType {
   allNightAuditReports: NightAuditReport[];
 
   // Room Type & Room Management (Manager Scope)
-  addRoomType: (roomType: Omit<RoomType, 'id'>) => { success: boolean; error?: string };
-  updateRoomType: (id: string, roomType: Partial<RoomType>) => { success: boolean; error?: string };
-  deleteRoomType: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
+  addRoomType: (roomType: Omit<RoomType, 'id'>) => Result;
+  updateRoomType: (id: string, roomType: Partial<RoomType>) => Result;
+  deleteRoomType: (id: string) => Result & { canDeactivateInstead?: boolean };
   toggleRoomTypeActive: (id: string, active: boolean) => void;
 
-  addRoom: (room: { roomNumber: string; floor: number; roomTypeId: string; pricePerNight: number; branchId?: string; image?: string }) => { success: boolean; error?: string };
-  bulkAddRooms: (params: { startNumber: number; endNumber: number; floor: number; roomTypeId: string; pricePerNight: number; branchId?: string }) => { success: boolean; count: number; error?: string };
-  updateRoom: (id: string, room: Partial<Room>) => { success: boolean; error?: string };
-  deleteRoom: (id: string) => { success: boolean; error?: string; canDeactivateInstead?: boolean };
+  addRoom: (room: { roomNumber: string; floor: number; roomTypeId: string; pricePerNight: number; branchId?: string; image?: string }) => Result;
+  bulkAddRooms: (params: { startNumber: number; endNumber: number; floor: number; roomTypeId: string; pricePerNight: number; branchId?: string }) => Result & { count: number };
+  updateRoom: (id: string, room: Partial<Room>) => Result;
+  deleteRoom: (id: string) => Result & { canDeactivateInstead?: boolean };
   toggleRoomActive: (id: string, active: boolean) => void;
 
   // POS & Menu Items (Manager Scope)
-  addPosItem: (item: Omit<PosItem, 'id'>) => { success: boolean; item?: PosItem; error?: string };
-  updatePosItem: (id: string, item: Partial<Omit<PosItem, 'id'>>) => { success: boolean; error?: string };
-  togglePosItemActive: (id: string, active?: boolean) => { success: boolean; error?: string };
-  deletePosItem: (id: string) => { success: boolean; error?: string };
+  addPosItem: (item: Omit<PosItem, 'id'>) => Result & { item?: PosItem };
+  updatePosItem: (id: string, item: Partial<Omit<PosItem, 'id'>>) => Result;
+  togglePosItemActive: (id: string, active?: boolean) => Result;
+  deletePosItem: (id: string) => Result;
 }
 
 const HMSContext = createContext<HMSContextType | undefined>(undefined);
@@ -442,7 +459,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<NavTab>('matrix');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
+  const [notification, setNotification] = useState<NotificationPayload | null>(null);
 
   // Derived Branch Status
   const activeBranches = branches.filter((b) => b.isActive);
@@ -617,11 +634,31 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser, role]);
 
-  const showNotification = (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
-    setNotification({ message, type });
+  const showNotification = (
+    messageOrObj: string | { key: string; vars?: Record<string, string | number> },
+    type: 'success' | 'info' | 'warning' = 'success'
+  ) => {
+    const notif: NotificationPayload =
+      typeof messageOrObj === 'string'
+        ? { message: messageOrObj, type }
+        : {
+            message: translate('en', messageOrObj.key, messageOrObj.vars),
+            key: messageOrObj.key,
+            vars: messageOrObj.vars,
+            type
+          };
+    setNotification(notif);
     setTimeout(() => {
-      setNotification((curr) => (curr?.message === message ? null : curr));
+      setNotification((curr) => (curr?.message === notif.message ? null : curr));
     }, 4500);
+  };
+
+  const notify = (
+    key: string,
+    vars?: Record<string, string | number>,
+    type: 'success' | 'info' | 'warning' = 'success'
+  ) => {
+    showNotification({ key, vars }, type);
   };
 
   const clearNotification = () => setNotification(null);
@@ -650,16 +687,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Auth & Staff Management Actions
-  const createInitialOwner = async (payload: { fullName: string; username: string; password: string; email?: string; phone?: string }): Promise<{ success: boolean; error?: string }> => {
+  const createInitialOwner = async (payload: { fullName: string; username: string; password: string; email?: string; phone?: string }): Promise<Result> => {
     if (staffUsers.some((u) => u.role === 'owner')) {
-      return { success: false, error: 'An owner account already exists.' };
+      return fail('err.auth.ownerExists');
     }
     const name = payload.fullName.trim();
     const uname = payload.username.trim().toLowerCase();
     const pw = payload.password;
-    if (!name) return { success: false, error: 'Full name is required.' };
-    if (!uname || uname.length < 3) return { success: false, error: 'Username must be at least 3 characters.' };
-    if (!pw || pw.length < 8) return { success: false, error: 'Password must be at least 8 characters long.' };
+    if (!name) return fail('err.auth.nameRequired');
+    if (!uname || uname.length < 3) return fail('err.auth.usernameMin');
+    if (!pw || pw.length < 8) return fail('err.auth.passwordMin');
 
     const salt = generateSalt();
     const hash = await hashPassword(pw, salt);
@@ -686,17 +723,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTab('analytics');
 
     logStaffActivity('Create Owner Account', `Initial owner account created: ${name} (${uname})`, { id: ownerUser.id, name: ownerUser.name });
-    showNotification(`Owner account "${name}" created successfully. Welcome to your HMS!`, 'success');
+    notify('msg.auth.ownerCreated', { name }, 'success');
     return { success: true };
   };
 
-  const login = async (username: string, password = ''): Promise<{ success: boolean; error?: string }> => {
+  const login = async (username: string, password = ''): Promise<Result> => {
     const now = Date.now();
     if (failedLoginLockoutUntil > now) {
       const remainingSecs = Math.ceil((failedLoginLockoutUntil - now) / 1000);
-      const msg = `Sign-in is locked due to 5 consecutive failed attempts. Please wait ${remainingSecs} second${remainingSecs === 1 ? '' : 's'}.`;
-      showNotification(msg, 'warning');
-      return { success: false, error: msg };
+      notify('err.auth.lockoutActive', { seconds: remainingSecs, plural: remainingSecs === 1 ? '' : 's' }, 'warning');
+      return fail('err.auth.lockoutActive', { seconds: remainingSecs, plural: remainingSecs === 1 ? '' : 's' });
     }
 
     const trimmedUser = username.trim().toLowerCase();
@@ -712,17 +748,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFailedLoginLockoutUntil(lockoutTime);
         sessionStorage.setItem(`${STORAGE_PREFIX}_lockout_until`, lockoutTime.toString());
         logStaffActivity('Security Alert', `Sign-in locked for 30 seconds after 5 failed attempts for username: "${username}"`);
-        const msg = 'Too many failed login attempts. Sign-in is locked for 30 seconds.';
-        showNotification(msg, 'warning');
-        return { success: false, error: msg };
+        notify('err.auth.lockoutTriggered', undefined, 'warning');
+        return fail('err.auth.lockoutTriggered');
       }
       logStaffActivity('Failed Login Attempt', `Unknown username attempted: "${username}"`);
-      return { success: false, error: 'Invalid username or password.' };
+      return fail('err.auth.invalidCredentials');
     }
 
     if (!user.isActive) {
       logStaffActivity('Deactivated Login Blocked', `Deactivated staff member "${user.name}" (${user.username}) attempted login.`);
-      return { success: false, error: 'This staff account has been deactivated. Please contact your property administrator.' };
+      return fail('err.auth.accountDeactivated');
     }
 
     const isPwValid = await verifyPassword(password, user.passwordSalt || '', user.passwordHash || '');
@@ -734,12 +769,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFailedLoginLockoutUntil(lockoutTime);
         sessionStorage.setItem(`${STORAGE_PREFIX}_lockout_until`, lockoutTime.toString());
         logStaffActivity('Security Alert', `Sign-in locked for 30 seconds after 5 failed attempts for staff: "${user.name}" (${user.username})`);
-        const msg = 'Too many failed login attempts. Sign-in is locked for 30 seconds.';
-        showNotification(msg, 'warning');
-        return { success: false, error: msg };
+        notify('err.auth.lockoutTriggered', undefined, 'warning');
+        return fail('err.auth.lockoutTriggered');
       }
       logStaffActivity('Failed Login Attempt', `Incorrect password for staff: "${user.name}" (${user.username})`);
-      return { success: false, error: 'Invalid username or password.' };
+      return fail('err.auth.invalidCredentials');
     }
 
     // Success! Reset failed attempts
@@ -765,13 +799,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     else setActiveTab('matrix');
 
     logStaffActivity('Staff Login', `Staff signed in: ${resolvedUser.name} (${resolvedUser.username}, ${resolvedUser.role})`, { id: resolvedUser.id, name: resolvedUser.name });
-    showNotification(`Welcome back, ${resolvedUser.name}!`, 'success');
+    notify('msg.auth.welcome', { name: resolvedUser.name }, 'success');
     return { success: true };
   };
 
   const fastLogin = (userRole: UserRole) => {
     if (!isDemoMode) {
-      showNotification('Fast role switching is only available in demo mode.', 'warning');
+      notify('msg.auth.demoOnly', undefined, 'warning');
       return;
     }
     const baseUser = staffUsers.find((u) => u.role === userRole) || STAFF_USERS.find((u) => u.role === userRole) || staffUsers[0];
@@ -792,7 +826,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     else if (resolvedUser.role === 'owner') setActiveTab('analytics');
     else setActiveTab('matrix');
 
-    showNotification(`Signed in as ${resolvedUser.name} (${resolvedUser.title})`, 'success');
+    notify('msg.auth.signedInAs', { name: resolvedUser.name, title: resolvedUser.title }, 'success');
   };
 
   const logout = () => {
@@ -801,7 +835,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     setCurrentUser(null);
     sessionStorage.removeItem(`${STORAGE_PREFIX}_user`);
-    showNotification('Logged out successfully.', 'info');
+    notify('msg.auth.loggedOut', undefined, 'info');
   };
 
   const addStaff = async (data: {
@@ -813,31 +847,31 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     title?: string;
     email?: string;
     phone?: string;
-  }): Promise<{ success: boolean; error?: string }> => {
+  }): Promise<Result> => {
     if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
-      return { success: false, error: 'Unauthorized: Only owners and managers can add staff.' };
+      return fail('err.staff.unauthorizedAdd');
     }
 
     // Role creation rules: Managers can only create front_desk and housekeeping staff; only owners can create managers or owners.
     if (currentUser?.role === 'manager' && (data.role === 'owner' || data.role === 'manager')) {
-      return { success: false, error: 'Unauthorized: Managers can only create Front Desk and Housekeeping staff.' };
+      return fail('err.staff.managerRoleLimit');
     }
 
     const name = data.name.trim();
     const uname = data.username.trim().toLowerCase();
     const pw = data.password;
 
-    if (!name) return { success: false, error: 'Staff full name is required.' };
-    if (!uname || uname.length < 3) return { success: false, error: 'Username must be at least 3 characters.' };
-    if (!pw || pw.length < 8) return { success: false, error: 'Password must be at least 8 characters long.' };
+    if (!name) return fail('err.staff.nameRequired');
+    if (!uname || uname.length < 3) return fail('err.staff.usernameMin');
+    if (!pw || pw.length < 8) return fail('err.staff.passwordMin');
 
     if (staffUsers.some((u) => u.username.toLowerCase() === uname)) {
-      return { success: false, error: `Username "${uname}" is already taken.` };
+      return fail('err.staff.usernameTaken', { username: uname });
     }
 
     // Branch assignment rules: front_desk and housekeeping must have a branch (owners have none)
     if ((data.role === 'front_desk' || data.role === 'housekeeping') && !data.branchId) {
-      return { success: false, error: 'A specific branch is required for Front Desk and Housekeeping staff.' };
+      return fail('err.staff.branchRequired');
     }
 
     const assignedBranchId = data.role === 'owner' ? undefined : (data.branchId || undefined);
@@ -871,25 +905,25 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setStaffUsers((prev) => [...prev, newStaff]);
     logStaffActivity('Create Staff Member', `Created staff account for ${name} (${uname}) as ${data.role.replace('_', ' ')}.`);
-    showNotification(`Staff member "${name}" created successfully.`, 'success');
+    notify('msg.staff.created', { name }, 'success');
     return { success: true };
   };
 
-  const updateStaff = (id: string, data: Partial<Omit<StaffUser, 'id' | 'passwordHash' | 'passwordSalt'>>): { success: boolean; error?: string } => {
+  const updateStaff = (id: string, data: Partial<Omit<StaffUser, 'id' | 'passwordHash' | 'passwordSalt'>>): Result => {
     if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
-      return { success: false, error: 'Unauthorized: Only owners and managers can edit staff.' };
+      return fail('err.staff.unauthorizedEdit');
     }
 
     const targetUser = staffUsers.find((u) => u.id === id);
-    if (!targetUser) return { success: false, error: 'Staff user not found.' };
+    if (!targetUser) return fail('err.staff.notFound');
 
     // Manager scope check: Managers can only edit front_desk and housekeeping staff
     if (currentUser?.role === 'manager') {
       if (targetUser.role === 'owner' || targetUser.role === 'manager') {
-        return { success: false, error: 'Unauthorized: Managers can only edit Front Desk and Housekeeping staff.' };
+        return fail('err.staff.managerEditLimit');
       }
       if (data.role && (data.role === 'owner' || data.role === 'manager')) {
-        return { success: false, error: 'Unauthorized: Managers cannot promote staff to Manager or Owner.' };
+        return fail('err.staff.managerPromoteLimit');
       }
     }
 
@@ -897,7 +931,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (targetUser.role === 'owner' && data.role && data.role !== 'owner') {
       const activeOwners = staffUsers.filter((u) => u.role === 'owner' && u.isActive && u.id !== id);
       if (activeOwners.length === 0) {
-        return { success: false, error: 'Cannot demote the last active Owner account.' };
+        return fail('err.staff.demoteLastOwner');
       }
     }
 
@@ -907,14 +941,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (resolvedRole === 'owner') {
       resolvedBranch = undefined;
     } else if ((resolvedRole === 'front_desk' || resolvedRole === 'housekeeping') && !resolvedBranch) {
-      return { success: false, error: 'Front Desk and Housekeeping staff must have an assigned branch.' };
+      return fail('err.staff.branchRequiredAssigned');
     }
 
     // Username uniqueness check if changed
     if (data.username && data.username.trim().toLowerCase() !== targetUser.username.toLowerCase()) {
       const newUname = data.username.trim().toLowerCase();
       if (staffUsers.some((u) => u.id !== id && u.username.toLowerCase() === newUname)) {
-        return { success: false, error: `Username "${newUname}" is already taken.` };
+        return fail('err.staff.usernameTaken', { username: newUname });
       }
     }
 
@@ -937,33 +971,33 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     logStaffActivity('Update Staff Member', `Updated details for staff member ${updatedUser.name} (${updatedUser.username}).`);
-    showNotification(`Staff member "${updatedUser.name}" updated successfully.`, 'success');
+    notify('msg.staff.updated', { name: updatedUser.name }, 'success');
     return { success: true };
   };
 
-  const toggleStaffActive = (id: string, active: boolean): { success: boolean; error?: string } => {
+  const toggleStaffActive = (id: string, active: boolean): Result => {
     if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
-      return { success: false, error: 'Unauthorized: Only owners and managers can manage staff status.' };
+      return fail('err.staff.unauthorizedStatus');
     }
 
     const targetUser = staffUsers.find((u) => u.id === id);
-    if (!targetUser) return { success: false, error: 'Staff user not found.' };
+    if (!targetUser) return fail('err.staff.notFound');
 
     // Nobody can deactivate themselves
     if (currentUser?.id === id && !active) {
-      return { success: false, error: 'You cannot deactivate your own account.' };
+      return fail('err.staff.cannotDeactivateSelf');
     }
 
     // Managers cannot alter managers or owners
     if (currentUser?.role === 'manager' && (targetUser.role === 'owner' || targetUser.role === 'manager')) {
-      return { success: false, error: 'Unauthorized: Managers cannot alter Manager or Owner accounts.' };
+      return fail('err.staff.managerStatusLimit');
     }
 
     // The last active owner can never be deactivated or demoted
     if (targetUser.role === 'owner' && !active) {
       const activeOwners = staffUsers.filter((u) => u.role === 'owner' && u.isActive && u.id !== id);
       if (activeOwners.length === 0) {
-        return { success: false, error: 'Cannot deactivate the last active Owner account. The system must retain at least one active owner.' };
+        return fail('err.staff.deactivateLastOwner');
       }
     }
 
@@ -975,27 +1009,28 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       active ? 'Reactivate Staff Member' : 'Deactivate Staff Member',
       `${active ? 'Reactivated' : 'Deactivated'} staff member ${targetUser.name} (${targetUser.username}).`
     );
-    showNotification(
-      `Staff member "${targetUser.name}" has been ${active ? 'reactivated' : 'deactivated'}.`,
+    notify(
+      active ? 'msg.staff.activated' : 'msg.staff.deactivated',
+      { name: targetUser.name },
       active ? 'success' : 'info'
     );
     return { success: true };
   };
 
-  const resetStaffPassword = async (id: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+  const resetStaffPassword = async (id: string, newPassword: string): Promise<Result> => {
     if (currentUser?.role !== 'owner' && currentUser?.role !== 'manager') {
-      return { success: false, error: 'Unauthorized: Only owners and managers can reset passwords.' };
+      return fail('err.staff.unauthorizedReset');
     }
 
     const targetUser = staffUsers.find((u) => u.id === id);
-    if (!targetUser) return { success: false, error: 'Staff user not found.' };
+    if (!targetUser) return fail('err.staff.notFound');
 
     if (currentUser?.role === 'manager' && (targetUser.role === 'owner' || targetUser.role === 'manager')) {
-      return { success: false, error: 'Unauthorized: Managers cannot reset passwords for Managers or Owners.' };
+      return fail('err.staff.managerResetLimit');
     }
 
     if (!newPassword || newPassword.length < 8) {
-      return { success: false, error: 'Password must be at least 8 characters long.' };
+      return fail('err.staff.passwordMin');
     }
 
     const salt = generateSalt();
@@ -1006,23 +1041,23 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     logStaffActivity('Reset Staff Password', `Reset password for staff member ${targetUser.name} (${targetUser.username}).`);
-    showNotification(`Password for "${targetUser.name}" has been reset successfully.`, 'success');
+    notify('msg.staff.passwordReset', { name: targetUser.name }, 'success');
     return { success: true };
   };
 
-  const changeMyPassword = async (oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
-    if (!currentUser) return { success: false, error: 'No user signed in.' };
+  const changeMyPassword = async (oldPassword: string, newPassword: string): Promise<Result> => {
+    if (!currentUser) return fail('err.staff.noUserSignedIn');
 
     const targetUser = staffUsers.find((u) => u.id === currentUser.id);
-    if (!targetUser) return { success: false, error: 'User record not found.' };
+    if (!targetUser) return fail('err.staff.notFound');
 
     const isOldPwValid = await verifyPassword(oldPassword, targetUser.passwordSalt || '', targetUser.passwordHash || '');
     if (!isOldPwValid) {
-      return { success: false, error: 'Current password does not match.' };
+      return fail('err.staff.oldPasswordMismatch');
     }
 
     if (!newPassword || newPassword.length < 8) {
-      return { success: false, error: 'New password must be at least 8 characters long.' };
+      return fail('err.staff.passwordMin');
     }
 
     const salt = generateSalt();
@@ -1039,15 +1074,15 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sessionStorage.setItem(`${STORAGE_PREFIX}_user`, JSON.stringify(updatedUser));
 
     logStaffActivity('Change Own Password', `${currentUser.name} successfully changed their account password.`);
-    showNotification('Your password has been changed successfully.', 'success');
+    notify('msg.staff.passwordChanged', undefined, 'success');
     return { success: true };
   };
 
   // Property Config
-  const updateHotelConfig = (newConfig: Partial<HotelConfig>): { success: boolean; error?: string } => {
+  const updateHotelConfig = (newConfig: Partial<HotelConfig>): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can update hotel settings.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can update hotel settings.' };
+      notify('err.hotel.unauthorized', undefined, 'warning');
+      return fail('err.hotel.unauthorized');
     }
 
     const changedKeys = Object.keys(newConfig).filter((key) => {
@@ -1063,7 +1098,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Staff member ${currentUser.name} (${currentUser.role}) updated hotel settings: ${changedFieldNames}`
     );
 
-    showNotification('Property profile & branding updated successfully!', 'success');
+    notify('msg.hotel.updated', undefined, 'success');
     return { success: true };
   };
 
@@ -2793,16 +2828,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Branch Management (Manager / Owner)
-  const addBranch = (branchData: Omit<Branch, 'id'>): { success: boolean; error?: string } => {
+  const addBranch = (branchData: Omit<Branch, 'id'>): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can add branches.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can add branches.' };
+      notify('err.branch.unauthorizedAdd', undefined, 'warning');
+      return fail('err.branch.unauthorizedAdd');
     }
 
     const name = branchData.name.trim();
     const city = branchData.city.trim();
-    if (!name) return { success: false, error: 'Branch name is required.' };
-    if (!city) return { success: false, error: 'Branch city is required.' };
+    if (!name) return fail('err.branch.nameRequired');
+    if (!city) return fail('err.branch.cityRequired');
 
     const newId = `branch-${Date.now()}`;
     const newBranch: Branch = {
@@ -2827,26 +2862,26 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Staff member ${currentUser.name} (${currentUser.role}) added branch "${name}" in ${city}.`
     );
 
-    showNotification(`Branch "${name}" added successfully!`, 'success');
+    notify('msg.branch.created', { name }, 'success');
     return { success: true };
   };
 
-  const updateBranch = (id: string, branchData: Partial<Branch>): { success: boolean; error?: string } => {
+  const updateBranch = (id: string, branchData: Partial<Branch>): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can update branches.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can update branches.' };
+      notify('err.branch.unauthorizedUpdate', undefined, 'warning');
+      return fail('err.branch.unauthorizedUpdate');
     }
 
     const targetBranch = branches.find((b) => b.id === id);
     if (!targetBranch) {
-      return { success: false, error: 'Branch not found.' };
+      return fail('err.branch.notFound');
     }
 
     if (branchData.name !== undefined && !branchData.name.trim()) {
-      return { success: false, error: 'Branch name cannot be empty.' };
+      return fail('err.branch.nameEmpty');
     }
     if (branchData.city !== undefined && !branchData.city.trim()) {
-      return { success: false, error: 'Branch city cannot be empty.' };
+      return fail('err.branch.cityEmpty');
     }
 
     setBranches((prev) =>
@@ -2869,26 +2904,26 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Staff member ${currentUser.name} (${currentUser.role}) updated branch "${targetBranch.name}".`
     );
 
-    showNotification('Branch updated successfully.', 'success');
+    notify('msg.branch.updated', undefined, 'success');
     return { success: true };
   };
 
-  const toggleBranchActive = (id: string, active: boolean): { success: boolean; error?: string } => {
+  const toggleBranchActive = (id: string, active: boolean): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can modify branch status.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can modify branch status.' };
+      notify('err.branch.unauthorizedStatus', undefined, 'warning');
+      return fail('err.branch.unauthorizedStatus');
     }
 
     const targetBranch = branches.find((b) => b.id === id);
     if (!targetBranch) {
-      return { success: false, error: 'Branch not found.' };
+      return fail('err.branch.notFound');
     }
 
     if (!active) {
       const activeCount = branches.filter((b) => b.isActive).length;
       if (activeCount <= 1) {
-        showNotification('Cannot deactivate the only active branch. The system must always have at least one active branch.', 'warning');
-        return { success: false, error: 'Cannot deactivate the only active branch. The system must always have at least one active branch.' };
+        notify('err.branch.deactivateOnlyActive', undefined, 'warning');
+        return fail('err.branch.deactivateOnlyActive');
       }
     }
 
@@ -2907,23 +2942,23 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Staff member ${currentUser.name} (${currentUser.role}) ${active ? 'activated' : 'deactivated'} branch "${targetBranch.name}".`
     );
 
-    showNotification(`Branch ${active ? 'activated' : 'deactivated'}.`, 'info');
+    notify(active ? 'msg.branch.activated' : 'msg.branch.deactivated', undefined, 'info');
     return { success: true };
   };
 
-  const deleteBranch = (id: string): { success: boolean; error?: string; canDeactivateInstead?: boolean } => {
+  const deleteBranch = (id: string): Result & { canDeactivateInstead?: boolean } => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can delete branches.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can delete branches.' };
+      notify('err.branch.unauthorizedDelete', undefined, 'warning');
+      return fail('err.branch.unauthorizedDelete');
     }
 
     const targetBranch = branches.find((b) => b.id === id);
     if (!targetBranch) {
-      return { success: false, error: 'Branch not found.' };
+      return fail('err.branch.notFound');
     }
 
     if (branches.length <= 1) {
-      return { success: false, error: 'Cannot delete the only branch in the system.' };
+      return fail('err.branch.deleteOnlyBranch');
     }
 
     const roomCount = allRooms.filter((r) => r.branchId === id).length;
@@ -2933,11 +2968,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const auditCount = allNightAuditReports.filter((a) => a.branchId === id).length;
 
     if (roomCount > 0 || resCount > 0 || txCount > 0 || mtCount > 0 || auditCount > 0) {
-      return {
-        success: false,
-        error: `Cannot delete branch with active rooms or history (${roomCount} rooms, ${resCount} reservations, ${txCount} transactions).`,
-        canDeactivateInstead: true
-      };
+      return fail(
+        'err.branch.deleteActiveHistory',
+        { roomCount, resCount, txCount },
+        { canDeactivateInstead: true }
+      );
     }
 
     setBranches((prev) => prev.filter((b) => b.id !== id));
@@ -2953,7 +2988,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Staff member ${currentUser.name} (${currentUser.role}) deleted branch "${targetBranch.name}".`
     );
 
-    showNotification('Branch deleted permanently.', 'info');
+    notify('msg.branch.deleted', undefined, 'info');
     return { success: true };
   };
 
@@ -3007,19 +3042,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Room Type & Room Management (Manager Scope)
-  const addRoomType = (newTypeData: Omit<RoomType, 'id'>) => {
+  const addRoomType = (newTypeData: Omit<RoomType, 'id'>): Result => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can configure room types.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can configure room types.' };
+      notify('err.roomType.unauthorizedAdd', undefined, 'warning');
+      return fail('err.roomType.unauthorizedAdd');
     }
     const name = newTypeData.name?.trim();
     const code = newTypeData.code?.trim().toUpperCase();
-    if (!name) return { success: false, error: 'Room type name is required.' };
-    if (!code) return { success: false, error: 'Room type code (e.g. STD, DLX) is required.' };
-    if (!newTypeData.basePrice || newTypeData.basePrice <= 0) return { success: false, error: 'Base price must be greater than 0.' };
-    if (!newTypeData.maxCapacity || newTypeData.maxCapacity < 1) return { success: false, error: 'Maximum capacity must be at least 1 guest.' };
-    if (!newTypeData.bedType?.trim()) return { success: false, error: 'Bed type is required.' };
-    if (!newTypeData.description?.trim()) return { success: false, error: 'Room type description is required.' };
+    if (!name) return fail('err.roomType.nameRequired');
+    if (!code) return fail('err.roomType.codeRequired');
+    if (!newTypeData.basePrice || newTypeData.basePrice <= 0) return fail('err.roomType.pricePositive');
+    if (!newTypeData.maxCapacity || newTypeData.maxCapacity < 1) return fail('err.roomType.capacityMin');
+    if (!newTypeData.bedType?.trim()) return fail('err.roomType.bedTypeRequired');
+    if (!newTypeData.description?.trim()) return fail('err.roomType.descRequired');
 
     const newType: RoomType = {
       ...newTypeData,
@@ -3030,62 +3065,58 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       amenities: newTypeData.amenities || []
     };
     setRoomTypes((prev) => [...prev, newType]);
-    showNotification(`Room type "${newType.name}" added successfully.`, 'success');
+    notify('msg.roomType.created', { name: newType.name }, 'success');
     return { success: true };
   };
 
-  const updateRoomType = (id: string, updatedData: Partial<RoomType>) => {
+  const updateRoomType = (id: string, updatedData: Partial<RoomType>): Result => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can edit room types.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can edit room types.' };
+      notify('err.roomType.unauthorizedEdit', undefined, 'warning');
+      return fail('err.roomType.unauthorizedEdit');
     }
     if (updatedData.name !== undefined && !updatedData.name.trim()) {
-      return { success: false, error: 'Room type name cannot be empty.' };
+      return fail('err.roomType.nameEmpty');
     }
     if (updatedData.code !== undefined && !updatedData.code.trim()) {
-      return { success: false, error: 'Room type code cannot be empty.' };
+      return fail('err.roomType.codeEmpty');
     }
     if (updatedData.basePrice !== undefined && updatedData.basePrice <= 0) {
-      return { success: false, error: 'Base price must be greater than 0.' };
+      return fail('err.roomType.pricePositive');
     }
     if (updatedData.maxCapacity !== undefined && updatedData.maxCapacity < 1) {
-      return { success: false, error: 'Maximum capacity must be at least 1.' };
+      return fail('err.roomType.capacityMinOne');
     }
 
     setRoomTypes((prev) =>
       prev.map((rt) => (rt.id === id ? { ...rt, ...updatedData } : rt))
     );
-    showNotification('Room type updated successfully.', 'success');
+    notify('msg.roomType.updated', undefined, 'success');
     return { success: true };
   };
 
-  const deleteRoomType = (id: string) => {
+  const deleteRoomType = (id: string): Result & { canDeactivateInstead?: boolean } => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can delete room types.', 'warning');
-      return { success: false, error: 'Unauthorized.' };
+      notify('err.roomType.unauthorizedDelete', undefined, 'warning');
+      return fail('err.roomType.unauthorizedDelete');
     }
     const hasRooms = allRooms.some((r) => r.roomTypeId === id);
     if (hasRooms) {
-      return {
-        success: false,
-        error: 'This room type is assigned to existing rooms and cannot be deleted. You can deactivate it instead.',
-        canDeactivateInstead: true
-      };
+      return fail('err.roomType.inUse', undefined, { canDeactivateInstead: true });
     }
     setRoomTypes((prev) => prev.filter((rt) => rt.id !== id));
-    showNotification('Room type deleted.', 'info');
+    notify('msg.roomType.deleted', undefined, 'info');
     return { success: true };
   };
 
   const toggleRoomTypeActive = (id: string, active: boolean) => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can alter room type status.', 'warning');
+      notify('err.roomType.unauthorizedStatus', undefined, 'warning');
       return;
     }
     setRoomTypes((prev) =>
       prev.map((rt) => (rt.id === id ? { ...rt, isActive: active } : rt))
     );
-    showNotification(`Room type ${active ? 'activated' : 'deactivated'}.`, 'info');
+    notify(active ? 'msg.roomType.activated' : 'msg.roomType.deactivated', undefined, 'info');
   };
 
   // Rooms Management (Per-Branch Creation & Uniqueness)
@@ -3096,16 +3127,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     pricePerNight: number;
     branchId?: string;
     image?: string;
-  }) => {
+  }): Result => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can add rooms.', 'warning');
-      return { success: false, error: 'Unauthorized.' };
+      notify('err.room.unauthorizedAdd', undefined, 'warning');
+      return fail('err.room.unauthorizedAdd');
     }
     const num = roomData.roomNumber?.trim();
-    if (!num) return { success: false, error: 'Room number is required.' };
-    if (!roomData.roomTypeId) return { success: false, error: 'Please choose a valid room type.' };
-    if (isNaN(roomData.floor)) return { success: false, error: 'Floor must be a valid number.' };
-    if (roomData.pricePerNight <= 0) return { success: false, error: 'Nightly rate must be greater than 0.' };
+    if (!num) return fail('err.room.numberRequired');
+    if (!roomData.roomTypeId) return fail('err.room.typeRequired');
+    if (isNaN(roomData.floor)) return fail('err.room.floorInvalid');
+    if (roomData.pricePerNight <= 0) return fail('err.room.pricePositive');
 
     const targetBranchId = roomData.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
 
@@ -3114,7 +3145,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (r) => r.branchId === targetBranchId && r.roomNumber.toLowerCase() === num.toLowerCase()
     );
     if (duplicate) {
-      return { success: false, error: `Room number "${num}" already exists in this branch.` };
+      return fail('err.room.duplicateInBranch', { number: num });
     }
 
     const newRoom: Room = {
@@ -3130,7 +3161,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setAllRooms((prev) => [...prev, newRoom]);
-    showNotification(`Room #${newRoom.roomNumber} created in branch.`, 'success');
+    notify('msg.room.created', { number: newRoom.roomNumber }, 'success');
     return { success: true };
   };
 
@@ -3141,17 +3172,17 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     roomTypeId: string;
     pricePerNight: number;
     branchId?: string;
-  }) => {
+  }): Result & { count: number } => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can bulk-add rooms.', 'warning');
-      return { success: false, count: 0, error: 'Unauthorized.' };
+      notify('err.room.unauthorizedBulk', undefined, 'warning');
+      return fail('err.room.unauthorizedBulk', undefined, { count: 0 });
     }
     const { startNumber, endNumber, floor, roomTypeId, pricePerNight } = params;
-    if (isNaN(startNumber) || isNaN(endNumber)) return { success: false, count: 0, error: 'Start and end numbers must be valid numbers.' };
-    if (startNumber > endNumber) return { success: false, count: 0, error: 'Start room number cannot exceed end room number.' };
-    if (endNumber - startNumber > 100) return { success: false, count: 0, error: 'Maximum batch addition is 100 rooms at a time.' };
-    if (pricePerNight <= 0) return { success: false, count: 0, error: 'Price per night must be greater than 0.' };
-    if (!roomTypeId) return { success: false, count: 0, error: 'Please select a room type.' };
+    if (isNaN(startNumber) || isNaN(endNumber)) return fail('err.room.bulkNumbersInvalid', undefined, { count: 0 });
+    if (startNumber > endNumber) return fail('err.room.bulkRangeOrder', undefined, { count: 0 });
+    if (endNumber - startNumber > 100) return fail('err.room.bulkRangeMax', undefined, { count: 0 });
+    if (pricePerNight <= 0) return fail('err.room.pricePositive', undefined, { count: 0 });
+    if (!roomTypeId) return fail('err.room.typeRequired', undefined, { count: 0 });
 
     const targetBranchId = params.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
 
@@ -3169,11 +3200,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (conflicts.length > 0) {
-      return {
-        success: false,
-        count: 0,
-        error: `Cannot create rooms: Room number(s) ${conflicts.slice(0, 6).join(', ')}${conflicts.length > 6 ? '...' : ''} already exist in this branch.`
-      };
+      return fail(
+        'err.room.bulkConflicts',
+        { conflicts: conflicts.slice(0, 6).join(', ') + (conflicts.length > 6 ? '...' : '') },
+        { count: 0 }
+      );
     }
 
     const created: Room[] = [];
@@ -3191,105 +3222,102 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setAllRooms((prev) => [...prev, ...created]);
-    showNotification(`Added ${created.length} rooms (${startNumber} to ${endNumber}) on Floor ${floor} to branch!`, 'success');
+    notify('msg.room.bulkCreated', { count: created.length, start: startNumber, end: endNumber, floor }, 'success');
     return { success: true, count: created.length };
   };
 
-  const updateRoom = (id: string, updatedData: Partial<Room>) => {
+  const updateRoom = (id: string, updatedData: Partial<Room>): Result => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can edit rooms.', 'warning');
-      return { success: false, error: 'Unauthorized.' };
+      notify('err.room.unauthorizedEdit', undefined, 'warning');
+      return fail('err.room.unauthorizedEdit');
     }
 
     const existingRoom = allRooms.find((r) => r.id === id);
-    if (!existingRoom) return { success: false, error: 'Room not found.' };
+    if (!existingRoom) return fail('err.room.notFound');
 
     const targetBranchId = updatedData.branchId || existingRoom.branchId;
 
     if (updatedData.roomNumber !== undefined) {
       const num = updatedData.roomNumber.trim();
-      if (!num) return { success: false, error: 'Room number cannot be empty.' };
+      if (!num) return fail('err.room.numberEmpty');
       const duplicate = allRooms.some(
         (r) => r.id !== id && r.branchId === targetBranchId && r.roomNumber.toLowerCase() === num.toLowerCase()
       );
-      if (duplicate) return { success: false, error: `Room number "${num}" is already in use by another room in this branch.` };
+      if (duplicate) return fail('err.room.numberInUse', { number: num });
     }
     if (updatedData.pricePerNight !== undefined && updatedData.pricePerNight <= 0) {
-      return { success: false, error: 'Price per night must be greater than 0.' };
+      return fail('err.room.pricePositive');
     }
 
     setAllRooms((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...updatedData, branchId: targetBranchId } : r))
     );
-    showNotification('Room updated successfully.', 'success');
+    notify('msg.room.updated', undefined, 'success');
     return { success: true };
   };
 
-  const deleteRoom = (id: string) => {
+  const deleteRoom = (id: string): Result & { canDeactivateInstead?: boolean } => {
     if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-      showNotification('Unauthorized: Only managers and owners can delete rooms.', 'warning');
-      return { success: false, error: 'Unauthorized.' };
+      notify('err.room.unauthorizedDelete', undefined, 'warning');
+      return fail('err.room.unauthorizedDelete');
     }
     const targetRoom = allRooms.find((r) => r.id === id);
-    if (!targetRoom) return { success: false, error: 'Room not found.' };
+    if (!targetRoom) return fail('err.room.notFound');
 
     if (targetRoom.status === 'occupied' || targetRoom.currentReservationId) {
-      return {
-        success: false,
-        error: `Room #${targetRoom.roomNumber} has an active checked-in guest and cannot be deleted. Deactivate it instead.`,
-        canDeactivateInstead: true
-      };
+      return fail('err.room.deleteOccupied', { number: targetRoom.roomNumber }, { canDeactivateInstead: true });
     }
 
     const hasResHistory = allReservations.some(
       (res) => res.roomId === id || (res.branchId === targetRoom.branchId && res.roomNumber === targetRoom.roomNumber)
     );
     if (hasResHistory) {
-      return {
-        success: false,
-        error: `Room #${targetRoom.roomNumber} has reservation history and cannot be deleted. Deactivate it instead.`,
-        canDeactivateInstead: true
-      };
+      return fail('err.room.deleteHistory', { number: targetRoom.roomNumber }, { canDeactivateInstead: true });
     }
 
     setAllRooms((prev) => prev.filter((r) => r.id !== id));
-    showNotification(`Room #${targetRoom.roomNumber} removed from inventory.`, 'info');
+    notify('msg.room.deleted', { number: targetRoom.roomNumber }, 'info');
     return { success: true };
   };
 
   const toggleRoomActive = (id: string, active: boolean) => {
     if (currentUser?.role !== 'manager') {
-      showNotification('Unauthorized: Only managers can alter room status.', 'warning');
+      notify('err.room.unauthorizedStatus', undefined, 'warning');
       return;
     }
     setAllRooms((prev) =>
       prev.map((r) => (r.id === id ? { ...r, isActive: active } : r))
     );
-    showNotification(`Room ${active ? 'activated' : 'deactivated'}.`, 'info');
+    notify(active ? 'msg.room.activated' : 'msg.room.deactivated', undefined, 'info');
   };
 
   // POS & Menu Items Management (Manager and Owner Scope)
   const addPosItem = (
     item: Omit<PosItem, 'id'>
-  ): { success: boolean; item?: PosItem; error?: string } => {
+  ): Result & { item?: PosItem } => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can add menu items.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can add menu items.' };
+      notify('err.menu.unauthorizedAdd', undefined, 'warning');
+      return fail('err.menu.unauthorizedAdd');
     }
 
-    const validation = validatePosItem(
-      { name: item.name, category: item.category, price: item.price },
-      posItems
-    );
-
-    if (!validation.valid) {
-      return { success: false, error: validation.error };
+    const trimmedName = typeof item.name === 'string' ? item.name.trim() : '';
+    if (trimmedName.length < 2) {
+      return fail('err.menu.nameMin');
+    }
+    if (!POS_CATEGORIES.includes(item.category as PosItem['category'])) {
+      return fail('err.menu.categoryInvalid', { categories: POS_CATEGORIES.join(', ') });
+    }
+    if (typeof item.price !== 'number' || isNaN(item.price) || !Number.isInteger(item.price) || item.price <= 0) {
+      return fail('err.menu.priceWhole');
+    }
+    if (posItems.some((i) => i.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+      return fail('err.menu.duplicateName', { name: trimmedName });
     }
 
     const newItem: PosItem = {
       ...item,
       id: `pos-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
-      name: item.name.trim(),
+      name: trimmedName,
       isActive: true,
       available: item.available !== false
     };
@@ -3301,22 +3329,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Added "${newItem.name}" (${newItem.category}, ${formatMoney(newItem.price)}) to POS menu.`
     );
 
-    showNotification(`Menu item "${newItem.name}" added successfully.`, 'success');
+    notify('msg.menu.created', { name: newItem.name }, 'success');
     return { success: true, item: newItem };
   };
 
   const updatePosItem = (
     id: string,
     updates: Partial<Omit<PosItem, 'id'>>
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can update menu items.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can update menu items.' };
+      notify('err.menu.unauthorizedUpdate', undefined, 'warning');
+      return fail('err.menu.unauthorizedUpdate');
     }
 
     const existing = posItems.find((i) => i.id === id);
     if (!existing) {
-      return { success: false, error: 'Menu item not found.' };
+      return fail('err.menu.notFound');
     }
 
     const merged = {
@@ -3325,9 +3353,18 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       price: updates.price !== undefined ? updates.price : existing.price
     };
 
-    const validation = validatePosItem(merged, posItems, id);
-    if (!validation.valid) {
-      return { success: false, error: validation.error };
+    const trimmedName = typeof merged.name === 'string' ? merged.name.trim() : '';
+    if (trimmedName.length < 2) {
+      return fail('err.menu.nameMin');
+    }
+    if (!POS_CATEGORIES.includes(merged.category as PosItem['category'])) {
+      return fail('err.menu.categoryInvalid', { categories: POS_CATEGORIES.join(', ') });
+    }
+    if (typeof merged.price !== 'number' || isNaN(merged.price) || !Number.isInteger(merged.price) || merged.price <= 0) {
+      return fail('err.menu.priceWhole');
+    }
+    if (posItems.some((i) => i.id !== id && i.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+      return fail('err.menu.duplicateName', { name: trimmedName });
     }
 
     setPosItems((prev) =>
@@ -3336,7 +3373,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? {
               ...i,
               ...updates,
-              name: merged.name.trim(),
+              name: trimmedName,
               category: merged.category as PosItem['category'],
               price: merged.price
             }
@@ -3349,22 +3386,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Updated "${merged.name}" (${merged.category}, ${formatMoney(merged.price)}) in POS menu.`
     );
 
-    showNotification(`Menu item "${merged.name}" updated successfully.`, 'success');
+    notify('msg.menu.updated', { name: merged.name }, 'success');
     return { success: true };
   };
 
   const togglePosItemActive = (
     id: string,
     active?: boolean
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can alter menu item status.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can alter menu item status.' };
+      notify('err.menu.unauthorizedStatus', undefined, 'warning');
+      return fail('err.menu.unauthorizedStatus');
     }
 
     const existing = posItems.find((i) => i.id === id);
     if (!existing) {
-      return { success: false, error: 'Menu item not found.' };
+      return fail('err.menu.notFound');
     }
 
     const newActive = active !== undefined ? active : (existing.isActive === false ? true : false);
@@ -3378,21 +3415,25 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `${newActive ? 'Activated' : 'Deactivated'} "${existing.name}" in POS menu.`
     );
 
-    showNotification(`Menu item "${existing.name}" ${newActive ? 'activated' : 'deactivated'}.`, 'info');
+    notify(
+      newActive ? 'msg.menu.activated' : 'msg.menu.deactivated',
+      { name: existing.name },
+      'info'
+    );
     return { success: true };
   };
 
   const deletePosItem = (
     id: string
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      showNotification('Unauthorized: Only managers and owners can delete menu items.', 'warning');
-      return { success: false, error: 'Unauthorized: Only managers and owners can delete menu items.' };
+      notify('err.menu.unauthorizedDelete', undefined, 'warning');
+      return fail('err.menu.unauthorizedDelete');
     }
 
     const existing = posItems.find((i) => i.id === id);
     if (!existing) {
-      return { success: false, error: 'Menu item not found.' };
+      return fail('err.menu.notFound');
     }
 
     setPosItems((prev) => prev.filter((i) => i.id !== id));
@@ -3402,7 +3443,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Deleted "${existing.name}" (${existing.category}) from POS menu.`
     );
 
-    showNotification(`Menu item "${existing.name}" deleted.`, 'info');
+    notify('msg.menu.deleted', { name: existing.name }, 'info');
     return { success: true };
   };
 
@@ -3466,6 +3507,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedRoom,
         setSelectedReservation,
         showNotification,
+        notify,
         clearNotification,
         formatMoney,
         checkInGuest,
