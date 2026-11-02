@@ -61,6 +61,8 @@ export interface ValidateSplitPaymentParams {
 export interface SplitPaymentValidationResult {
   valid: boolean;
   error?: string;
+  errorKey?: string;
+  errorVars?: Record<string, string | number>;
 }
 
 /**
@@ -72,15 +74,27 @@ export function validateSplitPayment({
   lines
 }: ValidateSplitPaymentParams): SplitPaymentValidationResult {
   if (typeof totalAmount !== 'number' || isNaN(totalAmount) || totalAmount <= 0) {
-    return { valid: false, error: 'Total payment amount must be greater than zero.' };
+    return {
+      valid: false,
+      error: 'Total payment amount must be greater than zero.',
+      errorKey: 'split.totalMustBePositive'
+    };
   }
 
   if (!Number.isInteger(totalAmount)) {
-    return { valid: false, error: 'Amounts must be whole numbers (FCFA has no decimals).' };
+    return {
+      valid: false,
+      error: 'Amounts must be whole numbers (FCFA has no decimals).',
+      errorKey: 'split.mustBeWholeNumber'
+    };
   }
 
   if (!Array.isArray(lines) || lines.length === 0) {
-    return { valid: false, error: 'At least one payment line is required.' };
+    return {
+      valid: false,
+      error: 'At least one payment line is required.',
+      errorKey: 'split.lineRequired'
+    };
   }
 
   for (let i = 0; i < lines.length; i++) {
@@ -88,19 +102,24 @@ export function validateSplitPayment({
     if (typeof line.amount !== 'number' || isNaN(line.amount) || line.amount <= 0) {
       return {
         valid: false,
-        error: `Line ${i + 1} amount must be greater than zero.`
+        error: `Line ${i + 1} amount must be greater than zero.`,
+        errorKey: 'split.lineAmountMustBePositive',
+        errorVars: { index: i + 1 }
       };
     }
     if (!Number.isInteger(line.amount)) {
       return {
         valid: false,
-        error: 'Amounts must be whole numbers (FCFA has no decimals).'
+        error: 'Amounts must be whole numbers (FCFA has no decimals).',
+        errorKey: 'split.mustBeWholeNumber'
       };
     }
     if (!line.method) {
       return {
         valid: false,
-        error: `Line ${i + 1} must have a valid payment method selected.`
+        error: `Line ${i + 1} must have a valid payment method selected.`,
+        errorKey: 'split.lineMethodRequired',
+        errorVars: { index: i + 1 }
       };
     }
   }
@@ -109,7 +128,9 @@ export function validateSplitPayment({
   if (sum !== totalAmount) {
     return {
       valid: false,
-      error: `Sum of split lines (${sum}) must equal the total amount (${totalAmount}).`
+      error: `Sum of split lines (${sum}) must equal the total amount (${totalAmount}).`,
+      errorKey: 'split.sumMismatch',
+      errorVars: { sum, total: totalAmount }
     };
   }
 

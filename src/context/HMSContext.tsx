@@ -54,7 +54,7 @@ import {
 } from '../utils/stayChanges';
 import { calculateDiscount, validateSplitPayment } from '../utils/folioAdjustments';
 import { validatePosItem, POS_CATEGORIES } from '../utils/posItems';
-import { fail, Result } from '../i18n/messages';
+import { fail, Result, KeyedError } from '../i18n/messages';
 import { translate } from '../i18n/translate';
 
 export interface NotificationPayload {
@@ -1104,7 +1104,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateRoomTypePricing = (roomTypeId: string, newBasePrice: number) => {
     if (!canEditRates) {
-      showNotification('Permission denied: Only Manager/Accountant can alter base room rates.', 'warning');
+      notify('err.room.rateEditUnauthorized', undefined, 'warning');
       return;
     }
     setRoomTypes((prev) =>
@@ -1118,13 +1118,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : r
       )
     );
-    showNotification('Base room type pricing updated across inventory.', 'success');
+    notify('msg.room.pricingUpdated', undefined, 'success');
   };
 
   // HMS Operational Mutations
   const updateRoomStatus = (roomId: string, status: RoomStatus, note?: string) => {
     if (isReadOnly) {
-      showNotification('Owner account has read-only access.', 'warning');
+      notify('err.room.readOnly', undefined, 'warning');
       return;
     }
 
@@ -1145,52 +1145,46 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       })
     );
-    showNotification(`Room updated to status: ${status.toUpperCase()}`, 'info');
+    notify('msg.room.statusUpdated', { status: status.toUpperCase() }, 'info');
   };
 
-  const checkInGuest = (payload: CheckInPayload) => {
+  const checkInGuest = (payload: CheckInPayload): Result & { reservationId?: string } => {
     if (!canCheckIn) {
-      return { success: false, error: 'Unauthorized: Your role does not have check-in permissions.' };
+      return fail('err.checkin.unauthorized');
     }
 
     const room = allRooms.find((r) => r.id === payload.roomId);
-    if (!room) return { success: false, error: 'Target room not found' };
+    if (!room) return fail('err.checkin.targetRoomNotFound');
     
     // Validate dates
     if (!isValidDateString(payload.checkInDate) || !isValidDateString(payload.checkOutDate)) {
-      return { success: false, error: 'Invalid dates provided.' };
+      return fail('err.checkin.invalidDates');
     }
     if (payload.checkOutDate <= payload.checkInDate) {
-      return { success: false, error: 'Check-out date must be strictly after check-in date.' };
+      return fail('err.res.checkoutBeforeCheckin');
     }
     if (payload.checkInDate < businessDate) {
-      return { success: false, error: 'Check-in date cannot be in the past.' };
+      return fail('err.res.checkinPast');
     }
 
     // Check date availability overlap
     const isFree = isRoomAvailableForDateRange(room.id, payload.checkInDate, payload.checkOutDate);
     if (!isFree) {
-      return {
-        success: false,
-        error: `Room #${room.roomNumber} is already booked or occupied for the selected dates!`
-      };
+      return fail('err.checkin.roomBooked', { number: room.roomNumber });
     }
 
     // Check-in Valve: block immediate check-in for future dates
     if (payload.checkInDate > businessDate) {
-      return {
-        success: false,
-        error: `Early check-in blocked: Cannot check in for a future date (${payload.checkInDate}). Today is ${businessDate}. Please use 'New Reservation' to book for future arrival dates.`
-      };
+      return fail('err.checkin.earlyBlocked', { date: payload.checkInDate, today: businessDate });
     }
 
     if (['occupied', 'dirty', 'cleaning', 'maintenance'].includes(room.status)) {
-      return { success: false, error: `Room #${room.roomNumber} is ${room.status} and cannot be checked into.` };
+      return fail('err.checkin.roomNotAvailable', { number: room.roomNumber, status: room.status });
     }
 
     const effectiveIdCard = payload.idCardNumber || '';
     if (!effectiveIdCard.trim()) {
-      return { success: false, error: 'Guest ID card number is required at check-in.' };
+      return fail('err.checkin.idCardRequired');
     }
 
     const targetBranchId = room.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
@@ -1304,7 +1298,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Walk-in check-in for ${guest.fullName} into Room #${room.roomNumber} (${nights} nights, ${payload.checkInDate} to ${payload.checkOutDate}).`
     );
 
-    showNotification(`Guest ${guest.fullName} checked into Room ${room.roomNumber}!`, 'success');
+    notify('msg.checkin.success', { guest: guest.fullName, number: room.roomNumber }, 'success');
     return { success: true, reservationId: resId };
   };
 
@@ -1366,31 +1360,28 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createReservation = (
     payload: CreateReservationPayload
-  ): { success: boolean; reservationId?: string; error?: string } => {
+  ): Result & { reservationId?: string } => {
     if (!isValidDateString(payload.checkInDate) || !isValidDateString(payload.checkOutDate)) {
-      return { success: false, error: 'Please enter valid check-in and check-out dates (YYYY-MM-DD).' };
+      return fail('err.res.invalidDates');
     }
     if (payload.checkOutDate <= payload.checkInDate) {
-      return { success: false, error: 'Check-out date must be strictly after check-in date.' };
+      return fail('err.res.checkoutBeforeCheckin');
     }
     if (payload.checkInDate < businessDate) {
-      return { success: false, error: 'Check-in date cannot be in the past.' };
+      return fail('err.res.checkinPast');
     }
     if (payload.adults < 1) {
-      return { success: false, error: 'At least 1 adult is required.' };
+      return fail('err.res.adultMin');
     }
 
     const roomType = roomTypes.find((rt) => rt.id === payload.roomTypeId);
     if (!roomType) {
-      return { success: false, error: 'Selected room category is not found.' };
+      return fail('err.res.roomTypeNotFound');
     }
 
     const totalGuests = payload.adults + (payload.children || 0);
     if (totalGuests > roomType.maxCapacity) {
-      return {
-        success: false,
-        error: `Total guests (${totalGuests}) exceeds the maximum capacity of ${roomType.maxCapacity} for ${roomType.name}.`
-      };
+      return fail('err.res.exceedsCapacity', { total: totalGuests, capacity: roomType.maxCapacity, name: roomType.name });
     }
 
     const targetBranchId =
@@ -1406,7 +1397,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         (r) => r.id === payload.roomId && r.branchId === targetBranchId && r.isActive !== false
       );
       if (!assignedRoom) {
-        return { success: false, error: 'Selected room not found or is deactivated.' };
+        return fail('err.res.roomNotFoundOrDeactivated');
       }
     }
 
@@ -1424,10 +1415,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (!availCheck.available) {
-      return {
-        success: false,
-        error: availCheck.reason || `No rooms available for ${roomType.name} on the selected dates.`
-      };
+      return fail(availCheck.reasonKey || 'err.res.noRoomsAvailable', availCheck.reasonVars || { name: roomType.name });
     }
 
     let guest = payload.guestId ? guests.find((g) => g.id === payload.guestId) : undefined;
@@ -1538,39 +1526,36 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Created reservation ${bookingCode} for ${guest.fullName} (${roomType.name}, ${payload.checkInDate} to ${payload.checkOutDate}${assignedRoom ? `, Room #${assignedRoom.roomNumber}` : ', Hold Room Type'}${deposit > 0 ? `, Deposit: ${formatMoney(deposit)}` : ''})`
     );
 
-    showNotification(`Reservation ${bookingCode} confirmed for ${guest.fullName}!`, 'success');
+    notify('msg.res.confirmed', { code: bookingCode, guest: guest.fullName }, 'success');
     return { success: true, reservationId: resId };
   };
 
   const updateReservation = (
     reservationId: string,
     payload: UpdateReservationPayload
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     const res = allReservations.find((r) => r.id === reservationId);
-    if (!res) return { success: false, error: 'Reservation not found.' };
+    if (!res) return fail('err.res.notFound');
     if (res.bookingStatus !== 'reserved') {
-      return { success: false, error: 'Only bookings in "reserved" status can be edited.' };
+      return fail('err.res.editOnlyReserved');
     }
 
     if (!isValidDateString(payload.checkInDate) || !isValidDateString(payload.checkOutDate)) {
-      return { success: false, error: 'Invalid dates.' };
+      return fail('err.res.invalidDates');
     }
     if (payload.checkOutDate <= payload.checkInDate) {
-      return { success: false, error: 'Check-out date must be strictly after check-in date.' };
+      return fail('err.res.checkoutBeforeCheckin');
     }
     if (payload.checkInDate < businessDate) {
-      return { success: false, error: 'Check-in date cannot be in the past.' };
+      return fail('err.res.checkinPast');
     }
 
     const roomType = roomTypes.find((rt) => rt.id === payload.roomTypeId);
-    if (!roomType) return { success: false, error: 'Invalid room category.' };
+    if (!roomType) return fail('err.res.roomTypeInvalid');
 
     const totalGuests = payload.adults + (payload.children || 0);
     if (totalGuests > roomType.maxCapacity) {
-      return {
-        success: false,
-        error: `Guest count (${totalGuests}) exceeds capacity of ${roomType.maxCapacity} for ${roomType.name}.`
-      };
+      return fail('err.res.exceedsCapacity', { total: totalGuests, capacity: roomType.maxCapacity, name: roomType.name });
     }
 
     const targetBranchId = res.branchId || defaultBranchId;
@@ -1578,7 +1563,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let assignedRoom: Room | undefined;
     if (payload.roomId) {
       assignedRoom = allRooms.find((r) => r.id === payload.roomId && r.isActive !== false);
-      if (!assignedRoom) return { success: false, error: 'Selected room not found or deactivated.' };
+      if (!assignedRoom) return fail('err.res.roomNotFoundOrDeactivated');
     }
 
     const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
@@ -1596,10 +1581,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (!availCheck.available) {
-      return {
-        success: false,
-        error: availCheck.reason || `No rooms available for ${roomType.name} on the selected dates.`
-      };
+      return fail(availCheck.reasonKey || 'err.res.noRoomsAvailable', availCheck.reasonVars || { name: roomType.name });
     }
 
     const nights = calculateStayNights(payload.checkInDate, payload.checkOutDate);
@@ -1651,7 +1633,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Modified reservation ${res.bookingCode} for ${res.guestName}: Dates ${payload.checkInDate} to ${payload.checkOutDate}, ${roomType.name}${assignedRoom ? `, Room #${assignedRoom.roomNumber}` : ', Unassigned'}`
     );
 
-    showNotification(`Reservation ${res.bookingCode} updated successfully.`, 'success');
+    notify('msg.res.updated', { code: res.bookingCode }, 'success');
     return { success: true };
   };
 
@@ -1667,23 +1649,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       policyRuleText?: string;
       feeOverrideReason?: string;
     }
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     const res = allReservations.find((r) => r.id === reservationId);
-    if (!res) return { success: false, error: 'Reservation not found.' };
+    if (!res) return fail('err.res.notFound');
 
     // Only bookings with status 'reserved' can be cancelled or marked no-show
     if (res.bookingStatus !== 'reserved') {
       if (res.bookingStatus === 'checked_in') {
-        return { success: false, error: 'Cannot cancel a checked-in booking. Use Check-Out instead.' };
+        return fail('err.res.cancelCheckedIn');
       }
-      return {
-        success: false,
-        error: `Only bookings in 'reserved' status can be cancelled or marked no-show (current status: ${res.bookingStatus}).`
-      };
+      return fail('err.res.cancelOnlyReserved', { status: res.bookingStatus });
     }
 
     if (!reason.trim()) {
-      return { success: false, error: 'A cancellation reason is required.' };
+      return fail('err.res.cancellationReasonRequired');
     }
 
     const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
@@ -1709,11 +1688,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (fee < calculatedSuggestedFee) {
       if (currentUser?.role !== 'manager' && currentUser?.role !== 'owner') {
-        return { success: false, error: 'Only managers and owners can override cancellation fees.' };
+        return fail('err.res.feeOverrideUnauthorized');
       }
       const overrideReason = feeMeta?.feeOverrideReason?.trim() || '';
       if (overrideReason.length < 5) {
-        return { success: false, error: 'A valid reason of at least 5 characters is required for fee overrides.' };
+        return fail('err.res.feeOverrideReasonMin');
       }
       feeOverrideReason = overrideReason;
       feeOverriddenBy = currentUser?.name || 'Manager';
@@ -1828,8 +1807,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Reservation ${res.bookingCode} for ${res.guestName} marked ${isNoShow ? 'No-Show' : 'Cancelled'}. Reason: "${fullReason}". Fee: ${formatMoney(fee)} (Suggested: ${formatMoney(calculatedSuggestedFee)}).${feeOverriddenBy ? ` Fee Overridden by ${feeOverriddenBy}: "${feeOverrideReason}".` : ''}${finalSettlement ? ` Settlement: ${finalSettlement}.` : ''}`
     );
 
-    showNotification(
-      `Reservation ${res.bookingCode} has been ${isNoShow ? 'marked No-Show' : 'cancelled'}.`,
+    notify(
+      isNoShow ? 'msg.res.noShow' : 'msg.res.cancelled',
+      { code: res.bookingCode },
       'info'
     );
     return { success: true };
@@ -1837,35 +1817,32 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const convertReservationToCheckIn = (
     payload: ConvertToCheckInPayload
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     const res = allReservations.find((r) => r.id === payload.reservationId);
-    if (!res) return { success: false, error: 'Reservation not found.' };
+    if (!res) return fail('err.res.notFound');
     if (res.bookingStatus !== 'reserved') {
-      return { success: false, error: 'Only reserved bookings can be checked in.' };
+      return fail('err.checkin.onlyReserved');
     }
 
     // Check-in Valve: strictly block checking in before scheduled check-in date
     if (res.checkInDate > businessDate) {
-      return {
-        success: false,
-        error: `Early check-in blocked: Reservation is scheduled for arrival on ${res.checkInDate}. Current business date is ${businessDate}. Guests cannot be checked in before their arrival date.`
-      };
+      return fail('err.checkin.earlyBlockedRes', { date: res.checkInDate, today: businessDate });
     }
 
     const room = allRooms.find((r) => r.id === payload.roomId);
-    if (!room) return { success: false, error: 'Selected room not found.' };
-    if (room.isActive === false) return { success: false, error: `Room #${room.roomNumber} is deactivated.` };
+    if (!room) return fail('err.checkin.targetRoomNotFound');
+    if (room.isActive === false) return fail('err.checkin.roomDeactivated', { number: room.roomNumber });
     if (['occupied', 'dirty', 'cleaning', 'maintenance'].includes(room.status)) {
-      return { success: false, error: `Room #${room.roomNumber} is ${room.status} and cannot be checked into.` };
+      return fail('err.checkin.roomNotAvailable', { number: room.roomNumber, status: room.status });
     }
     if (!isRoomAvailableForDateRange(room.id, res.checkInDate, res.checkOutDate, res.id)) {
-      return { success: false, error: `Room #${room.roomNumber} is not available for these dates.` };
+      return fail('err.checkin.roomDatesUnavailable', { number: room.roomNumber });
     }
 
     const guest = guests.find((g) => g.id === res.guestId);
     const effectiveIdCard = payload.idCardNumber || guest?.idCardNumber || '';
     if (!effectiveIdCard.trim()) {
-      return { success: false, error: 'Guest ID card number is required at check-in.' };
+      return fail('err.checkin.idCardRequired');
     }
     if (payload.idCardNumber && payload.idCardNumber.trim()) {
       setGuests((prev) => prev.map((g) => g.id === res.guestId ? { ...g, idCardNumber: payload.idCardNumber!.trim() } : g));
@@ -1926,7 +1903,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Guest ${res.guestName} checked into Room #${room.roomNumber} (Converted from Reservation ${res.bookingCode}).`
     );
 
-    showNotification(`Guest ${res.guestName} checked in to Room #${room.roomNumber}!`, 'success');
+    notify('msg.checkin.success', { guest: res.guestName, number: room.roomNumber }, 'success');
     return { success: true };
   };
 
@@ -1935,13 +1912,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paymentMethod?: PaymentMethod,
     settlementAmount?: number,
     splitLines?: Array<{ method: PaymentMethod; amount: number }>
-  ) => {
+  ): Result => {
     if (!canCheckOut) {
-      return { success: false, error: 'Unauthorized: Your role does not have check-out permissions.' };
+      return fail('err.checkout.unauthorized');
     }
 
     const res = allReservations.find((r) => r.id === reservationId);
-    if (!res) return { success: false, error: 'Reservation not found' };
+    if (!res) return fail('err.res.notFound');
 
     const targetBranchId = res.branchId || defaultBranchId;
     let totalSettled = 0;
@@ -1957,14 +1934,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       if (!validation.valid) {
-        return { success: false, error: validation.error || 'Invalid split payment configuration.' };
+        return fail(validation.errorKey || 'err.checkout.splitInvalid', validation.errorVars);
       }
 
       if (totalSettled > balanceDue) {
-        return {
-          success: false,
-          error: `Payment amount (${formatMoney(totalSettled)}) cannot exceed folio balance due (${formatMoney(balanceDue)}).`
-        };
+        return fail('err.checkout.amountExceedsBalance', {
+          amount: formatMoney(totalSettled),
+          balance: formatMoney(balanceDue)
+        });
       }
 
       const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -2034,7 +2011,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
-    showNotification(`Room ${res.roomNumber} checked out! Status flipped to DIRTY for Housekeeping turnover.`, 'success');
+    notify('msg.checkout.success', { number: res.roomNumber }, 'success');
     return { success: true };
   };
 
@@ -2043,29 +2020,29 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     type: 'percent' | 'fixed',
     value: number,
     reason: string
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      return { success: false, error: 'Unauthorized: Only Managers and Owners can apply discounts.' };
+      return fail('err.folio.discountUnauthorized');
     }
 
     if (!reason || reason.trim().length < 5) {
-      return { success: false, error: 'A valid reason of at least 5 characters is required.' };
+      return fail('err.folio.discountReasonMin');
     }
 
     const res = allReservations.find((r) => r.id === reservationId);
     if (!res) {
-      return { success: false, error: 'Reservation not found.' };
+      return fail('err.res.notFound');
     }
 
     if (res.bookingStatus !== 'reserved' && res.bookingStatus !== 'checked_in') {
-      return { success: false, error: 'Discounts can only be applied to reserved or checked-in reservations.' };
+      return fail('err.folio.discountOnlyActive');
     }
 
     const totals = getFolioTotals(allTransactions, res.id);
     const baseCharges = totals.charges;
 
     if (baseCharges <= 0) {
-      return { success: false, error: 'Cannot apply discount: folio has no active charges.' };
+      return fail('err.folio.discountNoCharges');
     }
 
     const { discountAmount } = calculateDiscount({
@@ -2075,11 +2052,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (discountAmount <= 0) {
-      return { success: false, error: 'Discount amount must be greater than zero.' };
+      return fail('err.folio.discountPositive');
     }
 
     if (baseCharges - discountAmount < 0) {
-      return { success: false, error: 'Discount cannot exceed current folio charges.' };
+      return fail('err.folio.discountExceedsCharges');
     }
 
     const descPrefix = type === 'percent' ? `Discount (${value}%)` : `Discount (fixed)`;
@@ -2120,22 +2097,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Applied ${descPrefix} of ${formatMoney(discountAmount)} to reservation ${res.bookingCode} (Room #${res.roomNumber}). Reason: ${reason.trim()}`
     );
 
-    showNotification(`Applied discount of ${formatMoney(discountAmount)} to folio.`, 'success');
+    notify('msg.folio.discountApplied', { amount: formatMoney(discountAmount) }, 'success');
     return { success: true };
   };
 
-  const extendStay = (reservationId: string, newCheckOutDate: string): { success: boolean; error?: string } => {
+  const extendStay = (reservationId: string, newCheckOutDate: string): Result => {
     if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
-      return { success: false, error: 'Unauthorized: Only Front Desk, Managers, and Owners can extend a stay.' };
+      return fail('err.stay.extendUnauthorized');
     }
 
     const res = allReservations.find((r) => r.id === reservationId);
     if (!res) {
-      return { success: false, error: 'Reservation not found.' };
+      return fail('err.res.notFound');
     }
 
     if (res.bookingStatus !== 'checked_in') {
-      return { success: false, error: 'Only checked-in reservations can be extended.' };
+      return fail('err.stay.extendOnlyCheckedIn');
     }
 
     const { addedNights, addedAmount } = calculateExtension({
@@ -2145,13 +2122,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (addedNights <= 0) {
-      return { success: false, error: 'New check-out date must be after current check-out date.' };
+      return fail('err.stay.extendDateAfter');
     }
 
     const targetBranchId = res.branchId || defaultBranchId;
     const room = allRooms.find((r) => r.id === res.roomId);
     if (!room) {
-      return { success: false, error: 'Assigned room not found.' };
+      return fail('err.stay.roomNotFound');
     }
 
     const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
@@ -2169,7 +2146,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (!availCheck.available) {
-      return { success: false, error: availCheck.reason || 'Room is not available for the requested extension.' };
+      return fail(availCheck.reasonKey || 'err.stay.extendNotAvailable', availCheck.reasonVars);
     }
 
     const tx: FolioTransaction = {
@@ -2210,7 +2187,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Extended stay for reservation ${res.bookingCode} (Room #${res.roomNumber}) by ${addedNights} night(s) to ${newCheckOutDate}. Added amount: ${formatMoney(addedAmount)}.`
     );
 
-    showNotification(`Extended stay for Room #${res.roomNumber} to ${newCheckOutDate} (+${addedNights} nights)`, 'success');
+    notify('msg.stay.extended', { number: res.roomNumber, date: newCheckOutDate, nights: addedNights }, 'success');
     return { success: true };
   };
 
@@ -2218,32 +2195,29 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reservationId: string,
     newCheckOutDate: string,
     reason: string
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
-      return { success: false, error: 'Unauthorized: Only Managers and Owners can shorten a stay.' };
+      return fail('err.stay.shortenUnauthorized');
     }
 
     if (!reason || reason.trim().length < 5) {
-      return { success: false, error: 'A valid reason of at least 5 characters is required.' };
+      return fail('err.stay.shortenReasonMin');
     }
 
     const res = allReservations.find((r) => r.id === reservationId);
     if (!res) {
-      return { success: false, error: 'Reservation not found.' };
+      return fail('err.res.notFound');
     }
 
     if (res.bookingStatus !== 'checked_in') {
-      return { success: false, error: 'Only checked-in reservations can be shortened.' };
+      return fail('err.stay.shortenOnlyCheckedIn');
     }
 
     const targetBranchId = res.branchId || defaultBranchId;
     const branchCurrentDate = (targetBranchId && branchBusinessDates[targetBranchId]) || businessDate || getLocalDateString();
 
     if (newCheckOutDate <= branchCurrentDate) {
-      return {
-        success: false,
-        error: `New check-out date must be at least one night after branch business date (${branchCurrentDate}). If guest is leaving today, please use Check-Out.`
-      };
+      return fail('err.stay.shortenAfterBusinessDate', { date: branchCurrentDate });
     }
 
     const { removedNights, creditAmount } = calculateShortening({
@@ -2253,7 +2227,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (removedNights <= 0) {
-      return { success: false, error: 'New check-out date must be before current check-out date.' };
+      return fail('err.stay.shortenDateBefore');
     }
 
     const tx: FolioTransaction = {
@@ -2294,7 +2268,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Shortened stay for reservation ${res.bookingCode} (Room #${res.roomNumber}) by ${removedNights} night(s) to ${newCheckOutDate}. Credit: ${formatMoney(creditAmount)}. Reason: ${reason.trim()}`
     );
 
-    showNotification(`Shortened stay for Room #${res.roomNumber} to ${newCheckOutDate} (-${removedNights} nights)`, 'success');
+    notify('msg.stay.shortened', { number: res.roomNumber, date: newCheckOutDate, nights: removedNights }, 'success');
     return { success: true };
   };
 
@@ -2303,49 +2277,49 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     newRoomId: string,
     reason: string,
     keepCurrentRate: boolean
-  ): { success: boolean; error?: string } => {
+  ): Result => {
     if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
-      return { success: false, error: 'Unauthorized: Only Front Desk, Managers, and Owners can change rooms.' };
+      return fail('err.stay.moveUnauthorized');
     }
 
     if (!reason || reason.trim().length === 0) {
-      return { success: false, error: 'Reason for room move is required.' };
+      return fail('err.stay.moveReasonRequired');
     }
 
     if (!keepCurrentRate && !['manager', 'owner'].includes(currentUser.role)) {
-      return { success: false, error: 'Unauthorized: Changing the nightly rate requires Manager or Owner privileges.' };
+      return fail('err.stay.moveRateUnauthorized');
     }
 
     const res = allReservations.find((r) => r.id === reservationId);
     if (!res) {
-      return { success: false, error: 'Reservation not found.' };
+      return fail('err.res.notFound');
     }
 
     if (res.bookingStatus !== 'checked_in') {
-      return { success: false, error: 'Only checked-in reservations can change rooms.' };
+      return fail('err.stay.moveOnlyCheckedIn');
     }
 
     const newRoom = allRooms.find((r) => r.id === newRoomId);
     if (!newRoom) {
-      return { success: false, error: 'Target room not found.' };
+      return fail('err.stay.moveTargetNotFound');
     }
 
     if (newRoom.id === res.roomId) {
-      return { success: false, error: 'Reservation is already in this room.' };
+      return fail('err.stay.moveSameRoom');
     }
 
     const targetBranchId = res.branchId || defaultBranchId;
 
     if ((newRoom.branchId || defaultBranchId) !== targetBranchId) {
-      return { success: false, error: 'Target room must be in the same branch.' };
+      return fail('err.stay.moveSameBranch');
     }
 
     if (newRoom.isActive === false) {
-      return { success: false, error: 'Target room is not active.' };
+      return fail('err.stay.moveNotActive');
     }
 
     if (newRoom.status !== 'available') {
-      return { success: false, error: `Target room is currently ${newRoom.status}. Only clean, available rooms can be selected.` };
+      return fail('err.stay.moveNotAvailableStatus', { status: newRoom.status });
     }
 
     const branchCurrentDate = (targetBranchId && branchBusinessDates[targetBranchId]) || businessDate || getLocalDateString();
@@ -2364,7 +2338,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (!availCheck.available) {
-      return { success: false, error: availCheck.reason || 'Target room is not available for the remaining nights.' };
+      return fail(availCheck.reasonKey || 'err.stay.moveNotAvailableDates', availCheck.reasonVars);
     }
 
     const remainingNightsList = listNights(branchCurrentDate, res.checkOutDate);
@@ -2451,13 +2425,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Moved reservation ${res.bookingCode} from Room #${res.roomNumber} to Room #${newRoom.roomNumber}. Rate: ${oldRate} -> ${newRate} FCFA (Adj: ${formatMoney(adjustmentAmount)}). Reason: ${reason.trim()}`
     );
 
-    showNotification(`Moved guest ${res.guestName} from Room #${res.roomNumber} to Room #${newRoom.roomNumber}!`, 'success');
+    notify('msg.stay.moved', { guest: res.guestName, from: res.roomNumber, to: newRoom.roomNumber }, 'success');
     return { success: true };
   };
 
   const addFolioCharge = (charge: Omit<FolioTransaction, 'id' | 'timestamp'>) => {
     if (isReadOnly) {
-      showNotification('Owner account cannot add charges.', 'warning');
+      notify('err.folio.ownerNoCharges', undefined, 'warning');
       return;
     }
 
@@ -2485,12 +2459,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    showNotification(`Posted ${charge.description} (${formatMoney(charge.amount)}) to Room ${charge.roomNumber}`, 'info');
+    notify('msg.folio.chargePosted', { desc: charge.description, amount: formatMoney(charge.amount), number: charge.roomNumber }, 'info');
   };
 
   const recordFolioPayment = (payment: Omit<FolioTransaction, 'id' | 'timestamp' | 'type'>) => {
     if (isReadOnly) {
-      showNotification('Owner account cannot record payments.', 'warning');
+      notify('err.folio.ownerNoPayments', undefined, 'warning');
       return;
     }
 
@@ -2519,22 +2493,22 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    showNotification(`Payment of ${formatMoney(payment.amount)} recorded via ${payment.paymentMethod?.toUpperCase()}`, 'success');
+    notify('msg.folio.paymentRecorded', { amount: formatMoney(payment.amount), method: (payment.paymentMethod || 'cash').toUpperCase() }, 'success');
   };
 
   const recordSplitPayment = (
     reservationId: string,
     lines: Array<{ method: PaymentMethod; amount: number }>,
     reference?: string
-  ): { success: boolean; error?: string; splitGroupId?: string } => {
+  ): Result & { splitGroupId?: string } => {
     if (isReadOnly) {
-      showNotification('Owner account cannot record payments.', 'warning');
-      return { success: false, error: 'Owner account cannot record payments.' };
+      notify('err.folio.ownerNoPayments', undefined, 'warning');
+      return fail('err.folio.ownerNoPayments');
     }
 
     const res = allReservations.find((r) => r.id === reservationId);
     if (!res) {
-      return { success: false, error: 'Reservation not found.' };
+      return fail('err.res.notFound');
     }
 
     const totals = getFolioTotals(allTransactions, res.id);
@@ -2550,14 +2524,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (!validation.valid) {
-      return { success: false, error: validation.error || 'Invalid split payment configuration.' };
+      return fail(validation.errorKey || 'err.checkout.splitInvalid', validation.errorVars);
     }
 
     if (totalLinesAmount > balanceDue) {
-      return {
-        success: false,
-        error: `Payment amount (${formatMoney(totalLinesAmount)}) cannot exceed folio balance due (${formatMoney(balanceDue)}).`
-      };
+      return fail('err.checkout.amountExceedsBalance', {
+        amount: formatMoney(totalLinesAmount),
+        balance: formatMoney(balanceDue)
+      });
     }
 
     const targetBranchId = res.branchId || defaultBranchId;
@@ -2601,23 +2575,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Recorded split payment of ${formatMoney(totalLinesAmount)} across ${lines.length} lines for ${res.guestName} (${res.bookingCode})`
     );
 
-    showNotification(
-      `Split payment of ${formatMoney(totalLinesAmount)} recorded successfully.`,
-      'success'
-    );
+    notify('msg.folio.splitRecorded', { amount: formatMoney(totalLinesAmount) }, 'success');
 
     return { success: true, splitGroupId };
   };
 
   const voidTransaction = (txId: string, reason: string): boolean => {
     if (!canVoidTransactions) {
-      showNotification('Permission denied: Only Manager/Accountant can void transactions.', 'warning');
+      notify('err.folio.voidUnauthorized', undefined, 'warning');
       return false;
     }
 
     const trimmedReason = reason?.trim();
     if (!trimmedReason || trimmedReason.length < 5) {
-      showNotification('A void reason of at least 5 characters is required.', 'warning');
+      notify('err.folio.voidReasonMin', undefined, 'warning');
       return false;
     }
 
@@ -2661,7 +2632,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Staff member ${currentUser?.name || 'Manager'} voided transaction #${tx.id} (${tx.description || tx.category}, ${formatMoney(tx.amount)}). Reason: ${trimmedReason}`
     );
 
-    showNotification(`Transaction voided by Manager approval: ${trimmedReason}`, 'info');
+    notify('msg.folio.voided', { reason: trimmedReason }, 'info');
     return true;
   };
 
@@ -2690,7 +2661,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     }
 
-    showNotification(`Maintenance alert ${ticketNumber} logged. ${ticket.blocksRoom ? 'Room blocked.' : ''}`, 'warning');
+    notify(ticket.blocksRoom ? 'msg.maint.createdBlocked' : 'msg.maint.created', { number: ticketNumber }, 'warning');
   };
 
   const updateMaintenanceStatus = (ticketId: string, status: MaintenanceTicket['status'], cost?: number) => {
@@ -2724,13 +2695,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    showNotification(`Work order updated to ${status}`, 'info');
+    notify('msg.maint.updated', { status }, 'info');
   };
 
   // Night Audit (Per-Branch Execution & Isolated Rollover)
   const runNightAudit = (expectedCash: number, actualCash: number, notes: string) => {
     if (!canRunAudit) {
-      throw new Error('Unauthorized: Only Manager / Lead Accountant can execute Night Audit.');
+      throw new KeyedError('err.audit.unauthorized');
     }
 
     const targetBranchId = (activeBranchId && activeBranchId !== 'all') ? activeBranchId : defaultBranchId;
@@ -2810,7 +2781,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       [targetBranchId]: nextDate
     }));
 
-    showNotification(`Night Audit closed for ${branchLabel}! Rolled over business date to ${nextDate}`, 'success');
+    notify('msg.audit.completed', { branch: branchLabel, date: nextDate }, 'success');
     return report;
   };
 
@@ -2823,7 +2794,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: businessDate
     };
     setGuests((prev) => [newGuest, ...prev]);
-    showNotification(`Guest profile created for ${newGuest.fullName}`, 'success');
+    notify('msg.guest.created', { name: newGuest.fullName }, 'success');
     return newGuest;
   };
 
@@ -3037,8 +3008,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setFailedAttempts(0);
     setFailedLoginLockoutUntil(0);
     setSelectedRoom(null);
-    setSelectedReservation(null);
-    showNotification(isDemoMode ? 'System reset to clean sample demo data!' : 'System cleared to fresh empty state.', 'info');
+    notify(isDemoMode ? 'msg.demo.resetDemo' : 'msg.demo.resetEmpty', undefined, 'info');
   };
 
   // Room Type & Room Management (Manager Scope)

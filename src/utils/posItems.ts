@@ -18,6 +18,8 @@ export interface ValidatePosItemInput {
 export interface ValidatePosItemResult {
   valid: boolean;
   error?: string;
+  errorKey?: string;
+  errorVars?: Record<string, string | number>;
 }
 
 /**
@@ -36,21 +38,24 @@ export function validatePosItem(
   if (trimmedName.length < 2) {
     return {
       valid: false,
-      error: 'Item name is required and must be at least 2 characters.'
+      error: 'Item name is required and must be at least 2 characters.',
+      errorKey: 'pos.nameTooShort'
     };
   }
 
   if (!POS_CATEGORIES.includes(category as PosItem['category'])) {
     return {
       valid: false,
-      error: `Invalid category. Allowed categories are: ${POS_CATEGORIES.join(', ')}.`
+      error: `Invalid category. Allowed categories are: ${POS_CATEGORIES.join(', ')}.`,
+      errorKey: 'pos.invalidCategory'
     };
   }
 
   if (typeof price !== 'number' || isNaN(price) || !Number.isInteger(price) || price <= 0) {
     return {
       valid: false,
-      error: 'Price must be a whole number greater than 0 (FCFA has no decimals).'
+      error: 'Price must be a whole number greater than 0 (FCFA has no decimals).',
+      errorKey: 'pos.invalidPrice'
     };
   }
 
@@ -62,7 +67,9 @@ export function validatePosItem(
   if (isDuplicate) {
     return {
       valid: false,
-      error: `An item named "${trimmedName}" already exists in the menu.`
+      error: `An item named "${trimmedName}" already exists in the menu.`,
+      errorKey: 'pos.duplicateName',
+      errorVars: { name: trimmedName }
     };
   }
 

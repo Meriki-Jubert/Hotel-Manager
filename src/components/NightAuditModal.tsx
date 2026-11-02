@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
 import { NightAuditReport } from '../types/hms';
 import { SelectBranchNotice } from './SelectBranchNotice';
+import { errorMessage } from '../i18n/messages';
 import {
   X,
   Moon,
@@ -48,6 +49,7 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
   const [actualCashFloat, setActualCashFloat] = useState<number>(175000);
   const [auditNotes, setAuditNotes] = useState(t('audit.defaultNotes'));
   const [completedReport, setCompletedReport] = useState<NightAuditReport | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   // Compute active metrics for current day
   const inHouseCount = rooms.filter((r) => r.status === 'occupied').length;
@@ -64,9 +66,14 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
   const discrepancy = actualCashFloat - expectedCashTotal;
 
   const handleExecuteAudit = () => {
-    const report = runNightAudit(expectedCashTotal, actualCashFloat, auditNotes);
-    setCompletedReport(report);
-    setStep(4);
+    setAuditError(null);
+    try {
+      const report = runNightAudit(expectedCashTotal, actualCashFloat, auditNotes);
+      setCompletedReport(report);
+      setStep(4);
+    } catch (err: unknown) {
+      setAuditError(errorMessage(t, err, 'err.audit.unauthorized'));
+    }
   };
 
   return (
@@ -136,6 +143,11 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
 
         {/* Body Content */}
         <div className="p-6 overflow-y-auto space-y-5 flex-1 text-xs text-slate-900">
+          {auditError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-medium">
+              {auditError}
+            </div>
+          )}
           {step === 1 && (
             <div className="space-y-4">
               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-1">

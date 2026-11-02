@@ -45,7 +45,12 @@ export function reservationCoversNight(
 /**
  * Checks if a date range is bookable for a given branch and room type.
  */
-export function checkAvailability(params: AvailabilityParams): { available: boolean; reason?: string } {
+export function checkAvailability(params: AvailabilityParams): {
+  available: boolean;
+  reason?: string;
+  reasonKey?: string;
+  reasonVars?: Record<string, string | number>;
+} {
   const {
     branchId,
     roomTypeId,
@@ -58,7 +63,7 @@ export function checkAvailability(params: AvailabilityParams): { available: bool
   } = params;
 
   if (!checkInDate || !checkOutDate || checkInDate >= checkOutDate) {
-    return { available: false, reason: 'Invalid date range' };
+    return { available: false, reason: 'Invalid date range', reasonKey: 'avail.invalidDateRange' };
   }
 
   // Get active rooms of this type in the branch using isActive !== false
@@ -70,7 +75,7 @@ export function checkAvailability(params: AvailabilityParams): { available: bool
   );
   const totalActiveRooms = activeRoomsOfType.length;
   if (totalActiveRooms === 0) {
-    return { available: false, reason: 'No active rooms of this type in this branch' };
+    return { available: false, reason: 'No active rooms of this type in this branch', reasonKey: 'avail.noActiveRooms' };
   }
 
   // Generate all nights in the range [checkInDate, checkOutDate) using listNights
@@ -85,7 +90,9 @@ export function checkAvailability(params: AvailabilityParams): { available: bool
     if (overlappingReservations.length >= totalActiveRooms) {
       return {
         available: false,
-        reason: `All rooms of this type are occupied on night ${night}`
+        reason: `All rooms of this type are occupied on night ${night}`,
+        reasonKey: 'avail.allOccupiedNight',
+        reasonVars: { date: night }
       };
     }
   }
@@ -103,7 +110,8 @@ export function checkAvailability(params: AvailabilityParams): { available: bool
     if (specificRoomOverlaps.length > 0) {
       return {
         available: false,
-        reason: 'Selected room is already reserved or occupied for part of this date range'
+        reason: 'Selected room is already reserved or occupied for part of this date range',
+        reasonKey: 'avail.roomAlreadyReserved'
       };
     }
   }

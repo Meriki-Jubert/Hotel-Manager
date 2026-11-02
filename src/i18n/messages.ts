@@ -48,3 +48,44 @@ export function resultMessage(
   }
   return '';
 }
+
+/**
+ * Custom Error class that holds an i18n key and interpolation variables.
+ * Initialized with English translated message for Error.message fallback.
+ */
+export class KeyedError extends Error {
+  key: string;
+  vars?: Record<string, string | number>;
+
+  constructor(key: string, vars?: Record<string, string | number>) {
+    super(translate('en', key, vars));
+    this.name = 'KeyedError';
+    this.key = key;
+    this.vars = vars;
+  }
+}
+
+/**
+ * Helper to extract and translate error messages from unknown error objects or KeyedError.
+ */
+export function errorMessage(
+  t: (key: string, vars?: any) => string,
+  err: unknown,
+  fallbackKey?: string
+): string {
+  if (err && typeof err === 'object') {
+    if ('key' in err && typeof (err as any).key === 'string') {
+      return t((err as any).key, (err as any).vars);
+    }
+    if ('errorKey' in err && typeof (err as any).errorKey === 'string') {
+      return t((err as any).errorKey, (err as any).errorVars);
+    }
+    if ('message' in err && typeof (err as any).message === 'string' && (err as any).message) {
+      return (err as any).message;
+    }
+  }
+  if (fallbackKey) {
+    return t(fallbackKey);
+  }
+  return String(err || '');
+}

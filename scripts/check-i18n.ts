@@ -28,11 +28,13 @@ function scanKeysInCode(): Set<string> {
   const srcDir = path.resolve(process.cwd(), 'src');
   const files = getSourceFiles(srcDir);
 
-  // Regex patterns to capture string literals in fail('...'), notify('...'), errorKey: '...'
+  // Regex patterns to capture string literals in fail('...'), notify('...'), errorKey: '...', reasonKey: '...', KeyedError('...')
   const patterns = [
     /\bfail\s*\(\s*['"]([^'"]+)['"]/g,
     /\bnotify\s*\(\s*['"]([^'"]+)['"]/g,
-    /\berrorKey\s*:\s*['"]([^'"]+)['"]/g
+    /\berrorKey\s*:\s*['"]([^'"]+)['"]/g,
+    /\breasonKey\s*:\s*['"]([^'"]+)['"]/g,
+    /\bKeyedError\s*\(\s*['"]([^'"]+)['"]/g
   ];
 
   for (const file of files) {
