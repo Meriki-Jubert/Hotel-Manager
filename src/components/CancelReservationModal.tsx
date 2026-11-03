@@ -6,6 +6,7 @@ import { getFolioTotals } from '../utils/folio';
 import { useT } from '../i18n/LanguageContext';
 import { translate } from '../i18n/translate';
 import { resultMessage } from '../i18n/messages';
+import { MoneyInput } from './ui/MoneyInput';
 import {
   X,
   AlertCircle,
@@ -249,13 +250,12 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                   <DollarSign className="w-4 h-4" />
                 </div>
-                <input
-                  type="number"
+                <MoneyInput
                   id="cancellationFeeInput"
                   min={0}
                   max={reservation.totalAmount}
                   value={fee}
-                  onChange={(e) => setFee(Math.max(0, Number(e.target.value) || 0))}
+                  onChange={(n) => setFee(n)}
                   className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>

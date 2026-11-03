@@ -21,7 +21,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({
   min,
   max,
   disabled,
-  placeholder,
+  placeholder = '0',
   className,
   id,
   ariaLabel,
@@ -33,7 +33,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({
   // Helper to format a number into display string
   const toDisplayString = (num: number): string => {
     if (num === 0) {
-      return allowEmpty ? '' : '0';
+      return '';
     }
     return formatMoneyInput(num, lang);
   };
@@ -44,7 +44,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({
   // Sync display value when value prop changes externally
   useEffect(() => {
     setDisplayValue(toDisplayString(value));
-  }, [value, lang, allowEmpty]);
+  }, [value, lang]);
 
   // Restore caret position after React re-render
   useLayoutEffect(() => {

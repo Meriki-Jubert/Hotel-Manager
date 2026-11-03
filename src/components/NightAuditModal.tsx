@@ -4,6 +4,7 @@ import { useT } from '../i18n/LanguageContext';
 import { NightAuditReport } from '../types/hms';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import { errorMessage } from '../i18n/messages';
+import { MoneyInput } from './ui/MoneyInput';
 import {
   X,
   Moon,
@@ -279,10 +280,10 @@ export const NightAuditModal: React.FC<NightAuditModalProps> = ({ onClose }) => 
                     <label className="font-bold text-slate-800 block mb-1">
                       {t('audit.actualCashLabel')}
                     </label>
-                    <input
-                      type="number"
+                    <MoneyInput
                       value={actualCashFloat}
-                      onChange={(e) => setActualCashFloat(Number(e.target.value))}
+                      onChange={(n) => setActualCashFloat(n)}
+                      min={0}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-sm text-slate-900"
                     />
                   </div>
