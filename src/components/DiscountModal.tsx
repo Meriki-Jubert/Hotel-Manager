@@ -5,6 +5,7 @@ import { calculateDiscount } from '../utils/folioAdjustments';
 import { useT } from '../i18n/LanguageContext';
 import { resultMessage } from '../i18n/messages';
 import { Tag, X, AlertCircle, Percent, DollarSign, Check } from 'lucide-react';
+import { MoneyInput } from './ui/MoneyInput';
 
 interface DiscountModalProps {
   reservation: Reservation;
@@ -149,16 +150,25 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
               {discountType === 'percent' ? t('discountModal.percentLabel') : t('discountModal.fixedLabel')}
             </label>
-            <input
-              type="number"
-              min={discountType === 'percent' ? 1 : 500}
-              max={discountType === 'percent' ? 100 : chargesTotal}
-              step={discountType === 'percent' ? 1 : 500}
-              value={value}
-              onChange={(e) => setValue(Number(e.target.value))}
-              className="w-full text-sm font-semibold p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
-              required
-            />
+            {discountType === 'fixed' ? (
+              <MoneyInput
+                value={value}
+                onChange={(n) => setValue(n)}
+                min={0}
+                max={chargesTotal}
+                className="w-full text-sm font-semibold p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+              />
+            ) : (
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={value}
+                onChange={(e) => setValue(Number(e.target.value))}
+                className="w-full text-sm font-semibold p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                required
+              />
+            )}
           </div>
 
           {/* Reason Input */}

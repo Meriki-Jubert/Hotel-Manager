@@ -5,6 +5,7 @@ import { resultMessage } from '../../i18n/messages';
 import { RoomType } from '../../types/hms';
 import { DeactivatePromptModal, DeactivatePromptState } from './shared';
 import { tBedType, tRoomAmenity } from '../../i18n/labels';
+import { MoneyInput } from '../ui/MoneyInput';
 import {
   Layers,
   PlusCircle,
@@ -365,14 +366,11 @@ export const RoomTypeSettings: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t('roomType.fieldBasePrice')}</label>
-                  <input
-                    type="number"
-                    step="500"
-                    min="1"
-                    value={typeFormPrice}
-                    onChange={(e) => setTypeFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  <MoneyInput
+                    value={typeof typeFormPrice === 'number' ? typeFormPrice : 0}
+                    onChange={(n) => setTypeFormPrice(n)}
+                    allowEmpty
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
                   />
                 </div>
 

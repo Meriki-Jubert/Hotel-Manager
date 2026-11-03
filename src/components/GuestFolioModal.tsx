@@ -9,6 +9,7 @@ import { useT } from '../i18n/LanguageContext';
 import { translate, Language } from '../i18n/translate';
 import { resultMessage } from '../i18n/messages';
 import { tFolioCategory, tPaymentMethod, tRoomMoveReason } from '../i18n/labels';
+import { MoneyInput } from './ui/MoneyInput';
 import {
   X,
   Printer,
@@ -498,14 +499,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('guestFolio.amountFcfa')}</label>
-                      <input
-                        type="number"
-                        min="500"
-                        step="500"
+                      <MoneyInput
                         value={chargeAmount}
-                        onChange={(e) => setChargeAmount(Number(e.target.value))}
+                        onChange={(n) => setChargeAmount(n)}
+                        min={0}
                         className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
-                        required
                       />
                     </div>
                   </div>
@@ -605,14 +603,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-emerald-800 mb-1">{t('guestFolio.amountReceived')}</label>
-                        <input
-                          type="number"
-                          min="100"
-                          step="100"
+                        <MoneyInput
                           value={payAmount}
-                          onChange={(e) => setPayAmount(Number(e.target.value))}
+                          onChange={(n) => setPayAmount(n)}
+                          min={0}
                           className="w-full text-xs p-2 bg-white border border-emerald-300 rounded-lg font-mono font-bold text-slate-900"
-                          required
                         />
                       </div>
                       <div>
@@ -634,14 +629,11 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                           <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                             {t('guestFolio.totalToCollect')}
                           </label>
-                          <input
-                            type="number"
-                            min="100"
-                            step="100"
+                          <MoneyInput
                             value={payAmount}
-                            onChange={(e) => setPayAmount(Number(e.target.value))}
+                            onChange={(n) => setPayAmount(n)}
+                            min={0}
                             className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
-                            required
                           />
                         </div>
                         <div>
@@ -690,15 +682,12 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                               </select>
                             </div>
                             <div className="w-32">
-                              <input
-                                type="number"
-                                min="100"
-                                step="100"
-                                placeholder={t('common.search')}
-                                value={line.amount || ''}
-                                onChange={(e) => handleUpdateSplitLine(line.id, 'amount', Number(e.target.value))}
+                              <MoneyInput
+                                value={line.amount}
+                                onChange={(n) => handleUpdateSplitLine(line.id, 'amount', n)}
+                                min={0}
+                                allowEmpty
                                 className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded-md font-mono font-bold text-slate-900"
-                                required
                               />
                             </div>
                             {splitLines.length > 1 && (

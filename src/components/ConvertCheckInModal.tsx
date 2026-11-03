@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
 import { resultMessage } from '../i18n/messages';
 import { tPaymentMethod, tBookingSource, tRoomStatus } from '../i18n/labels';
+import { MoneyInput } from './ui/MoneyInput';
 import { Reservation, Room, PaymentMethod } from '../types/hms';
 import {
   X,
@@ -348,12 +349,10 @@ export const ConvertCheckInModal: React.FC<ConvertCheckInModalProps> = ({
                 </label>
                 <div className="relative">
                   <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="number"
-                    min={0}
-                    step={1000}
+                  <MoneyInput
                     value={additionalPayment}
-                    onChange={(e) => setAdditionalPayment(parseFloat(e.target.value) || 0)}
+                    onChange={(n) => setAdditionalPayment(n)}
+                    min={0}
                     placeholder="0"
                     className="w-full pl-9 pr-3 py-2 text-xs font-mono font-bold bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 placeholder-slate-400"
                   />

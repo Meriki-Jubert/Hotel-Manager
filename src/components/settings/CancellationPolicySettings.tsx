@@ -20,6 +20,7 @@ import { useT } from '../../i18n/LanguageContext';
 import { translate } from '../../i18n/translate';
 import { resultMessage } from '../../i18n/messages';
 import { tCancellationFeeType, tCancellationFeeTypeLong } from '../../i18n/labels';
+import { MoneyInput } from '../ui/MoneyInput';
 
 export const CancellationPolicySettings: React.FC = () => {
   const { hotelConfig, updateHotelConfig, currentUser, formatMoney } = useHMS();
@@ -402,12 +403,10 @@ export const CancellationPolicySettings: React.FC = () => {
               </div>
               <div>
                 <label className="block font-bold text-slate-700 mb-1">{t('policy.simNightlyRate', { currency: hotelConfig.defaultCurrency })}</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
+                <MoneyInput
                   value={simNightlyRate}
-                  onChange={(e) => setSimNightlyRate(Math.max(0, parseInt(e.target.value) || 0))}
+                  onChange={(n) => setSimNightlyRate(n)}
+                  min={0}
                   className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg font-mono focus:bg-white"
                 />
               </div>
@@ -721,12 +720,10 @@ export const CancellationPolicySettings: React.FC = () => {
               </div>
               <div>
                 <label className="block font-bold text-slate-700 mb-1">{t('policy.simNightlyRate', { currency: hotelConfig.defaultCurrency })}</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
+                <MoneyInput
                   value={simNightlyRate}
-                  onChange={(e) => setSimNightlyRate(Math.max(0, parseInt(e.target.value) || 0))}
+                  onChange={(n) => setSimNightlyRate(n)}
+                  min={0}
                   className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg font-mono focus:bg-white"
                 />
               </div>

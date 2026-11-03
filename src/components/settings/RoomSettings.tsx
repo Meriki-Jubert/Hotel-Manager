@@ -5,6 +5,7 @@ import { resultMessage } from '../../i18n/messages';
 import { Room } from '../../types/hms';
 import { DeactivatePromptModal, DeactivatePromptState } from './shared';
 import { tRoomStatus } from '../../i18n/labels';
+import { MoneyInput } from '../ui/MoneyInput';
 import {
   Bed,
   PlusCircle,
@@ -557,14 +558,11 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t('rooms.fieldPrice')}</label>
-                <input
-                  type="number"
-                  step="500"
-                  min="1"
-                  value={roomFormPrice}
-                  onChange={(e) => setRoomFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                <MoneyInput
+                  value={typeof roomFormPrice === 'number' ? roomFormPrice : 0}
+                  onChange={(n) => setRoomFormPrice(n)}
+                  allowEmpty
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  required
                 />
               </div>
 
@@ -699,14 +697,11 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ onNavigateToRoomType
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t('rooms.bulkPrice')}</label>
-                <input
-                  type="number"
-                  step="500"
-                  min="1"
-                  value={bulkPrice}
-                  onChange={(e) => setBulkPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                <MoneyInput
+                  value={typeof bulkPrice === 'number' ? bulkPrice : 0}
+                  onChange={(n) => setBulkPrice(n)}
+                  allowEmpty
                   className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
                 />
               </div>
 

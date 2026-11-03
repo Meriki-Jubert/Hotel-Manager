@@ -15,6 +15,7 @@ import {
 import { useT } from '../../i18n/LanguageContext';
 import { resultMessage } from '../../i18n/messages';
 import { tMenuCategory, tPosStockStatus, tPosActiveStatus } from '../../i18n/labels';
+import { MoneyInput } from '../ui/MoneyInput';
 
 export const MenuSettings: React.FC = () => {
   const { posItems, addPosItem, updatePosItem, togglePosItemActive, deletePosItem, formatMoney } = useHMS();
@@ -414,15 +415,12 @@ export const MenuSettings: React.FC = () => {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     {t('menu.formPrice', { currency: 'FCFA' })}
                   </label>
-                  <input
-                    type="number"
-                    min="100"
-                    step="100"
+                  <MoneyInput
+                    value={typeof formPrice === 'number' ? formPrice : 0}
+                    onChange={(n) => setFormPrice(n)}
                     placeholder="5000"
-                    value={formPrice}
-                    onChange={(e) => setFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                    allowEmpty
                     className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    required
                   />
                 </div>
               </div>

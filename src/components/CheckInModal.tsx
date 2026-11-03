@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
 import { resultMessage } from '../i18n/messages';
 import { tPaymentMethod, tBookingSource } from '../i18n/labels';
+import { MoneyInput } from './ui/MoneyInput';
 import { Room, PaymentMethod } from '../types/hms';
 import { getNextLocalDateString } from '../utils/dateUtils';
 import {
@@ -524,12 +525,10 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                     {t('checkInModal.amountReceived')}
                   </label>
                   <div className="relative">
-                    <input
-                      type="number"
-                      step="500"
-                      min="0"
+                    <MoneyInput
                       value={amountPaid}
-                      onChange={(e) => setAmountPaid(Number(e.target.value))}
+                      onChange={(n) => setAmountPaid(n)}
+                      min={0}
                       className="w-full text-sm font-bold font-mono pl-3 pr-20 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-900"
                     />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">

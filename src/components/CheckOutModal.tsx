@@ -5,6 +5,7 @@ import { validateSplitPayment } from '../utils/folioAdjustments';
 import { useT } from '../i18n/LanguageContext';
 import { resultMessage } from '../i18n/messages';
 import { tPaymentMethod } from '../i18n/labels';
+import { MoneyInput } from './ui/MoneyInput';
 import {
   X,
   LogOut,
@@ -313,15 +314,12 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                           </select>
                         </div>
                         <div className="w-28">
-                          <input
-                            type="number"
-                            min="100"
-                            step="100"
+                          <MoneyInput
                             value={line.amount}
-                            onChange={(e) => handleUpdateSplitLine(line.id, 'amount', Number(e.target.value))}
-                            className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-900"
+                            onChange={(n) => handleUpdateSplitLine(line.id, 'amount', n)}
+                            min={0}
                             placeholder={t('checkOut.amountPlaceholder')}
-                            required
+                            className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-900"
                           />
                         </div>
                         {splitLines.length > 1 && (
