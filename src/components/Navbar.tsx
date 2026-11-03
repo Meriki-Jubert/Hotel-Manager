@@ -165,11 +165,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           
           {/* Brand Logo & Hotel Info */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Hamburger Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -208,35 +208,41 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Center Business Status & Live Hotel Clock (Medium+ screens) */}
-          <div className="hidden lg:flex items-center gap-4 text-xs text-slate-300 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700/60">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{t('navbar.businessDate')}:</span>
+          {/* Center Business Status & Live Hotel Clock (Responsive, non-wrapping pill) */}
+          <div className="hidden md:flex items-center gap-2 lg:gap-3 text-xs text-slate-300 bg-slate-800/90 px-3 py-1.5 rounded-full border border-slate-700/70 whitespace-nowrap shrink-0 shadow-xs">
+            <div
+              className="flex items-center gap-1.5 shrink-0"
+              title={`${t('navbar.businessDate')}: ${formatDate(businessDate)}`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="text-slate-400 hidden xl:inline">{t('navbar.businessDate')}:</span>
               <strong className="text-white font-mono">{formatDate(businessDate)}</strong>
             </div>
-            <div className="h-3 w-px bg-slate-700" />
+            <div className="h-3.5 w-px bg-slate-700 shrink-0" />
             <div
-              className="flex items-center gap-1.5 cursor-help"
-              title={hotelConfig.timeZone || 'Africa/Douala'}
+              className="flex items-center gap-1.5 shrink-0 cursor-help"
+              title={`${t('navbar.hotelTime')} (${hotelConfig.timeZone || 'Africa/Douala'}): ${formatHotelDateTime(hotelNow.date, hotelNow.time, lang)}`}
             >
-              <Clock className="w-3.5 h-3.5 text-teal-400" />
-              <span>{t('navbar.hotelTime')}:</span>
-              <strong className="text-white font-mono">{formatHotelDateTime(hotelNow.date, hotelNow.time, lang)}</strong>
+              <Clock className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+              <span className="text-slate-400 hidden xl:inline">{t('navbar.hotelTime')}:</span>
+              <strong className="text-white font-mono">
+                <span className="hidden 2xl:inline">{formatHotelDateTime(hotelNow.date, hotelNow.time, lang)}</span>
+                <span className="2xl:hidden">{hotelNow.time}</span>
+              </strong>
             </div>
           </div>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
             {/* Branch Switcher (Manager & Owner only, hidden if only 1 active branch) */}
             {hasMultipleActiveBranches && (currentUser?.role === 'manager' || currentUser?.role === 'owner') && (
-              <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700/90 text-slate-200 border border-slate-700 transition-colors">
+              <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700/90 text-slate-200 border border-slate-700 transition-colors shrink-0">
                 <Building className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                 <select
                   value={activeBranchId}
                   onChange={(e) => setActiveBranchId(e.target.value)}
-                  className="bg-transparent text-white font-medium text-xs focus:outline-none cursor-pointer pr-1"
+                  className="bg-transparent text-white font-medium text-xs focus:outline-none cursor-pointer pr-1 max-w-[120px] sm:max-w-[160px] truncate"
                   aria-label={t('navbar.branchSwitcher')}
                 >
                   {currentUser?.role === 'owner' && (
@@ -255,9 +261,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Assigned Branch Indicator for Staff (Cannot switch) */}
             {hasMultipleActiveBranches && (currentUser?.role === 'front_desk' || currentUser?.role === 'housekeeping') && (
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700">
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 shrink-0">
                 <Building className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="truncate max-w-[130px]">{activeBranch?.name || t('navbar.assignedBranch')}</span>
+                <span className="truncate max-w-[110px] sm:max-w-[140px]">{activeBranch?.name || t('navbar.assignedBranch')}</span>
               </div>
             )}
 
@@ -708,7 +714,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-            <span>{t('navbar.businessDate')}: {formatDate(businessDate)}</span>
+            <div className="flex items-center gap-2">
+              <span>{t('navbar.businessDate')}: <strong className="text-white font-mono">{formatDate(businessDate)}</strong></span>
+              <span>•</span>
+              <span>{t('navbar.hotelTime')}: <strong className="text-white font-mono">{hotelNow.time}</strong></span>
+            </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs font-semibold">
                 <button
