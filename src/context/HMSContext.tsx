@@ -45,6 +45,7 @@ import {
 } from '../utils/dateUtils';
 import { checkAvailability } from '../utils/availability';
 import { getFolioTotals, sumPaymentsByMethod } from '../utils/folio';
+import { getHotelNow } from '../utils/hotelClock';
 import { DEFAULT_CANCELLATION_POLICY, calculateCancellationFee } from '../utils/cancellationPolicy';
 import { generateSalt, hashPassword, verifyPassword } from '../utils/cryptoUtils';
 import {
@@ -166,6 +167,7 @@ interface HMSContextType {
     settlementAmount?: number,
     splitLines?: Array<{ method: PaymentMethod; amount: number }>
   ) => { success: boolean; error?: string };
+  autoCheckOutGuest: (reservationId: string) => Result;
   applyDiscount: (
     reservationId: string,
     type: 'percent' | 'fixed',
@@ -275,7 +277,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 ratePercent: typeof parsed.taxSettings.ratePercent === 'number' && !isNaN(parsed.taxSettings.ratePercent) ? parsed.taxSettings.ratePercent : 0
               }
             : { enabled: false, label: 'VAT', ratePercent: 0 },
-          defaultLanguage: parsed.defaultLanguage === 'fr' ? 'fr' : 'en'
+          defaultLanguage: parsed.defaultLanguage === 'fr' ? 'fr' : 'en',
+          timeZone: parsed.timeZone || 'Africa/Douala',
+          checkOutReminderMinutes: typeof parsed.checkOutReminderMinutes === 'number' ? parsed.checkOutReminderMinutes : 30,
+          autoCheckOut: parsed.autoCheckOut === 'off' ? 'off' : 'settled_only',
+          nightAuditReminderTime: parsed.nightAuditReminderTime || '04:00'
         };
       } catch {
         return {
@@ -2015,6 +2021,67 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
+  const autoCheckOutGuest = (reservationId: string): Result => {
+    if (hotelConfig.autoCheckOut === 'off') {
+      return fail('err.checkout.autoDisabled');
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return fail('err.res.notFound');
+    }
+
+    // Idempotent: if already checked out or not checked_in, return success gracefully
+    if (res.bookingStatus !== 'checked_in') {
+      return { success: true };
+    }
+
+    // Balance check: never auto-checkout if balance is above 0
+    const totals = getFolioTotals(allTransactions, res.id);
+    if (totals.balance > 0) {
+      return fail('err.checkout.balanceRemaining');
+    }
+
+    const hotelNow = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId
+          ? {
+              ...r,
+              bookingStatus: 'checked_out',
+              keyReturned: true,
+              paymentStatus: 'paid',
+              checkedOutAt: `${hotelNow.date} ${hotelNow.time}`
+            }
+          : r
+      )
+    );
+
+    // Room becomes dirty for Housekeeping
+    setAllRooms((prev) =>
+      prev.map((room) =>
+        room.id === res.roomId
+          ? {
+              ...room,
+              status: 'dirty',
+              currentReservationId: undefined,
+              maintenanceNote: 'Turnover cleaning required after guest checkout.'
+            }
+          : room
+      )
+    );
+
+    logStaffActivity(
+      'Auto check-out (system)',
+      `Room ${res.roomNumber} checked out automatically (${res.guestName})`,
+      { id: 'system', name: 'System' }
+    );
+    notify('msg.autoCheckoutNotification', { room: res.roomNumber }, 'info');
+
+    return { success: true };
+  };
+
   const applyDiscount = (
     reservationId: string,
     type: 'percent' | 'fixed',
@@ -3482,6 +3549,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         formatMoney,
         checkInGuest,
         checkOutGuest,
+        autoCheckOutGuest,
         createReservation,
         updateReservation,
         cancelReservation,

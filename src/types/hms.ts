@@ -43,6 +43,10 @@ export interface HotelConfig {
     label: string;
     ratePercent: number;
   };
+  timeZone?: string;
+  checkOutReminderMinutes?: number;
+  autoCheckOut?: 'off' | 'settled_only';
+  nightAuditReminderTime?: string;
 }
 
 export interface Branch {

@@ -4,6 +4,8 @@ import { useT } from '../i18n/LanguageContext';
 import { tBookingStatus, tBookingSource } from '../i18n/labels';
 import { Reservation, BookingStatus } from '../types/hms';
 import { getFolioTotals } from '../utils/folio';
+import { useHotelNow } from '../context/HotelClockContext';
+import { getDepartureStatus } from '../utils/hotelClock';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import { NewReservationModal } from './NewReservationModal';
 import { EditReservationModal } from './EditReservationModal';
@@ -57,6 +59,7 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
   onOpenCheckOut
 }) => {
   const { t, formatDate } = useT();
+  const hotelNow = useHotelNow();
   const {
     reservations,
     formatMoney,
@@ -66,7 +69,8 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
     currentUser,
     setActiveTab,
     activeBranchId,
-    transactions
+    transactions,
+    hotelConfig
   } = useHMS();
 
   if (activeBranchId === 'all') {
@@ -429,9 +433,41 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                         </span>
                       )}
                       {isDepartingToday && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 mt-1">
-                          {t('frontDesk.departingToday')}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                            {t('frontDesk.departingToday')}
+                          </span>
+                          {res.bookingStatus === 'checked_in' && (() => {
+                            const depStatus = getDepartureStatus({
+                              checkOutDate: res.checkOutDate,
+                              checkOutTime: (res as any).checkOutTime || hotelConfig.checkOutTime || '12:00',
+                              now: hotelNow,
+                              reminderMinutes: hotelConfig.checkOutReminderMinutes ?? 30
+                            });
+                            if (depStatus.state === 'overdue') {
+                              return (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                  {t('alerts.overdue')}
+                                </span>
+                              );
+                            }
+                            if (depStatus.state === 'due') {
+                              return (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                  {t('alerts.due')}
+                                </span>
+                              );
+                            }
+                            if (depStatus.state === 'reminder') {
+                              return (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                                  {t('alerts.countdown', { minutes: depStatus.minutesLeft })}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       )}
                     </td>
 

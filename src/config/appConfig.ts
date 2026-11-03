@@ -17,7 +17,11 @@ export const appConfig: HotelConfig = {
   checkInTime: '14:00',
   checkOutTime: '12:00',
   cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, tiers: [], noShow: { ...DEFAULT_CANCELLATION_POLICY.noShow } },
-  taxSettings: { enabled: false, label: 'VAT', ratePercent: 0 }
+  taxSettings: { enabled: false, label: 'VAT', ratePercent: 0 },
+  timeZone: 'Africa/Douala',
+  checkOutReminderMinutes: 30,
+  autoCheckOut: 'settled_only',
+  nightAuditReminderTime: '04:00'
 };
 
 export const isDemoMode = (import.meta.env as any).VITE_DEMO_MODE === 'true';

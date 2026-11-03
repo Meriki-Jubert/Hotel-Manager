@@ -1904,6 +1904,49 @@ export const fr: Record<keyof typeof en, string> = {
   'msg.audit.completed': 'Clôture journalière effectuée pour {branch} ! Date comptable passée au {date}',
   'msg.guest.created': 'Profil client créé pour {name}',
   'msg.demo.resetDemo': 'Système réinitialisé avec les données de démonstration !',
-  'msg.demo.resetEmpty': 'Système réinitialisé à un état vierge.'
+  'msg.demo.resetEmpty': 'Système réinitialisé à un état vierge.',
+
+  // Hotel Clock & Timed Departures Settings
+  'profile.timeZone': 'Fuseau horaire de l\'hôtel',
+  'profile.timeZoneSearch': 'Rechercher un fuseau horaire...',
+  'profile.hotelTimeNow': 'Heure actuelle de l\'hôtel : {time}',
+  'profile.checkOutReminderMinutes': 'Rappel de départ (Minutes)',
+  'profile.checkOutReminderHint': 'Minutes avant l\'heure de départ standard pour alerter la réception (0-180)',
+  'profile.autoCheckOut': 'Départ automatique',
+  'profile.autoCheckOutOff': 'Désactivé (Départ manuel uniquement)',
+  'profile.autoCheckOutSettledOnly': 'Clients soldés uniquement (Solde nul)',
+  'profile.nightAuditReminderTime': 'Heure d\'alerte de clôture journalière',
+  'profile.nightAuditReminderHint': 'Heure (HH:MM) pour signaler un retard de la clôture comptable journalière',
+  'profile.errReminderRange': 'Le rappel de départ doit être un nombre entier compris entre 0 et 180.',
+  'profile.errAuditTimeFormat': 'L\'heure d\'alerte de clôture journalière doit être au format HH:MM.',
+
+  // Live Clock & Alert Panel
+  'navbar.hotelTime': 'Heure hôtel',
+  'navbar.auditOverdueBanner': 'La clôture journalière est en retard : la date comptable est le {date}',
+  'navbar.runAuditBtn': 'Lancer la clôture',
+  'navbar.alertsTitle': 'Départs et alertes',
+  'navbar.noAlerts': 'Aucune alerte de départ pour le moment.',
+  'navbar.enableDesktopNotif': 'Activer les notifications du bureau',
+  'navbar.desktopNotifEnabled': 'Notifications du bureau activées',
+  'navbar.overdueBy': 'en retard de {time}',
+  'navbar.inMin': 'dans {minutes} min',
+  'navbar.openFolio': 'Ouvrir le folio',
+  'navbar.extendStay': 'Prolonger le séjour',
+  'navbar.checkOut': 'Enregistrer le départ',
+  'navbar.balanceDue': 'Solde : {amount}',
+  'navbar.remindersSection': 'Départs imminents ({count})',
+  'navbar.overdueSection': 'Départs en retard ({count})',
+
+  // Countdown & Status badges
+  'alerts.overdue': 'En retard',
+  'alerts.due': 'Échéance immédiate',
+  'alerts.countdown': 'Départ dans {minutes} min',
+
+  // System & Context Messages
+  'msg.checkoutReminderToast': 'Chambre {room} - {guest} : départ à {time} dans {minutes} min',
+  'msg.checkoutReminderDesktopTitle': 'Rappel de départ - Chambre {room}',
+  'msg.autoCheckoutNotification': 'Chambre {room} libérée automatiquement',
+  'err.checkout.autoDisabled': 'Le départ automatique est désactivé dans les paramètres de l\'hôtel.',
+  'err.checkout.balanceRemaining': 'Impossible d\'effectuer le départ automatique : un solde reste impayé.'
 };
 

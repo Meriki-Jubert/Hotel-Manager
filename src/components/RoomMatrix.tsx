@@ -5,6 +5,8 @@ import { getFolioTotals } from '../utils/folio';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import { useT } from '../i18n/LanguageContext';
 import { tRoomStatus } from '../i18n/labels';
+import { useHotelNow } from '../context/HotelClockContext';
+import { getDepartureStatus } from '../utils/hotelClock';
 import {
   Bed,
   User,
@@ -37,6 +39,7 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
   onOpenFolioForRes
 }) => {
   const { t, formatDate, formatNumber } = useT();
+  const hotelNow = useHotelNow();
   const {
     rooms,
     roomTypes,
@@ -50,7 +53,8 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
     isReadOnly,
     currentUser,
     setActiveTab,
-    activeBranchId
+    activeBranchId,
+    hotelConfig
   } = useHMS();
 
   if (activeBranchId === 'all') {
@@ -278,6 +282,15 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
             folioBalance = getFolioTotals(transactions, currentRes.id).balance;
           }
 
+          const depStatus = (currentRes && currentRes.bookingStatus === 'checked_in')
+            ? getDepartureStatus({
+                checkOutDate: currentRes.checkOutDate,
+                checkOutTime: (currentRes as any).checkOutTime || hotelConfig.checkOutTime || '11:00',
+                now: hotelNow,
+                reminderMinutes: hotelConfig.checkOutReminderMinutes ?? 30
+              })
+            : null;
+
           return (
             <div
               key={room.id}
@@ -298,13 +311,32 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                     {cfg.label}
                   </span>
                 </div>
-                {arrivingTodayRes && (
+                {arrivingTodayRes ? (
                   <div className="absolute top-2.5 right-2.5">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-md border border-amber-300 animate-pulse">
                       {t('matrix.arrivingToday')}
                     </span>
                   </div>
-                )}
+                ) : depStatus && (depStatus.state === 'overdue' || depStatus.state === 'due' || depStatus.state === 'reminder') ? (
+                  <div className="absolute top-2.5 right-2.5">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black shadow-md ${
+                        depStatus.state === 'overdue'
+                          ? 'bg-rose-600 text-white border border-rose-400 animate-pulse'
+                          : depStatus.state === 'due'
+                          ? 'bg-amber-500 text-slate-950 border border-amber-300 animate-pulse'
+                          : 'bg-indigo-600 text-white border border-indigo-400'
+                      }`}
+                    >
+                      <Clock className="w-3 h-3" />
+                      {depStatus.state === 'overdue'
+                        ? t('alerts.overdue')
+                        : depStatus.state === 'due'
+                        ? t('alerts.due')
+                        : t('alerts.countdown', { minutes: depStatus.minutesLeft })}
+                    </span>
+                  </div>
+                ) : null}
                 <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-white">
                   <span className="font-mono font-bold text-base drop-shadow-md">
                     #{room.roomNumber}
@@ -346,6 +378,26 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
                         {folioBalance > 0 ? formatMoney(folioBalance) : t('matrix.settled')}
                       </span>
                     </div>
+                    {depStatus && (depStatus.state === 'overdue' || depStatus.state === 'due' || depStatus.state === 'reminder') && (
+                      <div className="flex items-center gap-1 pt-1 border-t border-slate-200">
+                        <span
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            depStatus.state === 'overdue'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : depStatus.state === 'due'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-indigo-100 text-indigo-800 border border-indigo-300'
+                          }`}
+                        >
+                          <Clock className="w-3 h-3" />
+                          {depStatus.state === 'overdue'
+                            ? t('alerts.overdue')
+                            : depStatus.state === 'due'
+                            ? t('alerts.due')
+                            : t('alerts.countdown', { minutes: depStatus.minutesLeft })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 

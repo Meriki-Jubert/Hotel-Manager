@@ -1902,7 +1902,50 @@ export const en = {
   'msg.audit.completed': 'Night Audit closed for {branch}! Rolled over business date to {date}',
   'msg.guest.created': 'Guest profile created for {name}',
   'msg.demo.resetDemo': 'System reset to clean sample demo data!',
-  'msg.demo.resetEmpty': 'System cleared to fresh empty state.'
+  'msg.demo.resetEmpty': 'System cleared to fresh empty state.',
+
+  // Hotel Clock & Timed Departures Settings
+  'profile.timeZone': 'Hotel Time Zone',
+  'profile.timeZoneSearch': 'Search time zone...',
+  'profile.hotelTimeNow': 'Hotel time now: {time}',
+  'profile.checkOutReminderMinutes': 'Check-Out Departure Reminder (Minutes)',
+  'profile.checkOutReminderHint': 'Minutes before standard check-out to trigger departure alert to front desk (0-180)',
+  'profile.autoCheckOut': 'Automatic Check-Out',
+  'profile.autoCheckOutOff': 'Off (Manual check-out only)',
+  'profile.autoCheckOutSettledOnly': 'Settled guests only (Zero balance)',
+  'profile.nightAuditReminderTime': 'Night Audit Alert Time',
+  'profile.nightAuditReminderHint': 'Time (HH:MM) to warn if the business date transition is overdue',
+  'profile.errReminderRange': 'Reminder minutes must be a whole number between 0 and 180.',
+  'profile.errAuditTimeFormat': 'Night audit alert time must be in HH:MM format.',
+
+  // Live Clock & Alert Panel
+  'navbar.hotelTime': 'Hotel time',
+  'navbar.auditOverdueBanner': 'Night audit is overdue: the business date is {date}',
+  'navbar.runAuditBtn': 'Run Night Audit',
+  'navbar.alertsTitle': 'Departures & Alerts',
+  'navbar.noAlerts': 'No departure alerts at this time.',
+  'navbar.enableDesktopNotif': 'Turn on desktop notifications',
+  'navbar.desktopNotifEnabled': 'Desktop notifications active',
+  'navbar.overdueBy': 'overdue by {time}',
+  'navbar.inMin': 'in {minutes} min',
+  'navbar.openFolio': 'Open folio',
+  'navbar.extendStay': 'Extend stay',
+  'navbar.checkOut': 'Check out',
+  'navbar.balanceDue': 'Balance: {amount}',
+  'navbar.remindersSection': 'Upcoming Departures ({count})',
+  'navbar.overdueSection': 'Overdue Departures ({count})',
+
+  // Countdown & Status badges
+  'alerts.overdue': 'Overdue',
+  'alerts.due': 'Due Now',
+  'alerts.countdown': 'Departs in {minutes}m',
+
+  // System & Context Messages
+  'msg.checkoutReminderToast': 'Room {room} - {guest}: check-out at {time} in {minutes} min',
+  'msg.checkoutReminderDesktopTitle': 'Check-out reminder - Room {room}',
+  'msg.autoCheckoutNotification': 'Room {room} checked out automatically',
+  'err.checkout.autoDisabled': 'Automatic check-out is disabled in hotel settings.',
+  'err.checkout.balanceRemaining': 'Cannot automatically check out: outstanding balance exists.'
 } as const;
 
 export type TranslationKey = keyof typeof en;

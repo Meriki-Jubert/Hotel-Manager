@@ -8,8 +8,11 @@ import {
   DollarSign,
   Sparkles,
   Percent,
-  Check
+  Check,
+  Clock,
+  Search
 } from 'lucide-react';
+import { getHotelNow, parseHHMM, COMMON_TIME_ZONES } from '../../utils/hotelClock';
 
 export const ProfileSettings: React.FC = () => {
   const { t } = useT();
@@ -28,6 +31,17 @@ export const ProfileSettings: React.FC = () => {
   const [checkInTime, setCheckInTime] = useState(hotelConfig.checkInTime);
   const [checkOutTime, setCheckOutTime] = useState(hotelConfig.checkOutTime);
   const [usdExchangeRate, setUsdExchangeRate] = useState<number | string>(hotelConfig.usdExchangeRate ?? 600);
+  const [timeZone, setTimeZone] = useState(hotelConfig.timeZone || 'Africa/Douala');
+  const [timeZoneSearch, setTimeZoneSearch] = useState('');
+  const [checkOutReminderMinutes, setCheckOutReminderMinutes] = useState<number | string>(
+    typeof hotelConfig.checkOutReminderMinutes === 'number' ? hotelConfig.checkOutReminderMinutes : 30
+  );
+  const [autoCheckOut, setAutoCheckOut] = useState<'off' | 'settled_only'>(
+    hotelConfig.autoCheckOut === 'off' ? 'off' : 'settled_only'
+  );
+  const [nightAuditReminderTime, setNightAuditReminderTime] = useState(
+    hotelConfig.nightAuditReminderTime || '04:00'
+  );
 
   // --- TAX SETTINGS STATE ---
   const currentTax = hotelConfig.taxSettings || { enabled: false, label: 'VAT', ratePercent: 0 };
@@ -96,6 +110,23 @@ export const ProfileSettings: React.FC = () => {
       return;
     }
 
+    const numReminder = Number(checkOutReminderMinutes);
+    if (
+      checkOutReminderMinutes === '' ||
+      isNaN(numReminder) ||
+      !Number.isInteger(numReminder) ||
+      numReminder < 0 ||
+      numReminder > 180
+    ) {
+      setProfileError(t('profile.errReminderRange'));
+      return;
+    }
+
+    if (!parseHHMM(nightAuditReminderTime)) {
+      setProfileError(t('profile.errAuditTimeFormat'));
+      return;
+    }
+
     const res = updateHotelConfig({
       name: name.trim(),
       tagline: tagline.trim(),
@@ -107,7 +138,11 @@ export const ProfileSettings: React.FC = () => {
       registryNumber: registryNumber.trim(),
       checkInTime,
       checkOutTime,
-      usdExchangeRate: numRate
+      usdExchangeRate: numRate,
+      timeZone,
+      checkOutReminderMinutes: numReminder,
+      autoCheckOut,
+      nightAuditReminderTime
     });
 
     if (!res.success) {
@@ -268,6 +303,94 @@ export const ProfileSettings: React.FC = () => {
                 onChange={(e) => setCheckOutTime(e.target.value)}
                 className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono"
               />
+            </div>
+          </div>
+
+          {/* Hotel Time Zone with search & live preview */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t('profile.timeZone')}</label>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder={t('profile.timeZoneSearch')}
+                    value={timeZoneSearch}
+                    onChange={(e) => setTimeZoneSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <select
+                  value={timeZone}
+                  onChange={(e) => setTimeZone(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {COMMON_TIME_ZONES.filter((tz) =>
+                    !timeZoneSearch.trim() || tz.toLowerCase().includes(timeZoneSearch.toLowerCase()) || tz === timeZone
+                  ).map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/* Live Preview "Hotel time now: ..." under the time zone select */}
+              {(() => {
+                const nowPreview = getHotelNow(timeZone);
+                return (
+                  <p className="text-[11px] text-emerald-700 font-semibold mt-1.5 flex items-center gap-1.5 font-mono">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>{t('profile.hotelTimeNow', { time: `${nowPreview.date} ${nowPreview.time}` })}</span>
+                  </p>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Departure Reminders & Automatic Check-out & Night Audit Alert */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {t('profile.checkOutReminderMinutes')}
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={180}
+                step={1}
+                value={checkOutReminderMinutes}
+                onChange={(e) => setCheckOutReminderMinutes(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono"
+              />
+              <p className="text-[10px] text-slate-500 mt-0.5">{t('profile.checkOutReminderHint')}</p>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {t('profile.autoCheckOut')}
+              </label>
+              <select
+                value={autoCheckOut}
+                onChange={(e) => setAutoCheckOut(e.target.value as 'off' | 'settled_only')}
+                className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="settled_only">{t('profile.autoCheckOutSettledOnly')}</option>
+                <option value="off">{t('profile.autoCheckOutOff')}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {t('profile.nightAuditReminderTime')}
+              </label>
+              <input
+                type="time"
+                value={nightAuditReminderTime}
+                onChange={(e) => setNightAuditReminderTime(e.target.value)}
+                className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono"
+              />
+              <p className="text-[10px] text-slate-500 mt-0.5">{t('profile.nightAuditReminderHint')}</p>
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { HMSProvider, useHMS } from './context/HMSContext';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { HotelClockProvider } from './context/HotelClockContext';
 import { LoginPage } from './components/LoginPage';
 import { Navbar } from './components/Navbar';
 import { NavigationTabs } from './components/NavigationTabs';
@@ -259,7 +260,9 @@ export function App() {
   return (
     <HMSProvider>
       <LanguageProvider>
-        <AppContent />
+        <HotelClockProvider>
+          <AppContent />
+        </HotelClockProvider>
       </LanguageProvider>
     </HMSProvider>
   );
