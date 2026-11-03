@@ -2036,10 +2036,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true };
     }
 
-    // Balance check: never auto-checkout if balance is above 0
+    // Balance check: refuse unless the balance is exactly 0
     const totals = getFolioTotals(allTransactions, res.id);
     if (totals.balance > 0) {
       return fail('err.checkout.balanceRemaining');
+    }
+    if (totals.balance < 0) {
+      return fail('err.checkout.creditRemaining');
     }
 
     const hotelNow = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
@@ -2050,7 +2053,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? {
               ...r,
               bookingStatus: 'checked_out',
-              keyReturned: true,
+              keyReturned: false,
               paymentStatus: 'paid',
               checkedOutAt: `${hotelNow.date} ${hotelNow.time}`
             }

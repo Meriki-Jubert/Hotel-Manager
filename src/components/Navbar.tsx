@@ -397,9 +397,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                                     <span className="text-slate-500">
                                       {checkOutTime}
                                     </span>
-                                    <span className={`font-mono font-bold ${o.balance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                                      {t('navbar.balanceDue', { amount: formatMoney(o.balance) })}
-                                    </span>
+                                    {o.credit > 0 ? (
+                                      <span className="font-mono font-bold text-amber-700">
+                                        {t('navbar.creditRefund', { amount: formatMoney(o.credit) })}
+                                      </span>
+                                    ) : (
+                                      <span className={`font-mono font-bold ${o.balance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                                        {t('navbar.balanceDue', { amount: formatMoney(o.balance) })}
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-rose-200/60">
                                     <button

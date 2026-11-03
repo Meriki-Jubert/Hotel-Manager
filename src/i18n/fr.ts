@@ -1934,6 +1934,7 @@ export const fr: Record<keyof typeof en, string> = {
   'navbar.extendStay': 'Prolonger le séjour',
   'navbar.checkOut': 'Enregistrer le départ',
   'navbar.balanceDue': 'Solde : {amount}',
+  'navbar.creditRefund': 'Crédit de {amount} à rembourser',
   'navbar.remindersSection': 'Départs imminents ({count})',
   'navbar.overdueSection': 'Départs en retard ({count})',
 
@@ -1947,6 +1948,7 @@ export const fr: Record<keyof typeof en, string> = {
   'msg.checkoutReminderDesktopTitle': 'Rappel de départ - Chambre {room}',
   'msg.autoCheckoutNotification': 'Chambre {room} libérée automatiquement',
   'err.checkout.autoDisabled': 'Le départ automatique est désactivé dans les paramètres de l\'hôtel.',
-  'err.checkout.balanceRemaining': 'Impossible d\'effectuer le départ automatique : un solde reste impayé.'
+  'err.checkout.balanceRemaining': 'Impossible d\'effectuer le départ automatique : un solde reste impayé.',
+  'err.checkout.creditRemaining': 'Impossible d\'effectuer le départ automatique : un crédit reste à rembourser.'
 };
 

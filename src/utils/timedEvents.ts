@@ -12,6 +12,7 @@ export interface DepartureOverdue {
   reservationId: string;
   minutesOverdue: number;
   balance: number;
+  credit: number;
 }
 
 export interface AutoCheckOutTarget {
@@ -73,15 +74,15 @@ export function computeTimedEvents({
       const balance = folio.balance;
       const minutesOverdue = Math.abs(depStatus.minutesLeft);
 
-      if (autoCheckOutMode === 'settled_only' && balance <= 0) {
+      if (autoCheckOutMode === 'settled_only' && balance === 0) {
         autoCheckOuts.push({ reservationId: res.id });
       } else {
-        // A guest with balance > 0 is NEVER auto checked out: they appear in overdue with the balance.
-        // If autoCheckOut is 'off', nothing is checked out automatically; guests only appear as overdue.
+        const credit = balance < 0 ? Math.abs(balance) : 0;
         overdue.push({
           reservationId: res.id,
           minutesOverdue,
-          balance
+          balance,
+          credit
         });
       }
     }

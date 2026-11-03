@@ -1932,6 +1932,7 @@ export const en = {
   'navbar.extendStay': 'Extend stay',
   'navbar.checkOut': 'Check out',
   'navbar.balanceDue': 'Balance: {amount}',
+  'navbar.creditRefund': 'Credit {amount} to refund',
   'navbar.remindersSection': 'Upcoming Departures ({count})',
   'navbar.overdueSection': 'Overdue Departures ({count})',
 
@@ -1945,7 +1946,8 @@ export const en = {
   'msg.checkoutReminderDesktopTitle': 'Check-out reminder - Room {room}',
   'msg.autoCheckoutNotification': 'Room {room} checked out automatically',
   'err.checkout.autoDisabled': 'Automatic check-out is disabled in hotel settings.',
-  'err.checkout.balanceRemaining': 'Cannot automatically check out: outstanding balance exists.'
+  'err.checkout.balanceRemaining': 'Cannot automatically check out: outstanding balance exists.',
+  'err.checkout.creditRemaining': 'Cannot automatically check out: credit must be refunded.'
 } as const;
 
 export type TranslationKey = keyof typeof en;

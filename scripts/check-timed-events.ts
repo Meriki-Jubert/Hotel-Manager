@@ -244,4 +244,50 @@ assert(
   '00:30 next day when UTC is 23:30'
 );
 
+// 10. a credit of 5000 after check-out time is in overdue with credit 5000 and NOT in autoCheckOuts
+const resCredit5000 = makeMockRes('res-credit-5000', '2026-11-05', '104');
+const credit5000Txs: FolioTransaction[] = [
+  {
+    id: 'tx-cr-1',
+    reservationId: resCredit5000.id,
+    guestId: resCredit5000.guestId,
+    roomNumber: '104',
+    category: 'room_charge',
+    description: 'Room Charge',
+    amount: 100000,
+    type: 'charge',
+    timestamp: '2026-11-01 14:00',
+    recordedBy: 'System'
+  },
+  {
+    id: 'tx-cr-2',
+    reservationId: resCredit5000.id,
+    guestId: resCredit5000.guestId,
+    roomNumber: '104',
+    category: 'payment',
+    description: 'Deposit with Credit',
+    amount: 105000,
+    type: 'payment',
+    paymentMethod: 'cash',
+    timestamp: '2026-11-01 14:00',
+    recordedBy: 'Front Desk'
+  }
+]; // balance = -5000, credit = 5000
+
+const eventsCredit5000 = computeTimedEvents({
+  now: { date: '2026-11-05', time: '12:15', minutes: 735 },
+  reservations: [resCredit5000],
+  transactions: credit5000Txs,
+  hotelConfig: baseHotelConfig
+});
+
+assert(
+  eventsCredit5000.overdue.some((o) => o.reservationId === resCredit5000.id && o.balance === -5000 && o.credit === 5000),
+  'a credit of 5000 after check-out time is in overdue with credit 5000'
+);
+assert(
+  !eventsCredit5000.autoCheckOuts.some((a) => a.reservationId === resCredit5000.id),
+  'a credit of 5000 after check-out time is NOT in autoCheckOuts'
+);
+
 console.log(`\n🎉 All ${passed}/${total} timed-events test cases passed successfully!`);
