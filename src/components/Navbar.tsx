@@ -23,16 +23,19 @@ import {
   Lock,
   AlertCircle,
   Bell,
-  AlertTriangle
+  AlertTriangle,
+  UserX
 } from 'lucide-react';
 import { isDemoMode } from '../config/appConfig';
 import { useHotelNow, useTimedEvents } from '../context/HotelClockContext';
 import { formatHotelDateTime, formatMinutes, parseHHMM } from '../utils/hotelClock';
 import { getFolioTotals } from '../utils/folio';
+import { addDaysToDateString } from '../utils/noShow';
 import { Reservation } from '../types/hms';
 import { ExtendStayModal } from './ExtendStayModal';
 import { CheckOutModal } from './CheckOutModal';
 import { GuestFolioModal } from './GuestFolioModal';
+import { ReinstateNoShowModal } from './ReinstateNoShowModal';
 
 interface NavbarProps {
   onOpenCheckIn: () => void;
@@ -77,12 +80,27 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const hotelNow = useHotelNow();
   const { reminders, overdue, desktopNotificationsEnabled, requestDesktopNotifications } = useTimedEvents();
-  const totalAlerts = reminders.length + overdue.length;
+
+  // Auto no-shows from last 24 hours
+  const autoNoShowsRecent = allReservations.filter((res) => {
+    if (!res.autoNoShow || res.bookingStatus !== 'cancelled' || !res.cancelledAt) return false;
+    const cancelledDate = res.cancelledAt.split(' ')[0];
+    if (cancelledDate === hotelNow.date) return true;
+    const yesterday = addDaysToDateString(hotelNow.date, -1);
+    if (cancelledDate === yesterday) {
+      const cancelledTime = res.cancelledAt.split(' ')[1] || '00:00';
+      return cancelledTime >= hotelNow.time;
+    }
+    return false;
+  });
+
+  const totalAlerts = reminders.length + overdue.length + autoNoShowsRecent.length;
 
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const [activeAlertFolioRes, setActiveAlertFolioRes] = useState<Reservation | null>(null);
   const [activeAlertExtendRes, setActiveAlertExtendRes] = useState<Reservation | null>(null);
   const [activeAlertCheckOutRes, setActiveAlertCheckOutRes] = useState<Reservation | null>(null);
+  const [activeAlertReinstateRes, setActiveAlertReinstateRes] = useState<Reservation | null>(null);
 
   // Night audit overdue check: hotel's local date later than business date of active branch AND local time past reminder time
   const nightAuditReminderMinutes = parseHHMM(hotelConfig.nightAuditReminderTime || '04:00') ?? 240;
@@ -514,6 +532,66 @@ export const Navbar: React.FC<NavbarProps> = ({
                             })}
                           </div>
                         )}
+
+                        {/* Auto No-Shows Section (Last 24 Hours) */}
+                        {autoNoShowsRecent.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 px-1 flex items-center gap-1">
+                              <UserX className="w-3 h-3" />
+                              {t('navbar.autoNoShowsSection')}
+                            </span>
+                            {autoNoShowsRecent.map((res) => {
+                              const totals = getFolioTotals(allTransactions, res.id);
+                              const creditKept = totals.balance < 0 ? Math.abs(totals.balance) : Math.max(0, res.amountPaid - (res.cancellationFee || 0));
+                              return (
+                                <div
+                                  key={res.id}
+                                  className="p-2.5 rounded-lg bg-purple-50/70 border border-purple-200 text-xs space-y-1.5"
+                                >
+                                  <div className="flex items-center justify-between font-bold">
+                                    <span className="text-purple-950">
+                                      #{res.roomNumber} - {res.guestName}
+                                    </span>
+                                    <span className="font-mono text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
+                                      {res.bookingCode}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="text-slate-600 font-medium">
+                                      {t('navbar.noShowFeeCharged', { amount: formatMoney(res.cancellationFee || 0) })}
+                                    </span>
+                                    <span className="font-mono font-bold text-amber-700">
+                                      {t('navbar.creditKept', { amount: formatMoney(creditKept) })}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-purple-200/60">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveAlertFolioRes(res);
+                                        setShowAlertsPanel(false);
+                                      }}
+                                      className="px-2 py-0.5 text-[11px] font-semibold bg-white border border-slate-300 rounded hover:bg-slate-50 cursor-pointer text-slate-800"
+                                    >
+                                      {t('navbar.openFolio')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveAlertReinstateRes(res);
+                                        setShowAlertsPanel(false);
+                                      }}
+                                      className="px-2 py-0.5 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-600 text-white rounded cursor-pointer flex items-center gap-1"
+                                    >
+                                      <RotateCcw className="w-3 h-3" />
+                                      {t('frontDesk.reinstateBtn')}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -927,6 +1005,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             setActiveAlertCheckOutRes(null);
             setActiveAlertFolioRes(res);
           }}
+        />
+      )}
+
+      {activeAlertReinstateRes && (
+        <ReinstateNoShowModal
+          reservation={activeAlertReinstateRes}
+          onClose={() => setActiveAlertReinstateRes(null)}
         />
       )}
     </header>

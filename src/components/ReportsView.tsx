@@ -156,6 +156,7 @@ export const ReportsView: React.FC = () => {
       { key: 'checkInDate', label: t('reports.col.scheduledCheckIn') },
       { key: 'cancelledAt', label: t('reports.col.cancelledDate') },
       { key: 'isNoShow', label: t('reports.col.status'), format: (val) => (val ? t('reports.statusNoShow') : t('reports.statusCancelled')) },
+      { key: 'autoNoShow', label: t('reports.cancellationType'), format: (val) => (val ? t('reports.autoNoShowLabel') : t('reports.manualCancellation')) },
       { key: 'feeKept', label: t('reports.col.feeRetained', { currency: hotelConfig.defaultCurrency }) },
       { key: 'refund', label: t('reports.col.refundIssued', { currency: hotelConfig.defaultCurrency }) },
       { key: 'reason', label: t('reports.col.reason') },
@@ -277,7 +278,9 @@ export const ReportsView: React.FC = () => {
       booking: row.bookingCode,
       guest: row.guestName,
       room: `#${row.roomNumber}`,
-      status: row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled'),
+      status: row.autoNoShow
+        ? `${row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled')} (${t('reports.autoNoShowLabel')})`
+        : row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled'),
       date: row.cancelledAt ? row.cancelledAt.slice(0, 10) : row.checkInDate,
       fee: formatPdfMoney(row.feeKept),
       refund: formatPdfMoney(row.refund),
@@ -956,15 +959,22 @@ export const ReportsView: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-2.5 px-4 text-center">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          row.isNoShow
-                            ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                            : 'bg-amber-100 text-amber-800 border border-amber-300'
-                        }`}
-                      >
-                        {row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled')}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            row.isNoShow
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                          }`}
+                        >
+                          {row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled')}
+                        </span>
+                        {row.autoNoShow && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-900 border border-amber-300 whitespace-nowrap">
+                            {t('reports.autoNoShowLabel')}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5 px-4 text-slate-600 font-mono text-[11px]">
                       {row.cancelledAt || row.checkInDate}

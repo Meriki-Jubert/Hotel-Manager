@@ -352,6 +352,7 @@ export interface CancellationReportRow {
   checkOutDate: string;
   cancelledAt: string;
   isNoShow: boolean;
+  autoNoShow?: boolean;
   feeKept: number;
   refund: number;
   reason: string;
@@ -403,6 +404,7 @@ export function buildCancellations(
       checkOutDate: r.checkOutDate,
       cancelledAt: r.cancelledAt || '',
       isNoShow,
+      autoNoShow: r.autoNoShow === true,
       feeKept: r.cancellationFee ?? 0,
       refund: r.refundAmount ?? 0,
       reason: r.cancellationReason || '',

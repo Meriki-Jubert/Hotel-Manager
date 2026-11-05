@@ -1949,6 +1949,65 @@ export const fr: Record<keyof typeof en, string> = {
   'msg.autoCheckoutNotification': 'Chambre {room} libérée automatiquement',
   'err.checkout.autoDisabled': 'Le départ automatique est désactivé dans les paramètres de l\'hôtel.',
   'err.checkout.balanceRemaining': 'Impossible d\'effectuer le départ automatique : un solde reste impayé.',
-  'err.checkout.creditRemaining': 'Impossible d\'effectuer le départ automatique : un crédit reste à rembourser.'
+  'err.checkout.creditRemaining': 'Impossible d\'effectuer le départ automatique : un crédit reste à rembourser.',
+
+  // Auto No-Show Settings
+  'profile.autoNoShowTitle': 'Marquage automatique des no-shows',
+  'profile.autoNoShowNote': 'Les clients arrivant après l\'heure limite verront leur réservation annulée. De nombreux hôtels utilisent le lendemain à 06:00.',
+  'profile.autoNoShowAfterDays': 'Délai de grâce (jours après l\'arrivée)',
+  'profile.autoNoShowDays0': 'Le jour même (jour d\'arrivée)',
+  'profile.autoNoShowDays1': '1 jour après l\'arrivée',
+  'profile.autoNoShowDays2': '2 jours après l\'arrivée',
+  'profile.autoNoShowDays3': '3 jours après l\'arrivée',
+  'profile.autoNoShowCutoffTime': 'Heure limite (HH:MM)',
+  'profile.autoNoShowLiveDay0': 'Les réservations non enregistrées avant {time} le jour d\'arrivée sont marquées no-show.',
+  'profile.autoNoShowLiveDay1': 'Les réservations non enregistrées avant {time}, 1 jour après l\'arrivée sont marquées no-show.',
+  'profile.autoNoShowLiveDays': 'Les réservations non enregistrées avant {time}, {days} jours après l\'arrivée sont marquées no-show.',
+  'profile.autoNoShowDisabled': 'Le marquage automatique des no-shows est désactivé.',
+  'profile.errNoShowCutoffFormat': 'L\'heure limite de no-show doit être au format HH:MM.',
+
+  // Hold Booking Modal & Badges
+  'hold.title': 'Maintenir la réservation',
+  'hold.desc': 'Protéger cette réservation contre l\'annulation automatique de no-show jusqu\'à un moment spécifié.',
+  'hold.date': 'Maintenir jusqu\'au (date)',
+  'hold.time': 'Maintenir jusqu\'à (heure)',
+  'hold.reason': 'Motif d\'arrivée tardive (facultatif)',
+  'hold.reasonPlaceholder': 'Ex. vol tardif, transport retardé, client ayant prévenu la réception...',
+  'hold.setBy': 'Maintenue par {name}',
+  'hold.confirmBtn': 'Confirmer le maintien',
+  'frontDesk.holdBtn': 'Maintenir',
+  'frontDesk.heldUntil': 'Maintenue jusqu\'au {date} à {time}',
+  'frontDesk.autoNoShowAt': 'No-show auto à {time}',
+  'frontDesk.autoNoShowDays': 'No-show auto {time} (+{days}j)',
+  'err.hold.unauthorized': 'Vous n\'avez pas l\'autorisation de maintenir des réservations.',
+  'err.hold.onlyReserved': 'Seules les réservations confirmées à venir peuvent être maintenues.',
+  'err.hold.mustBeFuture': 'La date et l\'heure de maintien doivent être strictement dans le futur.',
+  'msg.hold.success': 'Réservation {code} maintenue jusqu\'au {date} à {time}',
+
+  // Reinstate No-Show Modal & Action
+  'reinstate.title': 'Rétablir la réservation no-show',
+  'reinstate.desc': 'Restaurer cette réservation en statut réservé. Les frais et réductions du folio seront rétablis.',
+  'reinstate.reason': 'Motif du rétablissement (5 caractères minimum)',
+  'reinstate.reasonPlaceholder': 'Ex. Le client est arrivé tardivement avec justificatif de vol retardé...',
+  'reinstate.confirmBtn': 'Rétablir la réservation',
+  'reinstate.checkingAvailability': 'Vérification de la disponibilité de la chambre...',
+  'frontDesk.reinstateBtn': 'Rétablir',
+  'frontDesk.autoNoShowBadge': 'No-Show Auto',
+  'err.reinstate.unauthorized': 'Vous n\'avez pas l\'autorisation de rétablir des réservations no-show.',
+  'err.reinstate.reasonMinLength': 'Veuillez indiquer un motif valide d\'au moins 5 caractères.',
+  'err.reinstate.onlyAutoNoShow': 'Seules les réservations marquées en no-show automatique peuvent être rétablies.',
+  'err.reinstate.roomNotAvailable': 'Impossible de rétablir : la chambre ou la catégorie n\'est plus disponible pour les dates réservées.',
+  'msg.res.reinstated': 'La réservation {code} pour {guest} a été rétablie au statut Réservé',
+
+  // Auto No-Show System Message
+  'msg.res.autoNoShow': 'Chambre {room} - {guest} : marquée no-show automatique',
+
+  // Bell Panel & Reports
+  'navbar.autoNoShowsSection': 'No-shows automatiques (dernières 24 h)',
+  'navbar.noShowFeeCharged': 'Frais : {amount}',
+  'navbar.creditKept': 'Crédit conservé : {amount}',
+  'reports.autoNoShowLabel': 'No-Show Auto',
+  'reports.manualCancellation': 'Annulation manuelle',
+  'reports.cancellationType': 'Type'
 };
 

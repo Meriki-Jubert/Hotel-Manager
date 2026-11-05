@@ -14,6 +14,8 @@ import { ConvertCheckInModal } from './ConvertCheckInModal';
 import { ExtendStayModal } from './ExtendStayModal';
 import { ShortenStayModal } from './ShortenStayModal';
 import { ChangeRoomModal } from './ChangeRoomModal';
+import { HoldBookingModal } from './HoldBookingModal';
+import { ReinstateNoShowModal } from './ReinstateNoShowModal';
 import {
   CalendarCheck2,
   Search,
@@ -33,6 +35,8 @@ import {
   CheckCircle2,
   AlertCircle,
   BookmarkCheck,
+  Bookmark,
+  RotateCcw,
   Edit,
   UserX,
   XCircle,
@@ -90,8 +94,11 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
   const [extendingReservation, setExtendingReservation] = useState<Reservation | null>(null);
   const [shorteningReservation, setShorteningReservation] = useState<Reservation | null>(null);
   const [movingReservation, setMovingReservation] = useState<Reservation | null>(null);
+  const [holdingReservation, setHoldingReservation] = useState<Reservation | null>(null);
+  const [reinstatingReservation, setReinstatingReservation] = useState<Reservation | null>(null);
 
   const isManager = currentUser?.role === 'manager' || currentUser?.role === 'owner';
+  const canHoldAndReinstate = currentUser?.role === 'front_desk' || currentUser?.role === 'manager' || currentUser?.role === 'owner';
 
   // Filters state
   const [activeTabFilter, setActiveTabFilter] = useState<ReservationTab>('all');
@@ -428,9 +435,40 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
 
                       {/* Arriving / Departing Badges */}
                       {isArrivingToday && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 mt-1 animate-pulse">
-                          {t('frontDesk.arrivingToday')}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                            {t('frontDesk.arrivingToday')}
+                          </span>
+                          {res.holdUntil ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-300"
+                              title={res.holdUntil.reason || undefined}
+                            >
+                              <Bookmark className="w-3 h-3 text-purple-600" />
+                              {t('frontDesk.heldUntil', {
+                                date: formatDate(res.holdUntil.date),
+                                time: res.holdUntil.time
+                              })}
+                            </span>
+                          ) : (
+                            hotelConfig.autoNoShow?.enabled && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-300"
+                                title={t('profile.autoNoShowNote')}
+                              >
+                                <Clock className="w-3 h-3 text-slate-500" />
+                                {(hotelConfig.autoNoShow.afterDays ?? 0) > 0
+                                  ? t('frontDesk.autoNoShowDays', {
+                                      days: hotelConfig.autoNoShow.afterDays,
+                                      time: hotelConfig.autoNoShow.cutoffTime || '23:59'
+                                    })
+                                  : t('frontDesk.autoNoShowAt', {
+                                      time: hotelConfig.autoNoShow.cutoffTime || '23:59'
+                                    })}
+                              </span>
+                            )
+                          )}
+                        </div>
                       )}
                       {isDepartingToday && (
                         <div className="flex items-center gap-1.5 flex-wrap mt-1">
@@ -500,12 +538,21 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
 
                     {/* Status Badge */}
                     <td className="py-3.5 px-4">
-                      {getStatusBadge(res.bookingStatus)}
-                      {res.bookingStatus === 'cancelled' && res.cancellationReason && (
-                        <div className="text-[10px] text-slate-500 italic mt-0.5 max-w-[140px] truncate" title={res.cancellationReason}>
-                          "{res.cancellationReason}"
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {getStatusBadge(res.bookingStatus)}
+                          {res.bookingStatus === 'cancelled' && res.autoNoShow && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              {t('frontDesk.autoNoShowBadge')}
+                            </span>
+                          )}
                         </div>
-                      )}
+                        {res.bookingStatus === 'cancelled' && res.cancellationReason && (
+                          <div className="text-[10px] text-slate-500 italic mt-0.5 max-w-[140px] truncate" title={res.cancellationReason}>
+                            "{res.cancellationReason}"
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* Action Buttons */}
@@ -520,6 +567,18 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                           >
                             <LogIn className="w-3.5 h-3.5" />
                             <span>{t('frontDesk.checkIn')}</span>
+                          </button>
+                        )}
+
+                        {/* Hold Booking (Reserved only, front desk / manager / owner) */}
+                        {res.bookingStatus === 'reserved' && canHoldAndReinstate && (
+                          <button
+                            onClick={() => setHoldingReservation(res)}
+                            className="px-2 py-1 text-xs font-semibold bg-white hover:bg-purple-50 border border-slate-300 hover:border-purple-300 text-purple-700 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
+                            title={res.holdUntil ? t('hold.title') : t('frontDesk.holdBtn')}
+                          >
+                            <Bookmark className="w-3 h-3 text-purple-600" />
+                            <span>{t('frontDesk.holdBtn')}</span>
                           </button>
                         )}
 
@@ -556,6 +615,18 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
                             {t('frontDesk.useCheckOut')}
                           </span>
                         ) : null}
+
+                        {/* Reinstate Auto No-Show (Cancelled + autoNoShow, front desk / manager / owner) */}
+                        {res.bookingStatus === 'cancelled' && res.autoNoShow && canHoldAndReinstate && (
+                          <button
+                            onClick={() => setReinstatingReservation(res)}
+                            className="px-2.5 py-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg shadow-2xs flex items-center gap-1 transition-colors"
+                            title={t('frontDesk.reinstateBtn')}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>{t('frontDesk.reinstateBtn')}</span>
+                          </button>
+                        )}
 
                         {/* In-House Stay Management Actions */}
                         {res.bookingStatus === 'checked_in' && (
@@ -676,6 +747,20 @@ export const FrontDeskView: React.FC<FrontDeskViewProps> = ({
         <ChangeRoomModal
           reservation={movingReservation}
           onClose={() => setMovingReservation(null)}
+        />
+      )}
+
+      {holdingReservation && (
+        <HoldBookingModal
+          reservation={holdingReservation}
+          onClose={() => setHoldingReservation(null)}
+        />
+      )}
+
+      {reinstatingReservation && (
+        <ReinstateNoShowModal
+          reservation={reinstatingReservation}
+          onClose={() => setReinstatingReservation(null)}
         />
       )}
     </div>

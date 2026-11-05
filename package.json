@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit",
     "check:i18n": "tsx scripts/check-i18n.ts",
     "check:time": "tsx scripts/check-timed-events.ts",
+    "check:noshow": "tsx scripts/check-noshow.ts",
     "preview": "vite preview --port 3000"
   },
   "dependencies": {

@@ -1947,7 +1947,66 @@ export const en = {
   'msg.autoCheckoutNotification': 'Room {room} checked out automatically',
   'err.checkout.autoDisabled': 'Automatic check-out is disabled in hotel settings.',
   'err.checkout.balanceRemaining': 'Cannot automatically check out: outstanding balance exists.',
-  'err.checkout.creditRemaining': 'Cannot automatically check out: credit must be refunded.'
+  'err.checkout.creditRemaining': 'Cannot automatically check out: credit must be refunded.',
+
+  // Auto No-Show Settings
+  'profile.autoNoShowTitle': 'Automatic No-Show Marking',
+  'profile.autoNoShowNote': 'Guests arriving after the cutoff will find their booking cancelled. Many hotels use the next day at 06:00.',
+  'profile.autoNoShowAfterDays': 'Grace Period (Days After Arrival)',
+  'profile.autoNoShowDays0': 'Same day (arrival day)',
+  'profile.autoNoShowDays1': '1 day after arrival',
+  'profile.autoNoShowDays2': '2 days after arrival',
+  'profile.autoNoShowDays3': '3 days after arrival',
+  'profile.autoNoShowCutoffTime': 'Cutoff Time (HH:MM)',
+  'profile.autoNoShowLiveDay0': 'Bookings not checked in by {time} on the arrival day are marked no-show.',
+  'profile.autoNoShowLiveDay1': 'Bookings not checked in by {time}, 1 day after arrival are marked no-show.',
+  'profile.autoNoShowLiveDays': 'Bookings not checked in by {time}, {days} days after arrival are marked no-show.',
+  'profile.autoNoShowDisabled': 'Automatic no-show marking is disabled.',
+  'profile.errNoShowCutoffFormat': 'No-show cutoff time must be in HH:MM format.',
+
+  // Hold Booking Modal & Badges
+  'hold.title': 'Hold Booking',
+  'hold.desc': 'Protect this reservation from automatic no-show cancellation until a specified moment.',
+  'hold.date': 'Hold Until Date',
+  'hold.time': 'Hold Until Time',
+  'hold.reason': 'Reason for Late Arrival (Optional)',
+  'hold.reasonPlaceholder': 'e.g. Late flight, delayed transport, guest notified front desk...',
+  'hold.setBy': 'Held by {name}',
+  'hold.confirmBtn': 'Confirm Hold',
+  'frontDesk.holdBtn': 'Hold',
+  'frontDesk.heldUntil': 'Held until {date} {time}',
+  'frontDesk.autoNoShowAt': 'Auto no-show at {time}',
+  'frontDesk.autoNoShowDays': 'Auto no-show {time} (+{days}d)',
+  'err.hold.unauthorized': 'You do not have permission to hold reservations.',
+  'err.hold.onlyReserved': 'Only confirmed upcoming reservations can be held.',
+  'err.hold.mustBeFuture': 'The hold date and time must be strictly in the future.',
+  'msg.hold.success': 'Reservation {code} held until {date} {time}',
+
+  // Reinstate No-Show Modal & Action
+  'reinstate.title': 'Reinstate No-Show Reservation',
+  'reinstate.desc': 'Restore this auto no-show booking back to reserved status. Folio charges and discounts will be restored.',
+  'reinstate.reason': 'Reason for Reinstatement (Minimum 5 characters)',
+  'reinstate.reasonPlaceholder': 'e.g. Guest arrived late with airline boarding pass proof...',
+  'reinstate.confirmBtn': 'Reinstate Reservation',
+  'reinstate.checkingAvailability': 'Checking room availability...',
+  'frontDesk.reinstateBtn': 'Reinstate',
+  'frontDesk.autoNoShowBadge': 'Auto No-Show',
+  'err.reinstate.unauthorized': 'You do not have permission to reinstate no-show reservations.',
+  'err.reinstate.reasonMinLength': 'Please provide a valid reason of at least 5 characters.',
+  'err.reinstate.onlyAutoNoShow': 'Only automatic no-show reservations can be reinstated.',
+  'err.reinstate.roomNotAvailable': 'Cannot reinstate: Room or room type is no longer available for the booked dates.',
+  'msg.res.reinstated': 'Reservation {code} for {guest} has been reinstated to Reserved',
+
+  // Auto No-Show System Message
+  'msg.res.autoNoShow': 'Room {room} - {guest}: marked auto no-show',
+
+  // Bell Panel & Reports
+  'navbar.autoNoShowsSection': 'Auto no-shows (last 24 hours)',
+  'navbar.noShowFeeCharged': 'Fee: {amount}',
+  'navbar.creditKept': 'Credit kept: {amount}',
+  'reports.autoNoShowLabel': 'Auto No-Show',
+  'reports.manualCancellation': 'Manual Cancellation',
+  'reports.cancellationType': 'Type'
 } as const;
 
 export type TranslationKey = keyof typeof en;

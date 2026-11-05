@@ -47,6 +47,13 @@ export interface HotelConfig {
   checkOutReminderMinutes?: number;
   autoCheckOut?: 'off' | 'settled_only';
   nightAuditReminderTime?: string;
+  autoNoShow?: AutoNoShowConfig;
+}
+
+export interface AutoNoShowConfig {
+  enabled: boolean;
+  afterDays: number; // 0..3
+  cutoffTime: string; // 'HH:MM'
 }
 
 export interface Branch {
@@ -152,6 +159,13 @@ export interface Reservation {
   feeOverrideReason?: string;
   feeOverriddenBy?: string;
   policyRuleText?: string;
+  holdUntil?: {
+    date: string; // 'YYYY-MM-DD'
+    time: string; // 'HH:MM'
+    reason?: string;
+    setBy: string;
+  };
+  autoNoShow?: boolean;
   roomMoves?: Array<{
     fromRoom: string;
     toRoom: string;

@@ -4,6 +4,7 @@ import { useT } from '../i18n/LanguageContext';
 import { translate } from '../i18n/translate';
 import { getHotelNow, HotelNow } from '../utils/hotelClock';
 import { computeTimedEvents, TimedEventsResult } from '../utils/timedEvents';
+import { computeNoShows } from '../utils/noShow';
 
 const SHOWN_REMINDERS_KEY = 'hms_shown_departure_reminders';
 
@@ -17,7 +18,7 @@ interface HotelClockContextType {
 const HotelClockContext = createContext<HotelClockContextType | undefined>(undefined);
 
 export const HotelClockProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { hotelConfig, allReservations, allTransactions, autoCheckOutGuest, notify } = useHMS();
+  const { hotelConfig, allReservations, allTransactions, autoCheckOutGuest, autoMarkNoShow, notify } = useHMS();
   const { lang } = useT();
 
   const [hotelNow, setHotelNow] = useState<HotelNow>(() => getHotelNow(hotelConfig.timeZone));
@@ -107,6 +108,19 @@ export const HotelClockProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }
 
+    // Automatic no-shows evaluation
+    const noShowTargets = computeNoShows({
+      now,
+      reservations: allReservations,
+      hotelConfig
+    });
+
+    if (noShowTargets.length > 0) {
+      for (const target of noShowTargets) {
+        autoMarkNoShow(target.reservationId);
+      }
+    }
+
     // Reminders toast & desktop notifications
     if (events.reminders.length > 0) {
       const shownSet = getShownReminderKeys();
@@ -153,7 +167,7 @@ export const HotelClockProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         markReminderKeysShown(newlyShown);
       }
     }
-  }, [hotelConfig, allReservations, allTransactions, autoCheckOutGuest, notify, lang]);
+  }, [hotelConfig, allReservations, allTransactions, autoCheckOutGuest, autoMarkNoShow, notify, lang]);
 
   useEffect(() => {
     evalTimedEvents();

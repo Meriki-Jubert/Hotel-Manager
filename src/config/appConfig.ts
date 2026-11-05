@@ -21,7 +21,12 @@ export const appConfig: HotelConfig = {
   timeZone: 'Africa/Douala',
   checkOutReminderMinutes: 30,
   autoCheckOut: 'settled_only',
-  nightAuditReminderTime: '04:00'
+  nightAuditReminderTime: '04:00',
+  autoNoShow: {
+    enabled: true,
+    afterDays: 0,
+    cutoffTime: '23:59'
+  }
 };
 
 export const isDemoMode = (import.meta.env as any).VITE_DEMO_MODE === 'true';

@@ -168,6 +168,9 @@ interface HMSContextType {
     splitLines?: Array<{ method: PaymentMethod; amount: number }>
   ) => { success: boolean; error?: string };
   autoCheckOutGuest: (reservationId: string) => Result;
+  holdReservation: (reservationId: string, date: string, time: string, reason?: string) => Result;
+  autoMarkNoShow: (reservationId: string) => Result;
+  reinstateNoShow: (reservationId: string, reason: string) => Result;
   applyDiscount: (
     reservationId: string,
     type: 'percent' | 'fixed',
@@ -281,7 +284,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           timeZone: parsed.timeZone || 'Africa/Douala',
           checkOutReminderMinutes: typeof parsed.checkOutReminderMinutes === 'number' ? parsed.checkOutReminderMinutes : 30,
           autoCheckOut: parsed.autoCheckOut === 'off' ? 'off' : 'settled_only',
-          nightAuditReminderTime: parsed.nightAuditReminderTime || '04:00'
+          nightAuditReminderTime: parsed.nightAuditReminderTime || '04:00',
+          autoNoShow: parsed.autoNoShow
+            ? {
+                enabled: parsed.autoNoShow.enabled !== false,
+                afterDays: typeof parsed.autoNoShow.afterDays === 'number' && parsed.autoNoShow.afterDays >= 0 && parsed.autoNoShow.afterDays <= 3 ? Math.floor(parsed.autoNoShow.afterDays) : 0,
+                cutoffTime: typeof parsed.autoNoShow.cutoffTime === 'string' && parsed.autoNoShow.cutoffTime ? parsed.autoNoShow.cutoffTime : '23:59'
+              }
+            : { enabled: true, afterDays: 0, cutoffTime: '23:59' }
         };
       } catch {
         return {
@@ -2085,6 +2095,233 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
+  const holdReservation = (reservationId: string, date: string, time: string, reason?: string): Result => {
+    if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
+      return fail('err.hold.unauthorized');
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return fail('err.res.notFound');
+    }
+
+    if (res.bookingStatus !== 'reserved') {
+      return fail('err.hold.onlyReserved');
+    }
+
+    const hotelNow = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
+    if (date < hotelNow.date || (date === hotelNow.date && time <= hotelNow.time)) {
+      return fail('err.hold.mustBeFuture');
+    }
+
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId
+          ? {
+              ...r,
+              holdUntil: {
+                date,
+                time,
+                reason: reason?.trim() || undefined,
+                setBy: currentUser.name
+              }
+            }
+          : r
+      )
+    );
+
+    logStaffActivity(
+      'Hold Reservation',
+      `Held reservation ${res.bookingCode} for ${res.guestName} until ${date} ${time}.${reason?.trim() ? ` Reason: ${reason.trim()}` : ''}`
+    );
+
+    notify('msg.hold.success', { code: res.bookingCode, date, time }, 'success');
+    return { success: true };
+  };
+
+  const autoMarkNoShow = (reservationId: string): Result => {
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res || res.bookingStatus !== 'reserved') {
+      return { success: true };
+    }
+
+    const hotelNow = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
+    const targetBranchId = res.branchId || defaultBranchId;
+
+    // Calculate cancellation fee for no-show
+    const feeCalc = calculateCancellationFee({
+      policy: hotelConfig.cancellationPolicy || DEFAULT_CANCELLATION_POLICY,
+      booking: res,
+      businessDate,
+      isNoShow: true
+    });
+    const fee = feeCalc.suggestedFee;
+
+    // Void the room charge and any discount entries (voidReason 'Reservation cancelled')
+    setAllTransactions((prev) => {
+      let updated = prev.map((tx) =>
+        tx.reservationId === res.id && (tx.category === 'room_charge' || tx.category === 'discount') && !tx.voided
+          ? { ...tx, voided: true, voidedBy: 'System', voidReason: 'Reservation cancelled' }
+          : tx
+      );
+
+      // Post the fee from calculateCancellationFee with isNoShow true as category 'no_show_fee'
+      if (fee > 0) {
+        const feeTx: FolioTransaction = {
+          id: `tx-${Date.now()}-nsfee-${Math.floor(Math.random() * 1000)}`,
+          branchId: targetBranchId,
+          reservationId: res.id,
+          guestId: res.guestId,
+          roomNumber: res.roomNumber,
+          category: 'no_show_fee',
+          description: `No-Show Fee (${feeCalc.ruleText || 'Policy'})`,
+          amount: fee,
+          type: 'charge',
+          timestamp: `${hotelNow.date} ${hotelNow.time}`,
+          recordedBy: 'System'
+        };
+        updated = [feeTx, ...updated];
+      }
+
+      return updated;
+    });
+
+    // Uses settlement 'credit' (never posts a refund), sets bookingStatus 'cancelled', isNoShow true, autoNoShow true, cancelledBy 'System', reason 'No-show (automatic)'
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId
+          ? {
+              ...r,
+              bookingStatus: 'cancelled',
+              isNoShow: true,
+              autoNoShow: true,
+              cancelledBy: 'System',
+              cancellationReason: 'No-show (automatic)',
+              cancelledAt: `${hotelNow.date} ${hotelNow.time}`,
+              cancellationFee: fee,
+              settlement: 'credit',
+              policyRuleText: feeCalc.ruleText
+            }
+          : r
+      )
+    );
+
+    // Releases the room
+    setAllRooms((prev) =>
+      prev.map((room) =>
+        room.currentReservationId === res.id
+          ? {
+              ...room,
+              currentReservationId: undefined,
+              status: room.status === 'reserved' ? 'available' : room.status
+            }
+          : room
+      )
+    );
+
+    logStaffActivity(
+      'Auto no-show (system)',
+      `Reservation ${res.bookingCode} for ${res.guestName} marked auto no-show. Fee: ${formatMoney(fee)}. Settlement: credit.`,
+      { id: 'system', name: 'System' }
+    );
+
+    notify('msg.res.autoNoShow', { room: res.roomNumber, guest: res.guestName, code: res.bookingCode }, 'info');
+    return { success: true };
+  };
+
+  const reinstateNoShow = (reservationId: string, reason: string): Result => {
+    if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
+      return fail('err.reinstate.unauthorized');
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      return fail('err.reinstate.reasonMinLength');
+    }
+
+    const res = allReservations.find((r) => r.id === reservationId);
+    if (!res) {
+      return fail('err.res.notFound');
+    }
+
+    if (res.bookingStatus !== 'cancelled' || !res.autoNoShow) {
+      return fail('err.reinstate.onlyAutoNoShow');
+    }
+
+    const targetBranchId = res.branchId || defaultBranchId;
+    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+
+    // Re-run checkAvailability for the booked dates and refuse with a clear keyed message if the room or room type is no longer free
+    const availCheck = checkAvailability({
+      branchId: targetBranchId,
+      roomTypeId: res.roomTypeId || '',
+      checkInDate: res.checkInDate,
+      checkOutDate: res.checkOutDate,
+      rooms: branchRooms,
+      reservations: branchReservations,
+      excludeReservationId: res.id,
+      requestedRoomId: res.roomId || undefined
+    });
+
+    if (!availCheck.available) {
+      return fail(availCheck.reasonKey || 'err.reinstate.roomNotAvailable', availCheck.reasonVars);
+    }
+
+    // Un-voids the room charge and discount entries that were voided with the reason 'Reservation cancelled'
+    // Voids the no_show_fee charge (voidReason 'No-show reinstated')
+    setAllTransactions((prev) =>
+      prev.map((tx) => {
+        if (tx.reservationId !== res.id) return tx;
+        if (tx.voided && tx.voidReason === 'Reservation cancelled') {
+          return { ...tx, voided: false, voidedBy: undefined, voidReason: undefined };
+        }
+        if (tx.category === 'no_show_fee' && !tx.voided) {
+          return { ...tx, voided: true, voidedBy: currentUser.name, voidReason: 'No-show reinstated' };
+        }
+        return tx;
+      })
+    );
+
+    // Sets the status back to 'reserved', clears isNoShow/autoNoShow/cancelledAt/cancelledBy
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId
+          ? {
+              ...r,
+              bookingStatus: 'reserved',
+              isNoShow: undefined,
+              autoNoShow: undefined,
+              cancelledAt: undefined,
+              cancelledBy: undefined,
+              cancellationReason: undefined,
+              cancellationFee: undefined,
+              settlement: undefined,
+              policyRuleText: undefined
+            }
+          : r
+      )
+    );
+
+    // Reclaim room if available
+    if (res.roomId) {
+      setAllRooms((prev) =>
+        prev.map((room) =>
+          room.id === res.roomId && room.status === 'available'
+            ? { ...room, status: 'reserved', currentReservationId: res.id }
+            : room
+        )
+      );
+    }
+
+    logStaffActivity(
+      'Reinstate No-Show',
+      `Reinstated auto no-show reservation ${res.bookingCode} for ${res.guestName}. Reason: ${reason.trim()}`
+    );
+
+    notify('msg.res.reinstated', { code: res.bookingCode, guest: res.guestName }, 'success');
+    return { success: true };
+  };
+
   const applyDiscount = (
     reservationId: string,
     type: 'percent' | 'fixed',
@@ -3553,6 +3790,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         checkInGuest,
         checkOutGuest,
         autoCheckOutGuest,
+        holdReservation,
+        autoMarkNoShow,
+        reinstateNoShow,
         createReservation,
         updateReservation,
         cancelReservation,

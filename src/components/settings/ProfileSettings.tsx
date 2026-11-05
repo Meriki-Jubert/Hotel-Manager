@@ -10,7 +10,8 @@ import {
   Percent,
   Check,
   Clock,
-  Search
+  Search,
+  UserX
 } from 'lucide-react';
 import { getHotelNow, parseHHMM, COMMON_TIME_ZONES } from '../../utils/hotelClock';
 
@@ -41,6 +42,14 @@ export const ProfileSettings: React.FC = () => {
   );
   const [nightAuditReminderTime, setNightAuditReminderTime] = useState(
     hotelConfig.nightAuditReminderTime || '04:00'
+  );
+  const currentAutoNoShow = hotelConfig.autoNoShow || { enabled: true, afterDays: 0, cutoffTime: '23:59' };
+  const [autoNoShowEnabled, setAutoNoShowEnabled] = useState(currentAutoNoShow.enabled !== false);
+  const [autoNoShowAfterDays, setAutoNoShowAfterDays] = useState<number>(
+    typeof currentAutoNoShow.afterDays === 'number' ? currentAutoNoShow.afterDays : 0
+  );
+  const [autoNoShowCutoffTime, setAutoNoShowCutoffTime] = useState<string>(
+    currentAutoNoShow.cutoffTime || '23:59'
   );
 
   // --- TAX SETTINGS STATE ---
@@ -127,6 +136,13 @@ export const ProfileSettings: React.FC = () => {
       return;
     }
 
+    if (autoNoShowEnabled) {
+      if (!parseHHMM(autoNoShowCutoffTime)) {
+        setProfileError(t('profile.errNoShowCutoffFormat'));
+        return;
+      }
+    }
+
     const res = updateHotelConfig({
       name: name.trim(),
       tagline: tagline.trim(),
@@ -142,7 +158,12 @@ export const ProfileSettings: React.FC = () => {
       timeZone,
       checkOutReminderMinutes: numReminder,
       autoCheckOut,
-      nightAuditReminderTime
+      nightAuditReminderTime,
+      autoNoShow: {
+        enabled: autoNoShowEnabled,
+        afterDays: autoNoShowAfterDays,
+        cutoffTime: autoNoShowCutoffTime
+      }
     });
 
     if (!res.success) {
@@ -392,6 +413,74 @@ export const ProfileSettings: React.FC = () => {
               />
               <p className="text-[10px] text-slate-500 mt-0.5">{t('profile.nightAuditReminderHint')}</p>
             </div>
+          </div>
+
+          {/* Automatic No-Show Settings */}
+          <div className="space-y-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
+                  <UserX className="w-3.5 h-3.5 text-rose-500" />
+                  {t('profile.autoNoShowTitle')}
+                </label>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {t('profile.autoNoShowNote')}
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={autoNoShowEnabled}
+                  onChange={(e) => setAutoNoShowEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
+            {autoNoShowEnabled && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {t('profile.autoNoShowAfterDays')}
+                  </label>
+                  <select
+                    value={autoNoShowAfterDays}
+                    onChange={(e) => setAutoNoShowAfterDays(Number(e.target.value))}
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value={0}>{t('profile.autoNoShowDays0')}</option>
+                    <option value={1}>{t('profile.autoNoShowDays1')}</option>
+                    <option value={2}>{t('profile.autoNoShowDays2')}</option>
+                    <option value={3}>{t('profile.autoNoShowDays3')}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {t('profile.autoNoShowCutoffTime')}
+                  </label>
+                  <input
+                    type="time"
+                    value={autoNoShowCutoffTime}
+                    onChange={(e) => setAutoNoShowCutoffTime(e.target.value)}
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Live sentence */}
+            <p className="text-[11px] text-slate-600 font-medium italic bg-slate-100/70 p-2.5 rounded-lg border border-slate-200">
+              {autoNoShowEnabled
+                ? (autoNoShowAfterDays === 0
+                    ? t('profile.autoNoShowLiveDay0', { time: autoNoShowCutoffTime })
+                    : autoNoShowAfterDays === 1
+                    ? t('profile.autoNoShowLiveDay1', { time: autoNoShowCutoffTime, days: autoNoShowAfterDays })
+                    : t('profile.autoNoShowLiveDays', { time: autoNoShowCutoffTime, days: autoNoShowAfterDays }))
+                : t('profile.autoNoShowDisabled')}
+            </p>
           </div>
 
           <div className="pt-3 border-t border-slate-100 flex justify-end">
