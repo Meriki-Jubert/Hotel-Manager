@@ -1,5 +1,5 @@
 import { Reservation, HotelConfig, AutoNoShowConfig } from '../types/hms';
-import { HotelNow } from './hotelClock';
+import { HotelNow, parseHHMM } from './hotelClock';
 
 export interface NoShowTarget {
   reservationId: string;
@@ -21,6 +21,7 @@ export function addDaysToDateString(dateStr: string, days: number): string {
 
 /**
  * Checks whether the moment (targetDate, targetTime) is strictly in the future compared to (nowDate, nowTime).
+ * Uses parseHHMM for minutes comparison.
  */
 export function isMomentFuture(
   targetDate: string,
@@ -30,11 +31,14 @@ export function isMomentFuture(
 ): boolean {
   if (targetDate > nowDate) return true;
   if (targetDate < nowDate) return false;
-  return targetTime > nowTime;
+  const targetMin = parseHHMM(targetTime) ?? 1439;
+  const nowMin = parseHHMM(nowTime) ?? 0;
+  return targetMin > nowMin;
 }
 
 /**
  * Checks whether the cutoff moment (targetDate, targetTime) has arrived or passed compared to (nowDate, nowTime).
+ * Uses parseHHMM for minutes comparison. An invalid targetTime falls back to '23:59' (1439 minutes).
  */
 export function hasCutoffPassed(
   targetDate: string,
@@ -44,7 +48,9 @@ export function hasCutoffPassed(
 ): boolean {
   if (targetDate < nowDate) return true;
   if (targetDate > nowDate) return false;
-  return nowTime >= targetTime;
+  const targetMin = parseHHMM(targetTime) ?? 1439;
+  const nowMin = parseHHMM(nowTime) ?? 0;
+  return nowMin >= targetMin;
 }
 
 /**
@@ -60,10 +66,13 @@ export function computeNoShows({
   reservations: Reservation[];
   hotelConfig: HotelConfig;
 }): NoShowTarget[] {
+  const rawCutoff = hotelConfig.autoNoShow?.cutoffTime;
+  const cutoffTime = (rawCutoff && parseHHMM(rawCutoff) !== null) ? rawCutoff : '23:59';
+
   const autoNoShowConfig: AutoNoShowConfig = {
     enabled: hotelConfig.autoNoShow?.enabled !== false,
     afterDays: typeof hotelConfig.autoNoShow?.afterDays === 'number' ? hotelConfig.autoNoShow.afterDays : 0,
-    cutoffTime: hotelConfig.autoNoShow?.cutoffTime || '23:59'
+    cutoffTime
   };
 
   if (!autoNoShowConfig.enabled) {

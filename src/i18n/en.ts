@@ -1844,6 +1844,7 @@ export const en = {
 
   // Keyed Check-Out messages
   'err.checkout.unauthorized': 'Unauthorized: Your role does not have check-out permissions.',
+  'err.checkout.onlyCheckedIn': 'Only currently checked-in guests can be checked out.',
   'err.checkout.splitInvalid': 'Invalid split payment configuration.',
   'err.checkout.amountExceedsBalance': 'Payment amount ({amount}) cannot exceed folio balance due ({balance}).',
   'msg.checkout.success': 'Room {number} checked out! Status flipped to DIRTY for Housekeeping turnover.',
@@ -1917,6 +1918,7 @@ export const en = {
   'profile.nightAuditReminderHint': 'Time (HH:MM) to warn if the business date transition is overdue',
   'profile.errReminderRange': 'Reminder minutes must be a whole number between 0 and 180.',
   'profile.errAuditTimeFormat': 'Night audit alert time must be in HH:MM format.',
+  'profile.errTimeFormat': 'Check-in and check-out times must be in valid HH:MM format.',
 
   // Live Clock & Alert Panel
   'navbar.hotelTime': 'Hotel time',

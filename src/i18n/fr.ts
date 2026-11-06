@@ -1846,6 +1846,7 @@ export const fr: Record<keyof typeof en, string> = {
 
   // Keyed Check-Out messages
   'err.checkout.unauthorized': 'Non autorisé : Votre rôle ne dispose pas des permissions de départ.',
+  'err.checkout.onlyCheckedIn': 'Seuls les clients actuellement enregistrés peuvent libérer la chambre.',
   'err.checkout.splitInvalid': 'Configuration de paiement fractionné invalide.',
   'err.checkout.amountExceedsBalance': 'Le montant du paiement ({amount}) ne peut pas dépasser le solde dû du folio ({balance}).',
   'msg.checkout.success': 'Chambre {number} libérée ! Le statut passe à À NETTOYER pour le ménage.',
@@ -1919,6 +1920,7 @@ export const fr: Record<keyof typeof en, string> = {
   'profile.nightAuditReminderHint': 'Heure (HH:MM) pour signaler un retard de la clôture comptable journalière',
   'profile.errReminderRange': 'Le rappel de départ doit être un nombre entier compris entre 0 et 180.',
   'profile.errAuditTimeFormat': 'L\'heure d\'alerte de clôture journalière doit être au format HH:MM.',
+  'profile.errTimeFormat': 'Les heures d\'arrivée et de départ doivent être au format valide HH:MM.',
 
   // Live Clock & Alert Panel
   'navbar.hotelTime': 'Heure hôtel',

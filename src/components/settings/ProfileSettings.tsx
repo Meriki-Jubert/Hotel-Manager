@@ -131,6 +131,11 @@ export const ProfileSettings: React.FC = () => {
       return;
     }
 
+    if (!parseHHMM(checkInTime) || !parseHHMM(checkOutTime)) {
+      setProfileError(t('profile.errTimeFormat'));
+      return;
+    }
+
     if (!parseHHMM(nightAuditReminderTime)) {
       setProfileError(t('profile.errAuditTimeFormat'));
       return;

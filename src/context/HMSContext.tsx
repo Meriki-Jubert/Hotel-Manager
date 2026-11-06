@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   RoomType,
   Room,
@@ -449,6 +449,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const defId = branches[0]?.id || 'branch-1';
     return raw.map((t) => (t.branchId ? t : { ...t, branchId: defId }));
   });
+
+  // Synchronous refs for same-moment duplicate prevention
+  const reservationsRef = useRef<Reservation[]>(allReservations);
+  reservationsRef.current = allReservations;
+
+  const transactionsRef = useRef<FolioTransaction[]>(allTransactions);
+  transactionsRef.current = allTransactions;
+
+  const roomsRef = useRef<Room[]>(allRooms);
+  roomsRef.current = allRooms;
+
+  // Same-tick guard for financial postings
+  const postingGuardRef = useRef<Set<string>>(new Set<string>());
 
   // Master Maintenance Tickets (Safe migration for missing branchId)
   const [allMaintenanceTickets, setAllMaintenanceTickets] = useState<MaintenanceTicket[]>(() => {
@@ -1169,7 +1182,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.checkin.unauthorized');
     }
 
-    const room = allRooms.find((r) => r.id === payload.roomId);
+    const room = roomsRef.current.find((r) => r.id === payload.roomId);
     if (!room) return fail('err.checkin.targetRoomNotFound');
     
     // Validate dates
@@ -1202,6 +1215,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!effectiveIdCard.trim()) {
       return fail('err.checkin.idCardRequired');
     }
+
+    // Synchronously claim room status in ref before async / setState
+    roomsRef.current = roomsRef.current.map((r) =>
+      r.id === room.id ? { ...r, status: 'occupied' } : r
+    );
 
     const targetBranchId = room.branchId || (activeBranchId !== 'all' ? activeBranchId : defaultBranchId);
 
@@ -1298,6 +1316,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
 
+    reservationsRef.current = [newReservation, ...reservationsRef.current];
+    transactionsRef.current = [...paymentTxs, ...transactionsRef.current];
+    roomsRef.current = roomsRef.current.map((r) =>
+      r.id === room.id
+        ? { ...r, status: 'occupied', currentReservationId: resId }
+        : r
+    );
+
     setAllReservations((prev) => [newReservation, ...prev]);
     setAllTransactions((prev) => [...paymentTxs, ...prev]);
 
@@ -1324,12 +1350,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     checkOutDate: string,
     excludeReservationId?: string
   ): boolean => {
-    const room = allRooms.find((r) => r.id === roomId);
+    const room = roomsRef.current.find((r) => r.id === roomId);
     if (!room || room.isActive === false) return false;
 
     const branchId = room.branchId || defaultBranchId;
-    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === branchId);
-    const branchReservations = allReservations.filter((res) => (res.branchId || defaultBranchId) === branchId);
+    const branchRooms = roomsRef.current.filter((r) => (r.branchId || defaultBranchId) === branchId);
+    const branchReservations = reservationsRef.current.filter((res) => (res.branchId || defaultBranchId) === branchId);
 
     const check = checkAvailability({
       branchId,
@@ -1666,7 +1692,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       feeOverrideReason?: string;
     }
   ): Result => {
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) return fail('err.res.notFound');
 
     // Only bookings with status 'reserved' can be cancelled or marked no-show
@@ -1714,8 +1740,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       feeOverriddenBy = currentUser?.name || 'Manager';
     }
 
+    // Immediately claim status synchronously in ref to prevent duplicate concurrent cancellations
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? { ...r, bookingStatus: 'cancelled' } : r
+    );
+
     // Sum non-voided payments/deposits on this folio using shared getFolioTotals
-    const paid = getFolioTotals(allTransactions, res.id).netPaid;
+    const paid = getFolioTotals(transactionsRef.current, res.id).netPaid;
 
     const newTransactions: FolioTransaction[] = [];
 
@@ -1772,51 +1803,47 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Void the reservation's room_charge and discount transactions using the existing voided flag
-    setAllTransactions((prev) => {
-      const updated = prev.map((tx) =>
-        tx.reservationId === res.id && (tx.category === 'room_charge' || tx.category === 'discount') && !tx.voided
-          ? { ...tx, voided: true, voidedBy: staffName, voidReason: 'Reservation cancelled' }
-          : tx
-      );
-      return [...newTransactions, ...updated];
-    });
-
-    // Store on the reservation: settlement, refundAmount, refundMethod, cancelledAt, cancelledBy, cancellationReason, cancellationFee
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === reservationId
-          ? {
-              ...r,
-              bookingStatus: 'cancelled',
-              isNoShow: Boolean(isNoShow),
-              cancelledAt: timestamp,
-              cancelledBy: staffName,
-              cancellationReason: fullReason,
-              cancellationFee: fee,
-              settlement: finalSettlement,
-              refundAmount: actualRefundAmount,
-              refundMethod: chosenRefundMethod,
-              suggestedFee: calculatedSuggestedFee,
-              policyRuleText: calculatedRuleText,
-              feeOverrideReason,
-              feeOverriddenBy
-            }
-          : r
-      )
+    const updatedTxs = transactionsRef.current.map((tx) =>
+      tx.reservationId === res.id && (tx.category === 'room_charge' || tx.category === 'discount') && !tx.voided
+        ? { ...tx, voided: true, voidedBy: staffName, voidReason: 'Reservation cancelled' }
+        : tx
     );
+    const finalTransactions = [...newTransactions, ...updatedTxs];
+    transactionsRef.current = finalTransactions;
+    setAllTransactions(finalTransactions);
+
+    const updatedRes: Reservation = {
+      ...res,
+      bookingStatus: 'cancelled',
+      isNoShow: Boolean(isNoShow),
+      cancelledAt: timestamp,
+      cancelledBy: staffName,
+      cancellationReason: fullReason,
+      cancellationFee: fee,
+      settlement: finalSettlement,
+      refundAmount: actualRefundAmount,
+      refundMethod: chosenRefundMethod,
+      suggestedFee: calculatedSuggestedFee,
+      policyRuleText: calculatedRuleText,
+      feeOverrideReason,
+      feeOverriddenBy
+    };
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? updatedRes : r
+    );
+    setAllReservations(reservationsRef.current);
 
     // Release any room holding this reservation
-    setAllRooms((prev) =>
-      prev.map((room) =>
-        room.currentReservationId === reservationId
-          ? {
-              ...room,
-              currentReservationId: undefined,
-              status: room.status === 'reserved' ? 'available' : room.status
-            }
-          : room
-      )
+    roomsRef.current = roomsRef.current.map((room) =>
+      room.currentReservationId === reservationId
+        ? {
+            ...room,
+            currentReservationId: undefined,
+            status: room.status === 'reserved' ? 'available' : room.status
+          }
+        : room
     );
+    setAllRooms(roomsRef.current);
 
     logStaffActivity(
       isNoShow ? 'Reservation No-Show' : 'Cancel Reservation',
@@ -1834,7 +1861,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const convertReservationToCheckIn = (
     payload: ConvertToCheckInPayload
   ): Result => {
-    const res = allReservations.find((r) => r.id === payload.reservationId);
+    const res = reservationsRef.current.find((r) => r.id === payload.reservationId);
     if (!res) return fail('err.res.notFound');
     if (res.bookingStatus !== 'reserved') {
       return fail('err.checkin.onlyReserved');
@@ -1845,7 +1872,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.checkin.earlyBlockedRes', { date: res.checkInDate, today: businessDate });
     }
 
-    const room = allRooms.find((r) => r.id === payload.roomId);
+    const room = roomsRef.current.find((r) => r.id === payload.roomId);
     if (!room) return fail('err.checkin.targetRoomNotFound');
     if (room.isActive === false) return fail('err.checkin.roomDeactivated', { number: room.roomNumber });
     if (['occupied', 'dirty', 'cleaning', 'maintenance'].includes(room.status)) {
@@ -1863,6 +1890,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (payload.idCardNumber && payload.idCardNumber.trim()) {
       setGuests((prev) => prev.map((g) => g.id === res.guestId ? { ...g, idCardNumber: payload.idCardNumber!.trim() } : g));
     }
+
+    // Immediately claim status synchronously in ref before any setState
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === res.id ? { ...r, bookingStatus: 'checked_in' } : r
+    );
+    roomsRef.current = roomsRef.current.map((r) =>
+      r.id === room.id ? { ...r, status: 'occupied', currentReservationId: res.id } : r
+    );
 
     const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
     const staffName = currentUser?.name || 'Staff';
@@ -1884,27 +1919,26 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp,
         recordedBy: staffName
       };
-      setAllTransactions((prev) => [depositTx, ...prev]);
+      transactionsRef.current = [depositTx, ...transactionsRef.current];
+      setAllTransactions(transactionsRef.current);
     }
 
     const newAmountPaid = res.amountPaid + extraDeposit;
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === res.id
-          ? {
-              ...r,
-              roomId: room.id,
-              roomNumber: room.roomNumber,
-              bookingStatus: 'checked_in',
-              checkedInAt: timestamp,
-              checkedInBy: staffName,
-              amountPaid: newAmountPaid,
-              paymentStatus: newAmountPaid >= r.totalAmount ? 'paid' : newAmountPaid > 0 ? 'partial' : 'unpaid'
-            }
-          : r
-      )
+    const updatedRes: Reservation = {
+      ...res,
+      roomId: room.id,
+      roomNumber: room.roomNumber,
+      bookingStatus: 'checked_in',
+      checkedInAt: timestamp,
+      checkedInBy: staffName,
+      amountPaid: newAmountPaid,
+      paymentStatus: newAmountPaid >= res.totalAmount ? 'paid' : newAmountPaid > 0 ? 'partial' : 'unpaid'
+    };
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === res.id ? updatedRes : r
     );
+    setAllReservations(reservationsRef.current);
 
     setAllRooms((prev) =>
       prev.map((r) =>
@@ -1933,14 +1967,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.checkout.unauthorized');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) return fail('err.res.notFound');
+
+    if (res.bookingStatus !== 'checked_in') {
+      return fail('err.checkout.onlyCheckedIn');
+    }
 
     const targetBranchId = res.branchId || defaultBranchId;
     let totalSettled = 0;
+    let newTransactions: FolioTransaction[] = [];
 
     if (splitLines && splitLines.length > 0) {
-      const totals = getFolioTotals(allTransactions, res.id);
+      const totals = getFolioTotals(transactionsRef.current, res.id);
       const balanceDue = Math.max(0, totals.balance);
       totalSettled = splitLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
 
@@ -1961,7 +2000,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const splitTxs: FolioTransaction[] = splitLines.map((line, idx) => ({
+      newTransactions = splitLines.map((line, idx) => ({
         id: `tx-${Date.now()}-stl-${idx}`,
         branchId: targetBranchId,
         reservationId: res.id,
@@ -1977,7 +2016,6 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
         recordedBy: currentUser?.name || 'Front Desk'
       }));
-      setAllTransactions((prev) => [...splitTxs, ...prev]);
     } else if (settlementAmount && settlementAmount > 0 && paymentMethod) {
       totalSettled = settlementAmount;
       const settlementTx: FolioTransaction = {
@@ -1995,37 +2033,40 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
         recordedBy: currentUser?.name || 'Front Desk'
       };
-      setAllTransactions((prev) => [settlementTx, ...prev]);
+      newTransactions = [settlementTx];
     }
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === reservationId
-          ? {
-              ...r,
-              bookingStatus: 'checked_out',
-              keyReturned: true,
-              amountPaid: r.amountPaid + totalSettled,
-              paymentStatus: 'paid',
-              checkedOutAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-            }
-          : r
-      )
+    // Claim booking status synchronously in ref immediately before any setState
+    const updatedRes: Reservation = {
+      ...res,
+      bookingStatus: 'checked_out',
+      keyReturned: true,
+      amountPaid: res.amountPaid + totalSettled,
+      paymentStatus: 'paid',
+      checkedOutAt: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+    };
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? updatedRes : r
     );
+    setAllReservations(reservationsRef.current);
+
+    if (newTransactions.length > 0) {
+      transactionsRef.current = [...newTransactions, ...transactionsRef.current];
+      setAllTransactions(transactionsRef.current);
+    }
 
     // Turnover room to dirty for Housekeeping
-    setAllRooms((prev) =>
-      prev.map((room) =>
-        room.id === res.roomId
-          ? {
-              ...room,
-              status: 'dirty',
-              currentReservationId: undefined,
-              maintenanceNote: 'Turnover cleaning required after guest checkout.'
-            }
-          : room
-      )
+    roomsRef.current = roomsRef.current.map((room) =>
+      room.id === res.roomId
+        ? {
+            ...room,
+            status: 'dirty',
+            currentReservationId: undefined,
+            maintenanceNote: 'Turnover cleaning required after guest checkout.'
+          }
+        : room
     );
+    setAllRooms(roomsRef.current);
 
     notify('msg.checkout.success', { number: res.roomNumber }, 'success');
     return { success: true };
@@ -2036,7 +2077,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.checkout.autoDisabled');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
@@ -2047,7 +2088,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Balance check: refuse unless the balance is exactly 0
-    const totals = getFolioTotals(allTransactions, res.id);
+    const totals = getFolioTotals(transactionsRef.current, res.id);
     if (totals.balance > 0) {
       return fail('err.checkout.balanceRemaining');
     }
@@ -2057,33 +2098,31 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const hotelNow = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === reservationId
-          ? {
-              ...r,
-              bookingStatus: 'checked_out',
-              keyReturned: false,
-              paymentStatus: 'paid',
-              checkedOutAt: `${hotelNow.date} ${hotelNow.time}`
-            }
-          : r
-      )
+    // Immediately claim status in ref
+    const updatedRes: Reservation = {
+      ...res,
+      bookingStatus: 'checked_out',
+      keyReturned: false,
+      paymentStatus: 'paid',
+      checkedOutAt: `${hotelNow.date} ${hotelNow.time}`
+    };
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? updatedRes : r
     );
+    setAllReservations(reservationsRef.current);
 
     // Room becomes dirty for Housekeeping
-    setAllRooms((prev) =>
-      prev.map((room) =>
-        room.id === res.roomId
-          ? {
-              ...room,
-              status: 'dirty',
-              currentReservationId: undefined,
-              maintenanceNote: 'Turnover cleaning required after guest checkout.'
-            }
-          : room
-      )
+    roomsRef.current = roomsRef.current.map((room) =>
+      room.id === res.roomId
+        ? {
+            ...room,
+            status: 'dirty',
+            currentReservationId: undefined,
+            maintenanceNote: 'Turnover cleaning required after guest checkout.'
+          }
+        : room
     );
+    setAllRooms(roomsRef.current);
 
     logStaffActivity(
       'Auto check-out (system)',
@@ -2140,10 +2179,15 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const autoMarkNoShow = (reservationId: string): Result => {
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res || res.bookingStatus !== 'reserved') {
       return { success: true };
     }
+
+    // Immediately claim in ref
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? { ...r, bookingStatus: 'cancelled', isNoShow: true, autoNoShow: true } : r
+    );
 
     const hotelNow = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
     const targetBranchId = res.branchId || defaultBranchId;
@@ -2158,66 +2202,61 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fee = feeCalc.suggestedFee;
 
     // Void the room charge and any discount entries (voidReason 'Reservation cancelled')
-    setAllTransactions((prev) => {
-      let updated = prev.map((tx) =>
-        tx.reservationId === res.id && (tx.category === 'room_charge' || tx.category === 'discount') && !tx.voided
-          ? { ...tx, voided: true, voidedBy: 'System', voidReason: 'Reservation cancelled' }
-          : tx
-      );
+    let updatedTxs = transactionsRef.current.map((tx) =>
+      tx.reservationId === res.id && (tx.category === 'room_charge' || tx.category === 'discount') && !tx.voided
+        ? { ...tx, voided: true, voidedBy: 'System', voidReason: 'Reservation cancelled' }
+        : tx
+    );
 
-      // Post the fee from calculateCancellationFee with isNoShow true as category 'no_show_fee'
-      if (fee > 0) {
-        const feeTx: FolioTransaction = {
-          id: `tx-${Date.now()}-nsfee-${Math.floor(Math.random() * 1000)}`,
-          branchId: targetBranchId,
-          reservationId: res.id,
-          guestId: res.guestId,
-          roomNumber: res.roomNumber,
-          category: 'no_show_fee',
-          description: `No-Show Fee (${feeCalc.ruleText || 'Policy'})`,
-          amount: fee,
-          type: 'charge',
-          timestamp: `${hotelNow.date} ${hotelNow.time}`,
-          recordedBy: 'System'
-        };
-        updated = [feeTx, ...updated];
-      }
-
-      return updated;
-    });
+    // Post the fee from calculateCancellationFee with isNoShow true as category 'no_show_fee'
+    if (fee > 0) {
+      const feeTx: FolioTransaction = {
+        id: `tx-${Date.now()}-nsfee-${Math.floor(Math.random() * 1000)}`,
+        branchId: targetBranchId,
+        reservationId: res.id,
+        guestId: res.guestId,
+        roomNumber: res.roomNumber,
+        category: 'no_show_fee',
+        description: `No-Show Fee (${feeCalc.ruleText || 'Policy'})`,
+        amount: fee,
+        type: 'charge',
+        timestamp: `${hotelNow.date} ${hotelNow.time}`,
+        recordedBy: 'System'
+      };
+      updatedTxs = [feeTx, ...updatedTxs];
+    }
+    transactionsRef.current = updatedTxs;
+    setAllTransactions(updatedTxs);
 
     // Uses settlement 'credit' (never posts a refund), sets bookingStatus 'cancelled', isNoShow true, autoNoShow true, cancelledBy 'System', reason 'No-show (automatic)'
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === reservationId
-          ? {
-              ...r,
-              bookingStatus: 'cancelled',
-              isNoShow: true,
-              autoNoShow: true,
-              cancelledBy: 'System',
-              cancellationReason: 'No-show (automatic)',
-              cancelledAt: `${hotelNow.date} ${hotelNow.time}`,
-              cancellationFee: fee,
-              settlement: 'credit',
-              policyRuleText: feeCalc.ruleText
-            }
-          : r
-      )
+    const updatedRes: Reservation = {
+      ...res,
+      bookingStatus: 'cancelled',
+      isNoShow: true,
+      autoNoShow: true,
+      cancelledBy: 'System',
+      cancellationReason: 'No-show (automatic)',
+      cancelledAt: `${hotelNow.date} ${hotelNow.time}`,
+      cancellationFee: fee,
+      settlement: 'credit',
+      policyRuleText: feeCalc.ruleText
+    };
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? updatedRes : r
     );
+    setAllReservations(reservationsRef.current);
 
     // Releases the room
-    setAllRooms((prev) =>
-      prev.map((room) =>
-        room.currentReservationId === res.id
-          ? {
-              ...room,
-              currentReservationId: undefined,
-              status: room.status === 'reserved' ? 'available' : room.status
-            }
-          : room
-      )
+    roomsRef.current = roomsRef.current.map((room) =>
+      room.currentReservationId === res.id
+        ? {
+            ...room,
+            currentReservationId: undefined,
+            status: room.status === 'reserved' ? 'available' : room.status
+          }
+        : room
     );
+    setAllRooms(roomsRef.current);
 
     logStaffActivity(
       'Auto no-show (system)',
@@ -2238,7 +2277,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.reinstate.reasonMinLength');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
@@ -2248,8 +2287,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const targetBranchId = res.branchId || defaultBranchId;
-    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
-    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchRooms = roomsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = reservationsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
 
     // Re-run checkAvailability for the booked dates and refuse with a clear keyed message if the room or room type is no longer free
     const availCheck = checkAvailability({
@@ -2267,50 +2306,52 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail(availCheck.reasonKey || 'err.reinstate.roomNotAvailable', availCheck.reasonVars);
     }
 
-    // Un-voids the room charge and discount entries that were voided with the reason 'Reservation cancelled'
-    // Voids the no_show_fee charge (voidReason 'No-show reinstated')
-    setAllTransactions((prev) =>
-      prev.map((tx) => {
-        if (tx.reservationId !== res.id) return tx;
-        if (tx.voided && tx.voidReason === 'Reservation cancelled') {
-          return { ...tx, voided: false, voidedBy: undefined, voidReason: undefined };
-        }
-        if (tx.category === 'no_show_fee' && !tx.voided) {
-          return { ...tx, voided: true, voidedBy: currentUser.name, voidReason: 'No-show reinstated' };
-        }
-        return tx;
-      })
+    // Immediately claim status in ref so duplicate calls fail
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? { ...r, bookingStatus: 'reserved', autoNoShow: undefined, isNoShow: undefined } : r
     );
 
+    // Un-voids the room charge and discount entries that were voided with the reason 'Reservation cancelled'
+    // Voids the no_show_fee charge (voidReason 'No-show reinstated')
+    const updatedTxs = transactionsRef.current.map((tx) => {
+      if (tx.reservationId !== res.id) return tx;
+      if (tx.voided && tx.voidReason === 'Reservation cancelled') {
+        return { ...tx, voided: false, voidedBy: undefined, voidReason: undefined };
+      }
+      if (tx.category === 'no_show_fee' && !tx.voided) {
+        return { ...tx, voided: true, voidedBy: currentUser.name, voidReason: 'No-show reinstated' };
+      }
+      return tx;
+    });
+    transactionsRef.current = updatedTxs;
+    setAllTransactions(updatedTxs);
+
     // Sets the status back to 'reserved', clears isNoShow/autoNoShow/cancelledAt/cancelledBy
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === reservationId
-          ? {
-              ...r,
-              bookingStatus: 'reserved',
-              isNoShow: undefined,
-              autoNoShow: undefined,
-              cancelledAt: undefined,
-              cancelledBy: undefined,
-              cancellationReason: undefined,
-              cancellationFee: undefined,
-              settlement: undefined,
-              policyRuleText: undefined
-            }
-          : r
-      )
+    const updatedRes: Reservation = {
+      ...res,
+      bookingStatus: 'reserved',
+      isNoShow: undefined,
+      autoNoShow: undefined,
+      cancelledAt: undefined,
+      cancelledBy: undefined,
+      cancellationReason: undefined,
+      cancellationFee: undefined,
+      settlement: undefined,
+      policyRuleText: undefined
+    };
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId ? updatedRes : r
     );
+    setAllReservations(reservationsRef.current);
 
     // Reclaim room if available
     if (res.roomId) {
-      setAllRooms((prev) =>
-        prev.map((room) =>
-          room.id === res.roomId && room.status === 'available'
-            ? { ...room, status: 'reserved', currentReservationId: res.id }
-            : room
-        )
+      roomsRef.current = roomsRef.current.map((room) =>
+        room.id === res.roomId && room.status === 'available'
+          ? { ...room, status: 'reserved', currentReservationId: res.id }
+          : room
       );
+      setAllRooms(roomsRef.current);
     }
 
     logStaffActivity(

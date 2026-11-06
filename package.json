@@ -10,6 +10,7 @@
     "check:i18n": "tsx scripts/check-i18n.ts",
     "check:time": "tsx scripts/check-timed-events.ts",
     "check:noshow": "tsx scripts/check-noshow.ts",
+    "test": "vitest run",
     "preview": "vite preview --port 3000"
   },
   "dependencies": {
@@ -27,10 +28,12 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "jsdom": "^31.0.0",
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^5.1.0"
   }
 }
