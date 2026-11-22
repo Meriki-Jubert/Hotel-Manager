@@ -111,12 +111,24 @@ export const RestaurantPOS: React.FC = () => {
   };
 
   const updateQuantity = (itemId: string, delta: number) => {
+    if (typeof delta !== 'number' || isNaN(delta) || !Number.isInteger(delta)) {
+      showNotification(t('err.pos.invalidQuantity'), 'warning');
+      return;
+    }
+
+    const currentEntry = cart.find((c) => c.item.id === itemId);
+    if (!currentEntry) return;
+    const newQty = currentEntry.quantity + delta;
+    if (!Number.isInteger(newQty) || newQty < 0) {
+      showNotification(t('err.pos.invalidQuantity'), 'warning');
+      return;
+    }
+
     if (delta > 0) {
       const target = posItems.find((p) => p.id === itemId);
-      const currentEntry = cart.find((c) => c.item.id === itemId);
-      if (target?.trackStock && currentEntry) {
+      if (target?.trackStock) {
         const availableQty = stockById.get(itemId)?.level ?? 0;
-        if (currentEntry.quantity + delta > availableQty) {
+        if (newQty > availableQty) {
           showNotification(
             t('pos.onlyAvailableNotify', { available: availableQty, name: target.name }),
             'warning'
@@ -130,8 +142,8 @@ export const RestaurantPOS: React.FC = () => {
       prev
         .map((i) => {
           if (i.item.id === itemId) {
-            const newQty = i.quantity + delta;
-            return newQty > 0 ? { ...i, quantity: newQty } : null;
+            const nextQty = i.quantity + delta;
+            return nextQty > 0 ? { ...i, quantity: nextQty } : null;
           }
           return i;
         })
@@ -145,6 +157,18 @@ export const RestaurantPOS: React.FC = () => {
 
   const handleProcessOrder = () => {
     if (cart.length === 0) return;
+
+    const hasInvalidQty = cart.some(
+      (entry) =>
+        typeof entry.quantity !== 'number' ||
+        isNaN(entry.quantity) ||
+        !Number.isInteger(entry.quantity) ||
+        entry.quantity <= 0
+    );
+    if (hasInvalidQty) {
+      showNotification(t('err.pos.invalidQuantity'), 'warning');
+      return;
+    }
 
     let reservationId: string | undefined;
     if (checkoutMode === 'room') {

@@ -2029,7 +2029,9 @@ export const fr: Record<keyof typeof en, string> = {
   'err.stock.insufficient': 'Stock insuffisant pour : {items}',
   'msg.stock.recorded': 'Mouvement de stock enregistré ({qty}) pour {name}',
   'msg.stock.countSaved': 'Inventaire physique enregistré pour {count} article(s).',
+  'err.pos.unauthorized': 'Non autorisé : Votre rôle ne permet pas d\'encaisser des commandes PDV.',
   'err.pos.emptyOrder': 'Le ticket de commande est vide.',
+  'err.pos.invalidQuantity': 'La quantité de chaque article commandé doit être un nombre entier supérieur à 0.',
   'err.pos.selectOccupiedRoom': 'Veuillez sélectionner une chambre occupée active.',
   'err.pos.itemOutOfStock': 'Commande impossible : « {name} » est actuellement en rupture de stock.',
 

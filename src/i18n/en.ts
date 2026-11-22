@@ -2027,7 +2027,9 @@ export const en = {
   'err.stock.insufficient': 'Insufficient stock for: {items}',
   'msg.stock.recorded': 'Recorded stock movement ({qty}) for {name}',
   'msg.stock.countSaved': 'Stock count saved for {count} item(s).',
+  'err.pos.unauthorized': 'Unauthorized: Your role cannot process POS orders.',
   'err.pos.emptyOrder': 'Order ticket is empty.',
+  'err.pos.invalidQuantity': 'Each order item quantity must be a whole number greater than 0.',
   'err.pos.selectOccupiedRoom': 'Please select an active occupied guest room.',
   'err.pos.itemOutOfStock': 'Cannot place order: "{name}" is currently out of stock.',
 

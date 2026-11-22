@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useHMS } from '../context/HMSContext';
 import { PosItem, StockMovementType } from '../types/hms';
 import { getStockLevels, StockLevelRow } from '../utils/stock';
@@ -61,6 +61,8 @@ export const InventoryView: React.FC = () => {
   const [moveQtyRaw, setMoveQtyRaw] = useState<string>('1');
   const [moveReason, setMoveReason] = useState<string>('');
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [isSubmittingMove, setIsSubmittingMove] = useState(false);
+  const moveSubmittingRef = useRef(false);
 
   // History modal state
   const [historyItem, setHistoryItem] = useState<PosItem | null>(null);
@@ -69,6 +71,8 @@ export const InventoryView: React.FC = () => {
   const [showCountModal, setShowCountModal] = useState(false);
   const [countedMap, setCountedMap] = useState<Record<string, string>>({});
   const [countError, setCountError] = useState<string | null>(null);
+  const [isSubmittingCount, setIsSubmittingCount] = useState(false);
+  const countSubmittingRef = useRef(false);
 
   // Add / Edit item modal state
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -130,16 +134,22 @@ export const InventoryView: React.FC = () => {
     setMoveQtyRaw(mode === 'adjust' ? '' : '1');
     setMoveReason('');
     setMoveError(null);
+    moveSubmittingRef.current = false;
+    setIsSubmittingMove(false);
   };
 
   const handleMovementSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!movementModal) return;
+    if (!movementModal || moveSubmittingRef.current || isSubmittingMove) return;
+    moveSubmittingRef.current = true;
+    setIsSubmittingMove(true);
     setMoveError(null);
 
     const trimmed = moveQtyRaw.trim();
     if (!/^-?\d+$/.test(trimmed)) {
       setMoveError(t('err.stock.quantityWhole'));
+      moveSubmittingRef.current = false;
+      setIsSubmittingMove(false);
       return;
     }
     const parsedQty = parseInt(trimmed, 10);
@@ -152,6 +162,8 @@ export const InventoryView: React.FC = () => {
     );
     if (!res.success) {
       setMoveError(resultMessage(t, res, 'err.stock.invalidMovement'));
+      moveSubmittingRef.current = false;
+      setIsSubmittingMove(false);
       return;
     }
     setMovementModal(null);
@@ -167,11 +179,16 @@ export const InventoryView: React.FC = () => {
     }
     setCountedMap(initial);
     setCountError(null);
+    countSubmittingRef.current = false;
+    setIsSubmittingCount(false);
     setShowCountModal(true);
   };
 
   const handleApplyCount = (e: React.FormEvent) => {
     e.preventDefault();
+    if (countSubmittingRef.current || isSubmittingCount) return;
+    countSubmittingRef.current = true;
+    setIsSubmittingCount(true);
     setCountError(null);
 
     const trackedItems = posItems.filter((i) => i.trackStock);
@@ -181,6 +198,8 @@ export const InventoryView: React.FC = () => {
       const raw = (countedMap[item.id] ?? '').trim();
       if (!/^\d+$/.test(raw)) {
         setCountError(t('err.stock.openingNonNegative'));
+        countSubmittingRef.current = false;
+        setIsSubmittingCount(false);
         return;
       }
       const counted = parseInt(raw, 10);
@@ -193,6 +212,8 @@ export const InventoryView: React.FC = () => {
 
     if (pendingDeltas.length === 0) {
       setCountError(t('inventory.countNoChanges'));
+      countSubmittingRef.current = false;
+      setIsSubmittingCount(false);
       return;
     }
 
@@ -206,6 +227,8 @@ export const InventoryView: React.FC = () => {
       );
       if (!res.success) {
         setCountError(resultMessage(t, res, 'err.stock.invalidMovement'));
+        countSubmittingRef.current = false;
+        setIsSubmittingCount(false);
         return;
       }
     }
@@ -671,7 +694,8 @@ export const InventoryView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl cursor-pointer"
+                  disabled={isSubmittingMove}
+                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl cursor-pointer"
                 >
                   {t('inventory.saveMovementBtn')}
                 </button>
@@ -874,8 +898,8 @@ export const InventoryView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={posItems.filter((i) => i.trackStock).length === 0}
-                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl cursor-pointer"
+                  disabled={isSubmittingCount || posItems.filter((i) => i.trackStock).length === 0}
+                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl cursor-pointer"
                 >
                   {t('inventory.countSaveBtn')}
                 </button>

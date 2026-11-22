@@ -3954,6 +3954,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail(key, validation.errorVars);
     }
 
+    const normalizedReason = (reason || '').trim();
+    const guardKey = `stockMove|${targetBranchId}|${itemId}|${type}|${quantity}|${normalizedReason}`;
+    if (postingGuardRef.current.has(guardKey)) {
+      return { success: true };
+    }
+    postingGuardRef.current.add(guardKey);
+    setTimeout(() => postingGuardRef.current.delete(guardKey), 0);
+
     const signedQty = type === 'waste' ? -Math.abs(quantity) : quantity;
     const now = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
     const movement: StockMovement = {
@@ -3962,7 +3970,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       itemId,
       type,
       quantity: signedQty,
-      reason: reason?.trim() || undefined,
+      reason: normalizedReason || undefined,
       createdAt: `${now.date} ${now.time}`,
       recordedBy: currentUser.name
     };
@@ -3989,8 +3997,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.folio.ownerNoCharges');
     }
     if (!currentUser || !['front_desk', 'manager'].includes(currentUser.role)) {
-      notify('err.stock.unauthorized', undefined, 'warning');
-      return fail('err.stock.unauthorized');
+      notify('err.pos.unauthorized', undefined, 'warning');
+      return fail('err.pos.unauthorized');
     }
 
     const targetBranchId = payload.branchId || activeBranchId;
@@ -4009,8 +4017,11 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const descParts: string[] = [];
 
     for (const line of payload.lines) {
-      const qty = Number(line.qty) || 0;
-      if (qty <= 0) continue;
+      const qty = line.qty;
+      if (typeof qty !== 'number' || isNaN(qty) || !Number.isInteger(qty) || qty <= 0) {
+        notify('err.pos.invalidQuantity', undefined, 'warning');
+        return fail('err.pos.invalidQuantity');
+      }
       const item = itemById.get(line.itemId);
       if (!item) {
         return fail('err.menu.notFound');
