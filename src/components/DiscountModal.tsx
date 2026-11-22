@@ -40,6 +40,7 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMsg(null);
 
     if (chargesTotal <= 0) {
@@ -64,11 +65,11 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
 
     setIsSubmitting(true);
     const result = applyDiscount(reservation.id, discountType, Number(value), reason.trim());
-    setIsSubmitting(false);
 
     if (result.success) {
       onClose();
     } else {
+      setIsSubmitting(false);
       setErrorMsg(resultMessage(t, result, 'discountModal.errFail'));
     }
   };

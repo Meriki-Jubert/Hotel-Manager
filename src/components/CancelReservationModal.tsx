@@ -74,6 +74,7 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setErrorMsg(null);
 
     if (!reason.trim()) {
@@ -114,13 +115,15 @@ export const CancelReservationModal: React.FC<CancelReservationModalProps> = ({
 
       if (!res.success) {
         setErrorMsg(resultMessage(t, res, 'cancelRes.errFail'));
+        setSubmitting(false);
         return;
       }
 
       if (onSuccess) onSuccess();
       onClose();
-    } finally {
+    } catch (err) {
       setSubmitting(false);
+      throw err;
     }
   };
 

@@ -87,6 +87,8 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payMethod, setPayMethod] = useState<PaymentMethod>('momo');
   const [payRef, setPayRef] = useState('');
+  const [isSubmittingCharge, setIsSubmittingCharge] = useState(false);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   // Transactions for this reservation
   const folioTxs = transactions.filter((t) => t.reservationId === reservation.id);
@@ -109,8 +111,10 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
 
   const handleCreateCharge = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingCharge) return;
     if (!chargeDesc.trim() || chargeAmount <= 0) return;
 
+    setIsSubmittingCharge(true);
     addFolioCharge({
       reservationId: reservation.id,
       guestId: reservation.guestId,
@@ -146,12 +150,15 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
 
   const handleCreatePayment = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingPayment) return;
     setSplitError(null);
 
     if (payAmount <= 0) {
       setSplitError(t('guestFolio.errAmountPositive'));
       return;
     }
+
+    setIsSubmittingPayment(true);
 
     if (isSplitPayment) {
       const res = recordSplitPayment(
@@ -161,6 +168,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
       );
 
       if (!res.success) {
+        setIsSubmittingPayment(false);
         setSplitError(resultMessage(t, res, 'guestFolio.errSplitFail'));
         return;
       }
@@ -413,6 +421,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     onClick={() => {
                       setShowAddCharge(!showAddCharge);
                       setShowAddPayment(false);
+                      setIsSubmittingCharge(false);
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors cursor-pointer"
                   >
@@ -424,6 +433,7 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     onClick={() => {
                       setShowAddPayment(!showAddPayment);
                       setShowAddCharge(false);
+                      setIsSubmittingPayment(false);
                       setPayAmount(balance > 0 ? balance : 10000);
                       const initialAmt = balance > 0 ? balance : 10000;
                       const half = Math.round(initialAmt / 2);
@@ -510,7 +520,8 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                   <div className="flex justify-end">
                     <button
                       type="submit"
-                      className="px-4 py-1.5 text-xs font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+                      disabled={isSubmittingCharge}
+                      className="px-4 py-1.5 text-xs font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t('guestFolio.confirmChargeBtn')}
                     </button>
@@ -733,13 +744,15 @@ export const GuestFolioModal: React.FC<GuestFolioModalProps> = ({ reservation, o
                     <button
                       type="button"
                       onClick={() => setShowAddPayment(false)}
-                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                      disabled={isSubmittingPayment}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer disabled:opacity-50"
                     >
                       {t('common.cancel')}
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-1.5 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 shadow-xs cursor-pointer"
+                      disabled={isSubmittingPayment}
+                      className="px-4 py-1.5 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSplitPayment ? t('guestFolio.recordSplitPaymentBtn') : t('guestFolio.recordPaymentBtn')}
                     </button>

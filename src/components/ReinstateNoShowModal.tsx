@@ -25,6 +25,7 @@ export const ReinstateNoShowModal: React.FC<ReinstateNoShowModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError(null);
 
     if (reason.trim().length < 5) {
@@ -34,10 +35,10 @@ export const ReinstateNoShowModal: React.FC<ReinstateNoShowModalProps> = ({
 
     setIsSubmitting(true);
     const res = reinstateNoShow(reservation.id, reason.trim());
-    setIsSubmitting(false);
 
     if (!res.success) {
       setError(resultMessage(t, res, 'err.reinstate.roomNotAvailable'));
+      setIsSubmitting(false);
       return;
     }
 

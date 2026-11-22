@@ -56,6 +56,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
   const [keyReturned, setKeyReturned] = useState(true);
   const [minibarChecked, setMinibarChecked] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddSplitLine = () => {
     setSplitLines((prev) => [
@@ -76,6 +77,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
   };
 
   const handleCheckout = () => {
+    if (isSubmitting) return;
     setErrorMsg(null);
     if (!keyReturned) {
       setErrorMsg(t('checkOut.errKeyRequired'));
@@ -93,6 +95,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
         return;
       }
 
+      setIsSubmitting(true);
       const res = checkOutGuest(
         reservation.id,
         undefined,
@@ -103,11 +106,13 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
       if (res.success) {
         onSuccess();
       } else {
+        setIsSubmitting(false);
         setErrorMsg(resultMessage(t, res, 'checkOut.errFail'));
       }
       return;
     }
 
+    setIsSubmitting(true);
     const res = checkOutGuest(
       reservation.id,
       remainingBalance > 0 ? settlementMethod : undefined,
@@ -117,6 +122,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
     if (res.success) {
       onSuccess();
     } else {
+      setIsSubmitting(false);
       setErrorMsg(resultMessage(t, res, 'checkOut.errFail'));
     }
   };
@@ -401,14 +407,16 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
             >
               {t('common.cancel')}
             </button>
             <button
               type="button"
               onClick={handleCheckout}
-              className="px-5 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-md shadow-rose-700/20 flex items-center gap-2 transition-all hover:scale-[1.01] cursor-pointer"
+              disabled={isSubmitting}
+              className="px-5 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg shadow-md shadow-rose-700/20 flex items-center gap-2 transition-all hover:scale-[1.01] cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>{t('checkOut.confirmBtn')}</span>

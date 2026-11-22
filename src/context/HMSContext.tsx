@@ -1430,12 +1430,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activeBranchId !== 'all'
         ? activeBranchId
         : payload.roomId
-        ? (allRooms.find((r) => r.id === payload.roomId)?.branchId || defaultBranchId)
+        ? (roomsRef.current.find((r) => r.id === payload.roomId)?.branchId || defaultBranchId)
         : defaultBranchId;
 
     let assignedRoom: Room | undefined;
     if (payload.roomId) {
-      assignedRoom = allRooms.find(
+      assignedRoom = roomsRef.current.find(
         (r) => r.id === payload.roomId && r.branchId === targetBranchId && r.isActive !== false
       );
       if (!assignedRoom) {
@@ -1443,8 +1443,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
-    const branchReservations = allReservations.filter((res) => (res.branchId || defaultBranchId) === targetBranchId);
+    const branchRooms = roomsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = reservationsRef.current.filter((res) => (res.branchId || defaultBranchId) === targetBranchId);
 
     const availCheck = checkAvailability({
       branchId: targetBranchId,
@@ -1560,8 +1560,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
 
-    setAllReservations((prev) => [newRes, ...prev]);
-    setAllTransactions((prev) => [...txs, ...prev]);
+    reservationsRef.current = [newRes, ...reservationsRef.current];
+    transactionsRef.current = [...txs, ...transactionsRef.current];
+    setAllReservations(reservationsRef.current);
+    setAllTransactions(transactionsRef.current);
 
     logStaffActivity(
       'Create Reservation',
@@ -1576,7 +1578,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reservationId: string,
     payload: UpdateReservationPayload
   ): Result => {
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) return fail('err.res.notFound');
     if (res.bookingStatus !== 'reserved') {
       return fail('err.res.editOnlyReserved');
@@ -1604,12 +1606,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let assignedRoom: Room | undefined;
     if (payload.roomId) {
-      assignedRoom = allRooms.find((r) => r.id === payload.roomId && r.isActive !== false);
+      assignedRoom = roomsRef.current.find((r) => r.id === payload.roomId && r.isActive !== false);
       if (!assignedRoom) return fail('err.res.roomNotFoundOrDeactivated');
     }
 
-    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
-    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchRooms = roomsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = reservationsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
 
     const availCheck = checkAvailability({
       branchId: targetBranchId,
@@ -1630,45 +1632,43 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const nightlyRate = assignedRoom ? assignedRoom.pricePerNight : roomType.basePrice;
     const newTotalAmount = nightlyRate * nights;
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === reservationId
-          ? {
-              ...r,
-              checkInDate: payload.checkInDate,
-              checkOutDate: payload.checkOutDate,
-              roomTypeId: roomType.id,
-              roomId: assignedRoom ? assignedRoom.id : '',
-              roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned',
-              adults: payload.adults,
-              children: payload.children || 0,
-              nightlyRate,
-              totalNights: nights,
-              totalAmount: newTotalAmount,
-              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid',
-              source: payload.source || r.source,
-              specialRequests: payload.specialRequests !== undefined ? payload.specialRequests : r.specialRequests,
-              rateType: payload.rateType !== undefined
-                ? (payload.rateType === 'non_refundable' ? 'non_refundable' : 'flexible')
-                : (r.rateType || 'flexible')
-            }
-          : r
-      )
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId
+        ? {
+            ...r,
+            checkInDate: payload.checkInDate,
+            checkOutDate: payload.checkOutDate,
+            roomTypeId: roomType.id,
+            roomId: assignedRoom ? assignedRoom.id : '',
+            roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned',
+            adults: payload.adults,
+            children: payload.children || 0,
+            nightlyRate,
+            totalNights: nights,
+            totalAmount: newTotalAmount,
+            paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid',
+            source: payload.source || r.source,
+            specialRequests: payload.specialRequests !== undefined ? payload.specialRequests : r.specialRequests,
+            rateType: payload.rateType !== undefined
+              ? (payload.rateType === 'non_refundable' ? 'non_refundable' : 'flexible')
+              : (r.rateType || 'flexible')
+          }
+        : r
     );
+    setAllReservations(reservationsRef.current);
 
     // Update room charge transaction
-    setAllTransactions((prev) =>
-      prev.map((tx) =>
-        tx.reservationId === reservationId && tx.category === 'room_charge'
-          ? {
-              ...tx,
-              amount: newTotalAmount,
-              description: `${nights} Night(s) Stay (${roomType.name}${assignedRoom ? ` - Room #${assignedRoom.roomNumber}` : ''})`,
-              roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned'
-            }
-          : tx
-      )
+    transactionsRef.current = transactionsRef.current.map((tx) =>
+      tx.reservationId === reservationId && tx.category === 'room_charge'
+        ? {
+            ...tx,
+            amount: newTotalAmount,
+            description: `${nights} Night(s) Stay (${roomType.name}${assignedRoom ? ` - Room #${assignedRoom.roomNumber}` : ''})`,
+            roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Unassigned'
+          }
+        : tx
     );
+    setAllTransactions(transactionsRef.current);
 
     logStaffActivity(
       'Update Reservation',
@@ -1887,10 +1887,6 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!effectiveIdCard.trim()) {
       return fail('err.checkin.idCardRequired');
     }
-    if (payload.idCardNumber && payload.idCardNumber.trim()) {
-      setGuests((prev) => prev.map((g) => g.id === res.guestId ? { ...g, idCardNumber: payload.idCardNumber!.trim() } : g));
-    }
-
     // Immediately claim status synchronously in ref before any setState
     reservationsRef.current = reservationsRef.current.map((r) =>
       r.id === res.id ? { ...r, bookingStatus: 'checked_in' } : r
@@ -1898,6 +1894,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     roomsRef.current = roomsRef.current.map((r) =>
       r.id === room.id ? { ...r, status: 'occupied', currentReservationId: res.id } : r
     );
+
+    if (payload.idCardNumber && payload.idCardNumber.trim()) {
+      setGuests((prev) => prev.map((g) => g.id === res.guestId ? { ...g, idCardNumber: payload.idCardNumber!.trim() } : g));
+    }
 
     const timestamp = `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
     const staffName = currentUser?.name || 'Staff';
@@ -1939,14 +1939,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       r.id === res.id ? updatedRes : r
     );
     setAllReservations(reservationsRef.current);
-
-    setAllRooms((prev) =>
-      prev.map((r) =>
-        r.id === room.id
-          ? { ...r, status: 'occupied', currentReservationId: res.id }
-          : r
-      )
-    );
+    setAllRooms(roomsRef.current);
 
     logStaffActivity(
       'Check In Guest',
@@ -2139,7 +2132,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.hold.unauthorized');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
@@ -2153,21 +2146,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.hold.mustBeFuture');
     }
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === reservationId
-          ? {
-              ...r,
-              holdUntil: {
-                date,
-                time,
-                reason: reason?.trim() || undefined,
-                setBy: currentUser.name
-              }
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === reservationId
+        ? {
+            ...r,
+            holdUntil: {
+              date,
+              time,
+              reason: reason?.trim() || undefined,
+              setBy: currentUser.name
             }
-          : r
-      )
+          }
+        : r
     );
+    setAllReservations(reservationsRef.current);
 
     logStaffActivity(
       'Hold Reservation',
@@ -2377,7 +2369,14 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.folio.discountReasonMin');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const descPrefix = type === 'percent' ? `Discount (${value}%)` : `Discount (fixed)`;
+    const description = `${descPrefix}: ${reason.trim()}`;
+    const guardKey = `applyDiscount|${reservationId}|${type}:${value}||${description}`;
+    if (postingGuardRef.current.has(guardKey)) {
+      return { success: true };
+    }
+
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
@@ -2386,7 +2385,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.folio.discountOnlyActive');
     }
 
-    const totals = getFolioTotals(allTransactions, res.id);
+    const totals = getFolioTotals(transactionsRef.current, res.id);
     const baseCharges = totals.charges;
 
     if (baseCharges <= 0) {
@@ -2407,12 +2406,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.folio.discountExceedsCharges');
     }
 
-    const descPrefix = type === 'percent' ? `Discount (${value}%)` : `Discount (fixed)`;
-    const description = `${descPrefix}: ${reason.trim()}`;
+    postingGuardRef.current.add(guardKey);
+    setTimeout(() => postingGuardRef.current.delete(guardKey), 0);
+
     const targetBranchId = res.branchId || defaultBranchId;
 
     const tx: FolioTransaction = {
-      id: `tx-${Date.now()}-disc`,
+      id: `tx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}-disc`,
       branchId: targetBranchId,
       reservationId: res.id,
       guestId: res.guestId,
@@ -2425,20 +2425,20 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordedBy: currentUser.name
     };
 
-    setAllTransactions((prev) => [tx, ...prev]);
+    transactionsRef.current = [tx, ...transactionsRef.current];
+    setAllTransactions(transactionsRef.current);
 
     const newTotalAmount = Math.max(0, res.totalAmount - discountAmount);
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === res.id
-          ? {
-              ...r,
-              totalAmount: newTotalAmount,
-              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
-            }
-          : r
-      )
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === res.id
+        ? {
+            ...r,
+            totalAmount: newTotalAmount,
+            paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+          }
+        : r
     );
+    setAllReservations(reservationsRef.current);
 
     logStaffActivity(
       'Apply Discount',
@@ -2454,7 +2454,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.stay.extendUnauthorized');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
@@ -2474,13 +2474,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const targetBranchId = res.branchId || defaultBranchId;
-    const room = allRooms.find((r) => r.id === res.roomId);
+    const room = roomsRef.current.find((r) => r.id === res.roomId);
     if (!room) {
       return fail('err.stay.roomNotFound');
     }
 
-    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
-    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchRooms = roomsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = reservationsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
 
     const availCheck = checkAvailability({
       branchId: targetBranchId,
@@ -2498,7 +2498,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const tx: FolioTransaction = {
-      id: `tx-${Date.now()}-ext`,
+      id: `tx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}-ext`,
       branchId: targetBranchId,
       reservationId: res.id,
       guestId: res.guestId,
@@ -2511,24 +2511,24 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordedBy: currentUser.name
     };
 
-    setAllTransactions((prev) => [tx, ...prev]);
+    transactionsRef.current = [tx, ...transactionsRef.current];
+    setAllTransactions(transactionsRef.current);
 
     const newTotalAmount = res.totalAmount + addedAmount;
     const newTotalNights = res.totalNights + addedNights;
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === res.id
-          ? {
-              ...r,
-              checkOutDate: newCheckOutDate,
-              totalNights: newTotalNights,
-              totalAmount: newTotalAmount,
-              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
-            }
-          : r
-      )
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === res.id
+        ? {
+            ...r,
+            checkOutDate: newCheckOutDate,
+            totalNights: newTotalNights,
+            totalAmount: newTotalAmount,
+            paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+          }
+        : r
     );
+    setAllReservations(reservationsRef.current);
 
     logStaffActivity(
       'Extend Stay',
@@ -2552,7 +2552,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.stay.shortenReasonMin');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
@@ -2579,7 +2579,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const tx: FolioTransaction = {
-      id: `tx-${Date.now()}-shrt`,
+      id: `tx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}-shrt`,
       branchId: targetBranchId,
       reservationId: res.id,
       guestId: res.guestId,
@@ -2592,24 +2592,24 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordedBy: currentUser.name
     };
 
-    setAllTransactions((prev) => [tx, ...prev]);
+    transactionsRef.current = [tx, ...transactionsRef.current];
+    setAllTransactions(transactionsRef.current);
 
     const newTotalAmount = Math.max(0, res.totalAmount - creditAmount);
     const newTotalNights = Math.max(1, res.totalNights - removedNights);
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === res.id
-          ? {
-              ...r,
-              checkOutDate: newCheckOutDate,
-              totalNights: newTotalNights,
-              totalAmount: newTotalAmount,
-              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
-            }
-          : r
-      )
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === res.id
+        ? {
+            ...r,
+            checkOutDate: newCheckOutDate,
+            totalNights: newTotalNights,
+            totalAmount: newTotalAmount,
+            paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+          }
+        : r
     );
+    setAllReservations(reservationsRef.current);
 
     logStaffActivity(
       'Shorten Stay',
@@ -2638,7 +2638,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.stay.moveRateUnauthorized');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
@@ -2647,7 +2647,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.stay.moveOnlyCheckedIn');
     }
 
-    const newRoom = allRooms.find((r) => r.id === newRoomId);
+    const newRoom = roomsRef.current.find((r) => r.id === newRoomId);
     if (!newRoom) {
       return fail('err.stay.moveTargetNotFound');
     }
@@ -2671,8 +2671,8 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const branchCurrentDate = (targetBranchId && branchBusinessDates[targetBranchId]) || businessDate || getLocalDateString();
-    const branchRooms = allRooms.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
-    const branchReservations = allReservations.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchRooms = roomsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
+    const branchReservations = reservationsRef.current.filter((r) => (r.branchId || defaultBranchId) === targetBranchId);
 
     const availCheck = checkAvailability({
       branchId: targetBranchId,
@@ -2704,7 +2704,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (adjustmentAmount !== 0) {
       const isPositive = adjustmentAmount > 0;
       const tx: FolioTransaction = {
-        id: `tx-${Date.now()}-mv-adj`,
+        id: `tx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}-mv-adj`,
         branchId: targetBranchId,
         reservationId: res.id,
         guestId: res.guestId,
@@ -2717,29 +2717,29 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recordedBy: currentUser.name
       };
 
-      setAllTransactions((prev) => [tx, ...prev]);
+      transactionsRef.current = [tx, ...transactionsRef.current];
+      setAllTransactions(transactionsRef.current);
     }
 
-    setAllRooms((prev) =>
-      prev.map((r) => {
-        if (r.id === res.roomId) {
-          return {
-            ...r,
-            status: 'dirty',
-            currentReservationId: undefined,
-            maintenanceNote: `Turnover cleaning required after room move to #${newRoom.roomNumber}.`
-          };
-        }
-        if (r.id === newRoom.id) {
-          return {
-            ...r,
-            status: 'occupied',
-            currentReservationId: res.id
-          };
-        }
-        return r;
-      })
-    );
+    roomsRef.current = roomsRef.current.map((r) => {
+      if (r.id === res.roomId) {
+        return {
+          ...r,
+          status: 'dirty',
+          currentReservationId: undefined,
+          maintenanceNote: `Turnover cleaning required after room move to #${newRoom.roomNumber}.`
+        };
+      }
+      if (r.id === newRoom.id) {
+        return {
+          ...r,
+          status: 'occupied',
+          currentReservationId: res.id
+        };
+      }
+      return r;
+    });
+    setAllRooms(roomsRef.current);
 
     const moveEntry = {
       fromRoom: res.roomNumber,
@@ -2751,22 +2751,21 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const newTotalAmount = res.totalAmount + adjustmentAmount;
 
-    setAllReservations((prev) =>
-      prev.map((r) =>
-        r.id === res.id
-          ? {
-              ...r,
-              roomId: newRoom.id,
-              roomNumber: newRoom.roomNumber,
-              roomTypeId: newRoom.roomTypeId,
-              nightlyRate: newRate,
-              totalAmount: newTotalAmount,
-              roomMoves: [...(r.roomMoves || []), moveEntry],
-              paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
-            }
-          : r
-      )
+    reservationsRef.current = reservationsRef.current.map((r) =>
+      r.id === res.id
+        ? {
+            ...r,
+            roomId: newRoom.id,
+            roomNumber: newRoom.roomNumber,
+            roomTypeId: newRoom.roomTypeId,
+            nightlyRate: newRate,
+            totalAmount: newTotalAmount,
+            roomMoves: [...(r.roomMoves || []), moveEntry],
+            paymentStatus: r.amountPaid >= newTotalAmount ? 'paid' : r.amountPaid > 0 ? 'partial' : 'unpaid'
+          }
+        : r
     );
+    setAllReservations(reservationsRef.current);
 
     logStaffActivity(
       'Change Room',
@@ -2783,29 +2782,36 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const res = allReservations.find((r) => r.id === charge.reservationId);
+    const guardKey = `addFolioCharge|${charge.reservationId}|${charge.amount}|${charge.paymentMethod || ''}|${charge.description.trim()}`;
+    if (postingGuardRef.current.has(guardKey)) {
+      return;
+    }
+    postingGuardRef.current.add(guardKey);
+    setTimeout(() => postingGuardRef.current.delete(guardKey), 0);
+
+    const res = reservationsRef.current.find((r) => r.id === charge.reservationId);
     const targetBranchId = charge.branchId || res?.branchId || defaultBranchId;
 
     const tx: FolioTransaction = {
       ...charge,
       branchId: targetBranchId,
-      id: `tx-${Date.now()}`,
+      id: `tx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
       timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
-    setAllTransactions((prev) => [tx, ...prev]);
+    transactionsRef.current = [tx, ...transactionsRef.current];
+    setAllTransactions(transactionsRef.current);
 
-    setAllReservations((prev) =>
-      prev.map((r) => {
-        if (r.id !== charge.reservationId) return r;
-        const newTotal = r.totalAmount + charge.amount;
-        return {
-          ...r,
-          totalAmount: newTotal,
-          paymentStatus: r.amountPaid >= newTotal ? 'paid' : 'partial'
-        };
-      })
-    );
+    reservationsRef.current = reservationsRef.current.map((r) => {
+      if (r.id !== charge.reservationId) return r;
+      const newTotal = r.totalAmount + charge.amount;
+      return {
+        ...r,
+        totalAmount: newTotal,
+        paymentStatus: r.amountPaid >= newTotal ? 'paid' : 'partial'
+      };
+    });
+    setAllReservations(reservationsRef.current);
 
     notify('msg.folio.chargePosted', { desc: charge.description, amount: formatMoney(charge.amount), number: charge.roomNumber }, 'info');
   };
@@ -2816,30 +2822,37 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const res = allReservations.find((r) => r.id === payment.reservationId);
+    const guardKey = `recordFolioPayment|${payment.reservationId}|${payment.amount}|${payment.paymentMethod || ''}|${payment.description.trim()}`;
+    if (postingGuardRef.current.has(guardKey)) {
+      return;
+    }
+    postingGuardRef.current.add(guardKey);
+    setTimeout(() => postingGuardRef.current.delete(guardKey), 0);
+
+    const res = reservationsRef.current.find((r) => r.id === payment.reservationId);
     const targetBranchId = payment.branchId || res?.branchId || defaultBranchId;
 
     const tx: FolioTransaction = {
       ...payment,
       branchId: targetBranchId,
-      id: `tx-${Date.now()}`,
+      id: `tx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
       type: 'payment',
       timestamp: `${businessDate} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
     };
 
-    setAllTransactions((prev) => [tx, ...prev]);
+    transactionsRef.current = [tx, ...transactionsRef.current];
+    setAllTransactions(transactionsRef.current);
 
-    setAllReservations((prev) =>
-      prev.map((r) => {
-        if (r.id !== payment.reservationId) return r;
-        const newPaid = r.amountPaid + payment.amount;
-        return {
-          ...r,
-          amountPaid: newPaid,
-          paymentStatus: newPaid >= r.totalAmount ? 'paid' : 'partial'
-        };
-      })
-    );
+    reservationsRef.current = reservationsRef.current.map((r) => {
+      if (r.id !== payment.reservationId) return r;
+      const newPaid = r.amountPaid + payment.amount;
+      return {
+        ...r,
+        amountPaid: newPaid,
+        paymentStatus: newPaid >= r.totalAmount ? 'paid' : 'partial'
+      };
+    });
+    setAllReservations(reservationsRef.current);
 
     notify('msg.folio.paymentRecorded', { amount: formatMoney(payment.amount), method: (payment.paymentMethod || 'cash').toUpperCase() }, 'success');
   };
@@ -2854,17 +2867,25 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.folio.ownerNoPayments');
     }
 
-    const res = allReservations.find((r) => r.id === reservationId);
+    const totalLinesAmount = Array.isArray(lines)
+      ? lines.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
+      : 0;
+    const methodSig = Array.isArray(lines)
+      ? lines.map((l) => `${l.method}:${Number(l.amount) || 0}`).join(',')
+      : '';
+    const descSig = reference?.trim() || '';
+    const guardKey = `recordSplitPayment|${reservationId}|${totalLinesAmount}|${methodSig}|${descSig}`;
+    if (postingGuardRef.current.has(guardKey)) {
+      return { success: true };
+    }
+
+    const res = reservationsRef.current.find((r) => r.id === reservationId);
     if (!res) {
       return fail('err.res.notFound');
     }
 
-    const totals = getFolioTotals(allTransactions, res.id);
+    const totals = getFolioTotals(transactionsRef.current, res.id);
     const balanceDue = Math.max(0, totals.balance);
-
-    const totalLinesAmount = Array.isArray(lines)
-      ? lines.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
-      : 0;
 
     const validation = validateSplitPayment({
       totalAmount: totalLinesAmount,
@@ -2881,6 +2902,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         balance: formatMoney(balanceDue)
       });
     }
+
+    postingGuardRef.current.add(guardKey);
+    setTimeout(() => postingGuardRef.current.delete(guardKey), 0);
 
     const targetBranchId = res.branchId || defaultBranchId;
     const splitGroupId = `SPLIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -2904,19 +2928,19 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordedBy: staffName
     }));
 
-    setAllTransactions((prev) => [...newTransactions, ...prev]);
+    transactionsRef.current = [...newTransactions, ...transactionsRef.current];
+    setAllTransactions(transactionsRef.current);
 
-    setAllReservations((prev) =>
-      prev.map((r) => {
-        if (r.id !== res.id) return r;
-        const newPaid = r.amountPaid + totalLinesAmount;
-        return {
-          ...r,
-          amountPaid: newPaid,
-          paymentStatus: newPaid >= r.totalAmount ? 'paid' : 'partial'
-        };
-      })
-    );
+    reservationsRef.current = reservationsRef.current.map((r) => {
+      if (r.id !== res.id) return r;
+      const newPaid = r.amountPaid + totalLinesAmount;
+      return {
+        ...r,
+        amountPaid: newPaid,
+        paymentStatus: newPaid >= r.totalAmount ? 'paid' : 'partial'
+      };
+    });
+    setAllReservations(reservationsRef.current);
 
     logStaffActivity(
       'Record Split Payment',
@@ -2940,39 +2964,36 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    const tx = allTransactions.find((t) => t.id === txId);
+    const tx = transactionsRef.current.find((t) => t.id === txId);
     if (!tx || tx.voided) return false;
 
-    setAllTransactions((prev) =>
-      prev.map((t) =>
-        t.id === txId
-          ? {
-              ...t,
-              voided: true,
-              voidedBy: currentUser?.name || 'Manager',
-              voidReason: trimmedReason
-            }
-          : t
-      )
+    transactionsRef.current = transactionsRef.current.map((t) =>
+      t.id === txId
+        ? {
+            ...t,
+            voided: true,
+            voidedBy: currentUser?.name || 'Manager',
+            voidReason: trimmedReason
+          }
+        : t
     );
+    setAllTransactions(transactionsRef.current);
 
     // Re-adjust reservation balance
     if (tx.type === 'charge') {
-      setAllReservations((prev) =>
-        prev.map((res) =>
-          res.id === tx.reservationId
-            ? { ...res, totalAmount: Math.max(0, res.totalAmount - tx.amount) }
-            : res
-        )
+      reservationsRef.current = reservationsRef.current.map((res) =>
+        res.id === tx.reservationId
+          ? { ...res, totalAmount: Math.max(0, res.totalAmount - tx.amount) }
+          : res
       );
+      setAllReservations(reservationsRef.current);
     } else if (tx.type === 'payment') {
-      setAllReservations((prev) =>
-        prev.map((res) =>
-          res.id === tx.reservationId
-            ? { ...res, amountPaid: Math.max(0, res.amountPaid - tx.amount) }
-            : res
-        )
+      reservationsRef.current = reservationsRef.current.map((res) =>
+        res.id === tx.reservationId
+          ? { ...res, amountPaid: Math.max(0, res.amountPaid - tx.amount) }
+          : res
       );
+      setAllReservations(reservationsRef.current);
     }
 
     logStaffActivity(

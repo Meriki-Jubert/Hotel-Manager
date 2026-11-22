@@ -77,6 +77,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   const [specialRequests, setSpecialRequests] = useState('');
   const [selectedExistingGuestId, setSelectedExistingGuestId] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Compute stay duration and cost
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
@@ -110,6 +111,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMsg(null);
 
     if (!selectedRoomId) {
@@ -128,6 +130,8 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
       setErrorMsg(t('checkInModal.valErrId'));
       return;
     }
+
+    setIsSubmitting(true);
 
     if (isFutureArrival) {
       // Future Arrival Valve: Routed to createReservation so room is NOT occupied prematurely!
@@ -153,6 +157,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
       if (res.success && res.reservationId) {
         onSuccess(res.reservationId);
       } else {
+        setIsSubmitting(false);
         setErrorMsg(resultMessage(t, res, 'checkInModal.errFail'));
       }
       return;
@@ -179,6 +184,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     if (res.success && res.reservationId) {
       onSuccess(res.reservationId);
     } else {
+      setIsSubmitting(false);
       setErrorMsg(resultMessage(t, res, 'checkInModal.errFail'));
     }
   };
@@ -584,13 +590,15 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                disabled={isSubmitting}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 {t('common.cancel')}
               </button>
               <button
                 type="submit"
-                className={`px-5 py-2.5 text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
+                disabled={isSubmitting}
+                className={`px-5 py-2.5 text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                   isFutureArrival
                     ? 'bg-champagne-gold-500 hover:bg-champagne-gold-400 text-slate-950 shadow-champagne-gold-500/20'
                     : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-700/20'

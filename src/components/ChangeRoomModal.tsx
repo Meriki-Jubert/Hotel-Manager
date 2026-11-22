@@ -117,6 +117,7 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMessage(null);
 
     if (!selectedRoomId) {
@@ -143,11 +144,11 @@ export const ChangeRoomModal: React.FC<ChangeRoomModalProps> = ({ reservation, o
 
     setIsSubmitting(true);
     const result = changeRoom(reservation.id, selectedRoomId, fullReason, keepCurrentRate);
-    setIsSubmitting(false);
 
     if (result.success) {
       onClose();
     } else {
+      setIsSubmitting(false);
       setErrorMessage(resultMessage(t, result, 'changeRoom.errFail'));
     }
   };

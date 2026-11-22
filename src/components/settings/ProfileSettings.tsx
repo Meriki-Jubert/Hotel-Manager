@@ -131,18 +131,18 @@ export const ProfileSettings: React.FC = () => {
       return;
     }
 
-    if (!parseHHMM(checkInTime) || !parseHHMM(checkOutTime)) {
+    if (parseHHMM(checkInTime) === null || parseHHMM(checkOutTime) === null) {
       setProfileError(t('profile.errTimeFormat'));
       return;
     }
 
-    if (!parseHHMM(nightAuditReminderTime)) {
+    if (parseHHMM(nightAuditReminderTime) === null) {
       setProfileError(t('profile.errAuditTimeFormat'));
       return;
     }
 
     if (autoNoShowEnabled) {
-      if (!parseHHMM(autoNoShowCutoffTime)) {
+      if (parseHHMM(autoNoShowCutoffTime) === null) {
         setProfileError(t('profile.errNoShowCutoffFormat'));
         return;
       }

@@ -54,6 +54,7 @@ export const ShortenStayModal: React.FC<ShortenStayModalProps> = ({ reservation,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMessage(null);
 
     if (!isManager) {
@@ -73,11 +74,11 @@ export const ShortenStayModal: React.FC<ShortenStayModalProps> = ({ reservation,
 
     setIsSubmitting(true);
     const result = shortenStay(reservation.id, newCheckOutDate, reason.trim());
-    setIsSubmitting(false);
 
     if (result.success) {
       onClose();
     } else {
+      setIsSubmitting(false);
       setErrorMessage(resultMessage(t, result, 'shortenStay.errFail'));
     }
   };

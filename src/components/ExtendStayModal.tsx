@@ -78,6 +78,7 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMessage(null);
 
     if (extensionInfo.addedNights <= 0) {
@@ -92,11 +93,11 @@ export const ExtendStayModal: React.FC<ExtendStayModalProps> = ({ reservation, o
 
     setIsSubmitting(true);
     const result = extendStay(reservation.id, newCheckOutDate);
-    setIsSubmitting(false);
 
     if (result.success) {
       onClose();
     } else {
+      setIsSubmitting(false);
       setErrorMessage(resultMessage(t, result, 'extendStay.errFail'));
     }
   };
