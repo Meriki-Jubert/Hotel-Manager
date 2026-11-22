@@ -1,11 +1,13 @@
 import React from 'react';
 import { useHMS, NavTab } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
+import { getStockLevels } from '../utils/stock';
 import {
   LayoutGrid,
   CalendarCheck2,
   Receipt,
   UtensilsCrossed,
+  Package,
   Sparkles,
   Wrench,
   Moon,
@@ -24,12 +26,30 @@ interface TabItem {
 }
 
 export const NavigationTabs: React.FC = () => {
-  const { activeTab, setActiveTab, rooms, reservations, maintenanceTickets, allowedTabs } = useHMS();
+  const {
+    activeTab,
+    setActiveTab,
+    rooms,
+    reservations,
+    maintenanceTickets,
+    posItems,
+    stockMovements,
+    activeBranchId,
+    allowedTabs
+  } = useHMS();
   const { t } = useT();
 
   const dirtyRoomsCount = rooms.filter((r) => r.status === 'dirty' || r.status === 'cleaning').length;
   const activeReservationsCount = reservations.filter((r) => r.bookingStatus === 'checked_in').length;
   const activeTicketsCount = maintenanceTickets.filter((t) => t.status !== 'Resolved').length;
+  const lowOutStockCount =
+    activeBranchId !== 'all'
+      ? getStockLevels(
+          posItems.filter((i) => i.isActive !== false),
+          stockMovements,
+          activeBranchId
+        ).filter((r) => r.state === 'low' || r.state === 'out').length
+      : 0;
 
   const allTabsConfig: Record<NavTab, TabItem> = {
     matrix: {
@@ -53,6 +73,13 @@ export const NavigationTabs: React.FC = () => {
       id: 'pos',
       label: t('nav.pos'),
       icon: UtensilsCrossed,
+    },
+    inventory: {
+      id: 'inventory',
+      label: t('nav.inventory'),
+      icon: Package,
+      badge: lowOutStockCount > 0 ? lowOutStockCount : undefined,
+      badgeColor: 'bg-amber-500/20 text-amber-700'
     },
     housekeeping: {
       id: 'housekeeping',

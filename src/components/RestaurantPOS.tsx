@@ -3,6 +3,7 @@ import { useHMS } from '../context/HMSContext';
 import { useT } from '../i18n/LanguageContext';
 import { tPaymentMethod } from '../i18n/labels';
 import { PosItem, PaymentMethod } from '../types/hms';
+import { getStockLevels, StockLevelRow } from '../utils/stock';
 import { SelectBranchNotice } from './SelectBranchNotice';
 import {
   UtensilsCrossed,
@@ -19,10 +20,11 @@ export const RestaurantPOS: React.FC = () => {
   const { t } = useT();
   const {
     posItems,
+    stockMovements,
     rooms,
     roomTypes,
     reservations,
-    addFolioCharge,
+    processPosOrder,
     formatMoney,
     showNotification,
     activeBranchId,
@@ -66,6 +68,9 @@ export const RestaurantPOS: React.FC = () => {
   // Only show active items (isActive !== false)
   const activePosItems = posItems.filter((item) => item.isActive !== false);
 
+  const stockRows = getStockLevels(posItems, stockMovements, activeBranchId);
+  const stockById = new Map<string, StockLevelRow>(stockRows.map((r) => [r.itemId, r]));
+
   const filteredItems = activePosItems.filter((item) => {
     if (activeCategory !== 'All' && item.category !== activeCategory) return false;
     if (searchQuery.trim() !== '') {
@@ -75,13 +80,28 @@ export const RestaurantPOS: React.FC = () => {
   });
 
   const addToCart = (item: PosItem) => {
-    if (item.available === false) {
+    const stockRow = stockById.get(item.id);
+    const isTracked = Boolean(item.trackStock);
+    const availableQty = stockRow ? stockRow.level : 0;
+
+    if (item.available === false || (isTracked && availableQty <= 0)) {
       showNotification(t('pos.outOfStockNotify', { name: item.name }), 'warning');
       return;
     }
+
+    const existing = cart.find((i) => i.item.id === item.id);
+    const nextQty = (existing?.quantity || 0) + 1;
+    if (isTracked && nextQty > availableQty) {
+      showNotification(
+        t('pos.onlyAvailableNotify', { available: availableQty, name: item.name }),
+        'warning'
+      );
+      return;
+    }
+
     setCart((prev) => {
-      const existing = prev.find((i) => i.item.id === item.id);
-      if (existing) {
+      const found = prev.find((i) => i.item.id === item.id);
+      if (found) {
         return prev.map((i) =>
           i.item.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
         );
@@ -91,6 +111,21 @@ export const RestaurantPOS: React.FC = () => {
   };
 
   const updateQuantity = (itemId: string, delta: number) => {
+    if (delta > 0) {
+      const target = posItems.find((p) => p.id === itemId);
+      const currentEntry = cart.find((c) => c.item.id === itemId);
+      if (target?.trackStock && currentEntry) {
+        const availableQty = stockById.get(itemId)?.level ?? 0;
+        if (currentEntry.quantity + delta > availableQty) {
+          showNotification(
+            t('pos.onlyAvailableNotify', { available: availableQty, name: target.name }),
+            'warning'
+          );
+          return;
+        }
+      }
+    }
+
     setCart((prev) =>
       prev
         .map((i) => {
@@ -111,19 +146,7 @@ export const RestaurantPOS: React.FC = () => {
   const handleProcessOrder = () => {
     if (cart.length === 0) return;
 
-    // Refuse any order containing an out-of-stock item
-    const outOfStockEntry = cart.find(
-      (entry) => entry.item.available === false || posItems.find((p) => p.id === entry.item.id)?.available === false
-    );
-    if (outOfStockEntry) {
-      showNotification(t('pos.cannotPlaceOrder', { name: outOfStockEntry.item.name }), 'warning');
-      return;
-    }
-
-    const orderDescription = cart
-      .map((i) => `${i.quantity}x ${i.item.name}`)
-      .join(', ');
-
+    let reservationId: string | undefined;
     if (checkoutMode === 'room') {
       const targetRoom = rooms.find((r) => r.id === activeSelectedRoomId);
       if (!targetRoom || !targetRoom.currentReservationId) {
@@ -131,25 +154,24 @@ export const RestaurantPOS: React.FC = () => {
         return;
       }
       const targetRes = reservations.find((r) => r.id === targetRoom.currentReservationId);
-      if (!targetRes) return;
-
-      addFolioCharge({
-        reservationId: targetRes.id,
-        guestId: targetRes.guestId,
-        roomNumber: targetRoom.roomNumber,
-        category: 'restaurant',
-        description: t('pos.roomServiceDesc', { items: orderDescription }),
-        amount: subtotal,
-        type: 'charge',
-        recordedBy: t('pos.recordedBy')
-      });
-
-      showNotification(t('pos.orderPostedRoom', { amount: formatMoney(subtotal), room: targetRoom.roomNumber }), 'success');
-    } else {
-      showNotification(t('pos.directSaleSuccess', { amount: formatMoney(subtotal), method: tPaymentMethod(t, directPaymentMethod) }), 'success');
+      if (!targetRes) {
+        showNotification(t('pos.selectOccupiedRoom'), 'warning');
+        return;
+      }
+      reservationId = targetRes.id;
     }
 
-    clearCart();
+    const res = processPosOrder({
+      lines: cart.map((entry) => ({ itemId: entry.item.id, qty: entry.quantity })),
+      mode: checkoutMode,
+      reservationId,
+      paymentMethod: checkoutMode === 'direct' ? directPaymentMethod : undefined,
+      branchId: activeBranchId
+    });
+
+    if (res.success) {
+      clearCart();
+    }
   };
 
   return (
@@ -229,7 +251,13 @@ export const RestaurantPOS: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {filteredItems.map((item) => {
-              const isAvailable = item.available !== false;
+              const stockInfo = stockById.get(item.id);
+              const isTracked = Boolean(item.trackStock);
+              const stockLevel = stockInfo?.level ?? 0;
+              const isOutByStock = isTracked && stockLevel <= 0;
+              const isLowStock = isTracked && stockInfo?.state === 'low';
+              const isAvailable = item.available !== false && !isOutByStock;
+
               return (
                 <div
                   key={item.id}
@@ -250,11 +278,15 @@ export const RestaurantPOS: React.FC = () => {
                     <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider text-white bg-slate-900/80 backdrop-blur-xs px-2 py-0.5 rounded-md">
                       {item.category}
                     </span>
-                    {!isAvailable && (
+                    {!isAvailable ? (
                       <span className="absolute top-2 right-2 text-[10px] font-bold uppercase tracking-wider text-white bg-rose-600/90 backdrop-blur-xs px-2 py-0.5 rounded-md shadow-xs">
                         {t('pos.outOfStock')}
                       </span>
-                    )}
+                    ) : isLowStock ? (
+                      <span className="absolute top-2 right-2 text-[10px] font-bold uppercase tracking-wider text-amber-950 bg-amber-300/95 backdrop-blur-xs px-2 py-0.5 rounded-md shadow-xs">
+                        {t('pos.lowBadge')}
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
@@ -262,11 +294,21 @@ export const RestaurantPOS: React.FC = () => {
                       <h4 className={`font-bold text-xs line-clamp-2 ${isAvailable ? 'text-slate-900 group-hover:text-emerald-700' : 'text-slate-500'}`}>
                         {item.name}
                       </h4>
-                      {!isAvailable && (
+                      {!isAvailable ? (
                         <span className="text-[10px] text-rose-600 font-semibold block mt-0.5">
                           {t('pos.outOfStock')}
                         </span>
-                      )}
+                      ) : isTracked ? (
+                        <span
+                          className={`text-[10px] font-mono tabular-nums font-semibold block mt-0.5 ${
+                            isLowStock ? 'text-amber-700' : 'text-slate-500'
+                          }`}
+                        >
+                          {item.unit
+                            ? t('pos.leftWithUnit', { count: stockLevel, unit: item.unit })
+                            : t('pos.leftCount', { count: stockLevel })}
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between">

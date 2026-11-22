@@ -266,6 +266,8 @@ export interface MaintenanceTicket {
   repairCost?: number;
 }
 
+export type StockMovementType = 'opening' | 'receive' | 'sale' | 'adjust' | 'waste' | 'return';
+
 export interface PosItem {
   id: string;
   name: string;
@@ -274,6 +276,21 @@ export interface PosItem {
   available: boolean;
   isActive?: boolean;
   image?: string;
+  trackStock?: boolean;
+  lowStockThreshold?: number;
+  unit?: string;
+}
+
+export interface StockMovement {
+  id: string;
+  branchId: string;
+  itemId: string;
+  type: StockMovementType;
+  quantity: number; // signed whole number: positive adds, negative removes
+  reason?: string;
+  reservationId?: string;
+  createdAt: string; // hotel clock 'YYYY-MM-DD HH:MM'
+  recordedBy: string;
 }
 
 export interface StaffUser {

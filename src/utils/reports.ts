@@ -2,7 +2,9 @@ import {
   FolioTransaction,
   Reservation,
   Room,
-  PaymentMethod
+  PaymentMethod,
+  PosItem,
+  StockMovement
 } from '../types/hms';
 import { getFolioTotals } from './folio';
 import { addDaysToLocalDate } from './dateUtils';
@@ -423,6 +425,127 @@ export function buildCancellations(
   result.rows = rows;
   result.totalFeeKept = totalFeeKept;
   result.totalRefunded = totalRefunded;
+  return result;
+}
+
+export interface StockMovementReportRow {
+  itemId: string;
+  itemName: string;
+  unit: string;
+  trackStock: boolean;
+  received: number;
+  sold: number;
+  wasted: number;
+  adjusted: number;
+  closingLevel: number;
+}
+
+export type StockMovementsResult = StockMovementReportRow[] & {
+  rows: StockMovementReportRow[];
+  totalReceived: number;
+  totalSold: number;
+  totalWasted: number;
+  totalAdjusted: number;
+  totalClosingLevel: number;
+};
+
+/**
+ * Builds stock movement summary per item for a branch (or all branches) and date range:
+ * - received: sum of positive 'opening', 'receive', and 'return' movements in range
+ * - sold: sum of absolute 'sale' movements in range
+ * - wasted: sum of absolute 'waste' movements in range
+ * - adjusted: net signed sum of 'adjust' movements in range
+ * - closingLevel: cumulative sum of all matching branch movements on or before range.to
+ */
+export function buildStockMovementsReport(
+  items: PosItem[],
+  movements: StockMovement[],
+  range: ReportRange
+): StockMovementsResult {
+  const itemById = new Map<string, PosItem>();
+  for (const item of items) {
+    itemById.set(item.id, item);
+  }
+
+  const branchMovements = movements.filter((m) => {
+    if (range.branchId && range.branchId !== 'all' && m.branchId !== range.branchId) {
+      return false;
+    }
+    return true;
+  });
+
+  const relevantItemIds = new Set<string>();
+  for (const item of items) {
+    if (item.trackStock) {
+      relevantItemIds.add(item.id);
+    }
+  }
+  for (const m of branchMovements) {
+    const day = m.createdAt ? m.createdAt.slice(0, 10) : '';
+    if (!day || day <= range.to) {
+      relevantItemIds.add(m.itemId);
+    }
+  }
+
+  const rows: StockMovementReportRow[] = [];
+
+  for (const itemId of relevantItemIds) {
+    const item = itemById.get(itemId);
+    const itemMoves = branchMovements.filter((m) => m.itemId === itemId);
+
+    let received = 0;
+    let sold = 0;
+    let wasted = 0;
+    let adjusted = 0;
+    let closingLevel = 0;
+
+    for (const m of itemMoves) {
+      const day = m.createdAt ? m.createdAt.slice(0, 10) : '';
+      if (!day || day <= range.to) {
+        closingLevel += m.quantity;
+      }
+
+      if (!day || (day >= range.from && day <= range.to)) {
+        if (m.type === 'opening' || m.type === 'receive' || m.type === 'return') {
+          received += m.quantity;
+        } else if (m.type === 'sale') {
+          sold += Math.abs(m.quantity);
+        } else if (m.type === 'waste') {
+          wasted += Math.abs(m.quantity);
+        } else if (m.type === 'adjust') {
+          adjusted += m.quantity;
+        }
+      }
+    }
+
+    rows.push({
+      itemId,
+      itemName: item?.name || itemId,
+      unit: item?.unit || '',
+      trackStock: Boolean(item?.trackStock),
+      received,
+      sold,
+      wasted,
+      adjusted,
+      closingLevel
+    });
+  }
+
+  rows.sort((a, b) => a.itemName.localeCompare(b.itemName));
+
+  const totalReceived = rows.reduce((s, r) => s + r.received, 0);
+  const totalSold = rows.reduce((s, r) => s + r.sold, 0);
+  const totalWasted = rows.reduce((s, r) => s + r.wasted, 0);
+  const totalAdjusted = rows.reduce((s, r) => s + r.adjusted, 0);
+  const totalClosingLevel = rows.reduce((s, r) => s + r.closingLevel, 0);
+
+  const result = [...rows] as StockMovementsResult;
+  result.rows = rows;
+  result.totalReceived = totalReceived;
+  result.totalSold = totalSold;
+  result.totalWasted = totalWasted;
+  result.totalAdjusted = totalAdjusted;
+  result.totalClosingLevel = totalClosingLevel;
   return result;
 }
 

@@ -18,7 +18,16 @@ import { tMenuCategory, tPosStockStatus, tPosActiveStatus } from '../../i18n/lab
 import { MoneyInput } from '../ui/MoneyInput';
 
 export const MenuSettings: React.FC = () => {
-  const { posItems, addPosItem, updatePosItem, togglePosItemActive, deletePosItem, formatMoney } = useHMS();
+  const {
+    posItems,
+    activeBranchId,
+    activeBranch,
+    addPosItem,
+    updatePosItem,
+    togglePosItemActive,
+    deletePosItem,
+    formatMoney
+  } = useHMS();
   const { t } = useT();
 
   // Filter state
@@ -34,6 +43,10 @@ export const MenuSettings: React.FC = () => {
   const [formAvailable, setFormAvailable] = useState(true);
   const [formIsActive, setFormIsActive] = useState(true);
   const [formImage, setFormImage] = useState('');
+  const [formUnit, setFormUnit] = useState('');
+  const [formTrackStock, setFormTrackStock] = useState(false);
+  const [formOpeningStock, setFormOpeningStock] = useState<string>('0');
+  const [formThreshold, setFormThreshold] = useState<string>('5');
   const [formError, setFormError] = useState<string | null>(null);
 
   // Delete confirmation modal state
@@ -47,6 +60,10 @@ export const MenuSettings: React.FC = () => {
     setFormAvailable(true);
     setFormIsActive(true);
     setFormImage('');
+    setFormUnit('');
+    setFormTrackStock(false);
+    setFormOpeningStock('0');
+    setFormThreshold('5');
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -59,6 +76,10 @@ export const MenuSettings: React.FC = () => {
     setFormAvailable(item.available !== false);
     setFormIsActive(item.isActive !== false);
     setFormImage(item.image || '');
+    setFormUnit(item.unit || '');
+    setFormTrackStock(Boolean(item.trackStock));
+    setFormOpeningStock('0');
+    setFormThreshold(String(item.lowStockThreshold ?? 5));
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -86,6 +107,13 @@ export const MenuSettings: React.FC = () => {
       return;
     }
 
+    const thresholdTrimmed = formThreshold.trim();
+    if (!/^\d+$/.test(thresholdTrimmed)) {
+      setFormError(t('err.menu.thresholdInvalid'));
+      return;
+    }
+    const thresholdNum = parseInt(thresholdTrimmed, 10);
+
     if (editingItem) {
       const res = updatePosItem(editingItem.id, {
         name: formName.trim(),
@@ -93,21 +121,42 @@ export const MenuSettings: React.FC = () => {
         price: priceNum,
         available: formAvailable,
         isActive: formIsActive,
-        image: formImage.trim() || undefined
+        image: formImage.trim() || undefined,
+        unit: formUnit.trim() || undefined,
+        trackStock: formTrackStock,
+        lowStockThreshold: thresholdNum
       });
       if (!res.success) {
         setFormError(resultMessage(t, res, 'menu.errUpdateFailed'));
         return;
       }
     } else {
-      const res = addPosItem({
-        name: formName.trim(),
-        category: formCategory,
-        price: priceNum,
-        available: formAvailable,
-        isActive: formIsActive,
-        image: formImage.trim() || undefined
-      });
+      let openingQty: number | undefined;
+      if (formTrackStock && activeBranchId !== 'all') {
+        const openingTrimmed = formOpeningStock.trim() || '0';
+        if (!/^\d+$/.test(openingTrimmed)) {
+          setFormError(t('err.stock.openingNonNegative'));
+          return;
+        }
+        openingQty = parseInt(openingTrimmed, 10);
+      }
+
+      const res = addPosItem(
+        {
+          name: formName.trim(),
+          category: formCategory,
+          price: priceNum,
+          available: formAvailable,
+          isActive: formIsActive,
+          image: formImage.trim() || undefined,
+          unit: formUnit.trim() || undefined,
+          trackStock: formTrackStock,
+          lowStockThreshold: thresholdNum
+        },
+        formTrackStock && activeBranchId !== 'all'
+          ? { openingStock: openingQty, branchId: activeBranchId }
+          : undefined
+      );
       if (!res.success) {
         setFormError(resultMessage(t, res, 'menu.errAddFailed'));
         return;
@@ -270,7 +319,11 @@ export const MenuSettings: React.FC = () => {
                           )}
                           <div>
                             <span className="font-bold text-slate-900 block">{item.name}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">ID: {item.id}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ID: {item.id}
+                              {item.unit ? ` • ${item.unit}` : ''}
+                              {item.trackStock ? ` • ${t('inventory.summaryTracked')}` : ''}
+                            </span>
                           </div>
                         </div>
                       </td>
@@ -425,20 +478,80 @@ export const MenuSettings: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {t('menu.formImage')}
-                </label>
-                <input
-                  type="url"
-                  placeholder={t('menu.formImagePlaceholder')}
-                  value={formImage}
-                  onChange={(e) => setFormImage(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {t('menu.formUnit')}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={t('menu.formUnitPlaceholder')}
+                    value={formUnit}
+                    onChange={(e) => setFormUnit(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {t('menu.formImage')}
+                  </label>
+                  <input
+                    type="url"
+                    placeholder={t('menu.formImagePlaceholder')}
+                    value={formImage}
+                    onChange={(e) => setFormImage(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
 
               <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                <label className="flex items-start gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formTrackStock}
+                    onChange={(e) => setFormTrackStock(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span>
+                    <span className="block">{t('menu.formTrackStock')}</span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      {t('menu.formTrackStockDesc')}
+                    </span>
+                  </span>
+                </label>
+
+                {formTrackStock && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-5">
+                    {!editingItem && activeBranchId !== 'all' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          {t('menu.formOpeningStock', { branch: activeBranch?.name || activeBranchId })}
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={formOpeningStock}
+                          onChange={(e) => setFormOpeningStock(e.target.value)}
+                          className="w-full text-xs p-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {t('menu.formThreshold')}
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formThreshold}
+                        onChange={(e) => setFormThreshold(e.target.value)}
+                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
                   <input
                     type="checkbox"

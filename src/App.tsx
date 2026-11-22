@@ -9,6 +9,7 @@ import { RoomMatrix } from './components/RoomMatrix';
 import { FrontDeskView } from './components/FrontDeskView';
 import { FoliosListView } from './components/FoliosListView';
 import { RestaurantPOS } from './components/RestaurantPOS';
+import { InventoryView } from './components/InventoryView';
 import { HousekeepingView } from './components/HousekeepingView';
 import { MaintenanceView } from './components/MaintenanceView';
 import { OwnerAnalytics } from './components/OwnerAnalytics';
@@ -115,6 +116,8 @@ const AuthenticatedDashboard: React.FC = () => {
         )}
 
         {activeTab === 'pos' && <RestaurantPOS />}
+
+        {activeTab === 'inventory' && <InventoryView />}
 
         {activeTab === 'housekeeping' && (
           <HousekeepingView onReportMaintenance={handleOpenReportMaintenance} />

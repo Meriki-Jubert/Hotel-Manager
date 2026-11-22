@@ -8,6 +8,7 @@ import {
   buildOccupancy,
   buildOutstandingBalances,
   buildCancellations,
+  buildStockMovementsReport,
   toCsv,
   downloadCsv,
   ReportRange
@@ -31,7 +32,8 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Receipt,
-  FileText
+  FileText,
+  Package
 } from 'lucide-react';
 
 export const ReportsView: React.FC = () => {
@@ -40,6 +42,8 @@ export const ReportsView: React.FC = () => {
     allTransactions,
     allReservations,
     allRooms,
+    posItems,
+    allStockMovements,
     branches,
     activeBranchId,
     currentUser,
@@ -99,6 +103,11 @@ export const ReportsView: React.FC = () => {
   const cancellationsReport = useMemo(
     () => buildCancellations(allReservations, range),
     [allReservations, range]
+  );
+
+  const stockMovementsReport = useMemo(
+    () => buildStockMovementsReport(posItems, allStockMovements, range),
+    [posItems, allStockMovements, range]
   );
 
   const activeBranchName = useMemo(() => {
@@ -163,6 +172,18 @@ export const ReportsView: React.FC = () => {
       { key: 'feeOverrideReason', label: t('reports.col.feeOverrideReason'), format: (val) => val ? `${t('reports.override')}: ${val}` : '' }
     ]);
     downloadCsv(`cancellations-and-noshows-${range.from}-to-${range.to}`, csv);
+  };
+
+  const handleDownloadStockMovementsCsv = () => {
+    const csv = toCsv(stockMovementsReport.rows, [
+      { key: 'itemName', label: t('reports.col.item') },
+      { key: 'received', label: t('reports.col.received') },
+      { key: 'sold', label: t('reports.col.sold') },
+      { key: 'wasted', label: t('reports.col.wasted') },
+      { key: 'adjusted', label: t('reports.col.adjusted') },
+      { key: 'closingLevel', label: t('reports.col.closingLevel') }
+    ]);
+    downloadCsv(`stock-movements-${range.from}-to-${range.to}`, csv);
   };
 
   // PDF Section definitions for single & full export
@@ -298,6 +319,38 @@ export const ReportsView: React.FC = () => {
     }
   });
 
+  const getStockMovementsSection = (): ReportPdfSection => ({
+    title: t('reports.stockMovements'),
+    note: t('reports.stockMovementsNote'),
+    columns: [
+      { label: t('reports.col.item'), key: 'item', align: 'left' },
+      { label: t('reports.col.received'), key: 'received', align: 'right' },
+      { label: t('reports.col.sold'), key: 'sold', align: 'right' },
+      { label: t('reports.col.wasted'), key: 'wasted', align: 'right' },
+      { label: t('reports.col.adjusted'), key: 'adjusted', align: 'right' },
+      { label: t('reports.col.closingLevel'), key: 'closingLevel', align: 'right' }
+    ],
+    rows: stockMovementsReport.rows.map((row) => ({
+      item: row.unit ? `${row.itemName} (${row.unit})` : row.itemName,
+      received: String(row.received),
+      sold: String(row.sold),
+      wasted: String(row.wasted),
+      adjusted: row.adjusted > 0 ? `+${row.adjusted}` : String(row.adjusted),
+      closingLevel: String(row.closingLevel)
+    })),
+    totalRow: {
+      item: t('reports.stockTotalsLabel'),
+      received: String(stockMovementsReport.totalReceived),
+      sold: String(stockMovementsReport.totalSold),
+      wasted: String(stockMovementsReport.totalWasted),
+      adjusted:
+        stockMovementsReport.totalAdjusted > 0
+          ? `+${stockMovementsReport.totalAdjusted}`
+          : String(stockMovementsReport.totalAdjusted),
+      closingLevel: String(stockMovementsReport.totalClosingLevel)
+    }
+  });
+
   const getPdfMeta = (title: string) => ({
     title,
     hotelName: hotelConfig.name,
@@ -317,7 +370,8 @@ export const ReportsView: React.FC = () => {
         getPaymentsSection(),
         getOccupancySection(),
         getOutstandingSection(),
-        getCancellationsSection()
+        getCancellationsSection(),
+        getStockMovementsSection()
       ]
     });
     downloadReportPdf(`full-report-${fromDate}-to-${toDate}.pdf`, doc);
@@ -361,6 +415,14 @@ export const ReportsView: React.FC = () => {
       sections: [getCancellationsSection()]
     });
     downloadReportPdf(`cancellations-and-noshows-${fromDate}-to-${toDate}.pdf`, doc);
+  };
+
+  const handleDownloadStockMovementsPdf = () => {
+    const doc = buildReportPdf({
+      ...getPdfMeta(t('reports.stockMovements')),
+      sections: [getStockMovementsSection()]
+    });
+    downloadReportPdf(`stock-movements-${fromDate}-to-${toDate}.pdf`, doc);
   };
 
   const setMonthPreset = (offsetMonths: number = 0) => {
@@ -1009,6 +1071,113 @@ export const ReportsView: React.FC = () => {
                     {formatMoney(cancellationsReport.totalRefunded)}
                   </td>
                   <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* SECTION 6: Stock Movements */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print:border-slate-300 print:shadow-none">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 print:bg-transparent">
+          <div className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">{t('reports.stockMovements')}</h3>
+              <p className="text-[11px] text-slate-500">
+                {t('reports.stockMovementsNote')}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 no-print">
+            <button
+              onClick={handleDownloadStockMovementsPdf}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title={t('reports.exportPdf')}
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <span>{t('reports.exportPdf')}</span>
+            </button>
+            <button
+              onClick={handleDownloadStockMovementsCsv}
+              disabled={stockMovementsReport.rows.length === 0}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title={t('reports.exportCsv')}
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>{t('reports.exportCsv')}</span>
+            </button>
+          </div>
+        </div>
+
+        {stockMovementsReport.rows.length === 0 ? (
+          <div className="p-8 text-center text-slate-500 text-xs">
+            <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="font-semibold text-slate-700">{t('reports.noStockMovements')}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200">
+                <tr>
+                  <th className="py-2.5 px-4">{t('reports.col.item')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.received')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.sold')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.wasted')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.adjusted')}</th>
+                  <th className="py-2.5 px-4 text-right">{t('reports.col.closingLevel')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {stockMovementsReport.rows.map((row) => (
+                  <tr key={row.itemId} className="hover:bg-slate-50/70">
+                    <td className="py-2.5 px-4">
+                      <span className="font-bold text-slate-900">{row.itemName}</span>
+                      {row.unit && (
+                        <span className="ml-1.5 text-[10px] text-slate-500 font-mono">({row.unit})</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono tabular-nums text-emerald-700 font-semibold">
+                      {row.received}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono tabular-nums text-slate-700">
+                      {row.sold}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono tabular-nums text-rose-700">
+                      {row.wasted}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono tabular-nums text-amber-700">
+                      {row.adjusted > 0 ? `+${row.adjusted}` : row.adjusted}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono tabular-nums font-bold text-slate-950">
+                      {row.closingLevel}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-100/80 font-bold border-t-2 border-slate-300">
+                <tr>
+                  <td className="py-3 px-4 text-slate-800 uppercase tracking-wider text-[11px]">
+                    {t('reports.stockTotalsLabel')}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-800">
+                    {stockMovementsReport.totalReceived}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-900">
+                    {stockMovementsReport.totalSold}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono tabular-nums text-rose-800">
+                    {stockMovementsReport.totalWasted}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono tabular-nums text-amber-800">
+                    {stockMovementsReport.totalAdjusted > 0
+                      ? `+${stockMovementsReport.totalAdjusted}`
+                      : stockMovementsReport.totalAdjusted}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-950 text-sm">
+                    {stockMovementsReport.totalClosingLevel}
+                  </td>
                 </tr>
               </tfoot>
             </table>

@@ -24,13 +24,15 @@ import {
   AlertCircle,
   Bell,
   AlertTriangle,
-  UserX
+  UserX,
+  Package
 } from 'lucide-react';
 import { isDemoMode } from '../config/appConfig';
 import { useHotelNow, useTimedEvents } from '../context/HotelClockContext';
 import { formatHotelDateTime, formatMinutes, parseHHMM } from '../utils/hotelClock';
 import { getFolioTotals } from '../utils/folio';
 import { addDaysToDateString } from '../utils/noShow';
+import { getStockLevels } from '../utils/stock';
 import { Reservation } from '../types/hms';
 import { ExtendStayModal } from './ExtendStayModal';
 import { CheckOutModal } from './CheckOutModal';
@@ -75,6 +77,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     changeMyPassword,
     allReservations,
     allTransactions,
+    posItems,
+    stockMovements,
+    openInventoryLowStock,
     formatMoney
   } = useHMS();
 
@@ -94,7 +99,30 @@ export const Navbar: React.FC<NavbarProps> = ({
     return false;
   });
 
-  const totalAlerts = reminders.length + overdue.length + autoNoShowsRecent.length;
+  // Low & Out-of-stock alerts for active branch
+  const stockAlertEntries =
+    activeBranchId !== 'all' && allowedTabs.includes('inventory')
+      ? getStockLevels(
+          posItems.filter((i) => i.isActive !== false),
+          stockMovements,
+          activeBranchId
+        )
+          .filter((row) => row.state === 'low' || row.state === 'out')
+          .map((row) => {
+            const item = posItems.find((p) => p.id === row.itemId);
+            return {
+              ...row,
+              name: item?.name || row.itemId,
+              threshold: item?.lowStockThreshold ?? 5
+            };
+          })
+      : [];
+
+  const lowStockCount = stockAlertEntries.filter((e) => e.state === 'low').length;
+  const outStockCount = stockAlertEntries.filter((e) => e.state === 'out').length;
+
+  const totalAlerts =
+    reminders.length + overdue.length + autoNoShowsRecent.length + stockAlertEntries.length;
 
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const [activeAlertFolioRes, setActiveAlertFolioRes] = useState<Reservation | null>(null);
@@ -592,6 +620,62 @@ export const Navbar: React.FC<NavbarProps> = ({
                             })}
                           </div>
                         )}
+
+                        {/* Inventory Stock Alerts Section */}
+                        {stockAlertEntries.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <div className="flex items-center justify-between px-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                                <Package className="w-3 h-3" />
+                                {t('navbar.stockAlertsSection')}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                                  {t('navbar.lowStockCount', { count: lowStockCount })}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">
+                                  {t('navbar.outOfStockCount', { count: outStockCount })}
+                                </span>
+                              </div>
+                            </div>
+
+                            {stockAlertEntries.map((entry) => (
+                              <div
+                                key={entry.itemId}
+                                className={`p-2 rounded-lg border text-xs flex items-center justify-between ${
+                                  entry.state === 'out'
+                                    ? 'bg-rose-50/70 border-rose-200'
+                                    : 'bg-amber-50/70 border-amber-200'
+                                }`}
+                              >
+                                <span className="font-bold text-slate-900 truncate pr-2">
+                                  {entry.name}
+                                </span>
+                                <span
+                                  className={`font-mono text-[11px] font-bold shrink-0 ${
+                                    entry.state === 'out' ? 'text-rose-700' : 'text-amber-800'
+                                  }`}
+                                >
+                                  {t('navbar.stockItemStatus', {
+                                    level: entry.level,
+                                    threshold: entry.threshold
+                                  })}
+                                </span>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openInventoryLowStock();
+                                setShowAlertsPanel(false);
+                              }}
+                              className="w-full py-1.5 px-2.5 text-[11px] font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg cursor-pointer text-center"
+                            >
+                              {t('navbar.viewLowInventoryBtn')}
+                            </button>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -767,6 +851,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? t('nav.folios')
                   : tab === 'pos'
                   ? t('nav.pos')
+                  : tab === 'inventory'
+                  ? t('nav.inventory')
                   : tab === 'housekeeping'
                   ? t('nav.housekeeping')
                   : tab === 'maintenance'

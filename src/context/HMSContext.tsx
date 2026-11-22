@@ -18,7 +18,9 @@ import {
   BookingSource,
   CreateReservationPayload,
   UpdateReservationPayload,
-  ConvertToCheckInPayload
+  ConvertToCheckInPayload,
+  StockMovement,
+  StockMovementType
 } from '../types/hms';
 import {
   DEFAULT_HOTEL_CONFIG,
@@ -55,6 +57,7 @@ import {
 } from '../utils/stayChanges';
 import { calculateDiscount, validateSplitPayment } from '../utils/folioAdjustments';
 import { validatePosItem, POS_CATEGORIES } from '../utils/posItems';
+import { getStockLevel, canSell, validateStockMovement } from '../utils/stock';
 import { fail, Result, KeyedError } from '../i18n/messages';
 import { translate } from '../i18n/translate';
 
@@ -70,6 +73,7 @@ export type NavTab =
   | 'reservations'
   | 'folios'
   | 'pos'
+  | 'inventory'
   | 'housekeeping'
   | 'maintenance'
   | 'audit'
@@ -77,6 +81,14 @@ export type NavTab =
   | 'reports'
   | 'guests'
   | 'settings';
+
+export interface ProcessPosOrderPayload {
+  lines: Array<{ itemId: string; qty: number }>;
+  mode: 'room' | 'direct';
+  reservationId?: string;
+  paymentMethod?: PaymentMethod;
+  branchId?: string;
+}
 
 interface CheckInPayload {
   guestName: string;
@@ -104,11 +116,16 @@ interface HMSContextType {
   transactions: FolioTransaction[];
   maintenanceTickets: MaintenanceTicket[];
   posItems: PosItem[];
+  stockMovements: StockMovement[];
+  allStockMovements: StockMovement[];
   nightAuditReports: NightAuditReport[];
   currentUser: StaffUser | null;
   currency: 'FCFA' | 'USD';
   businessDate: string;
   activeTab: NavTab;
+  inventoryFilterLowOut: boolean;
+  setInventoryFilterLowOut: (v: boolean) => void;
+  openInventoryLowStock: () => void;
   selectedRoom: Room | null;
   selectedReservation: Reservation | null;
   notification: NotificationPayload | null;
@@ -245,11 +262,22 @@ interface HMSContextType {
   deleteRoom: (id: string) => Result & { canDeactivateInstead?: boolean };
   toggleRoomActive: (id: string, active: boolean) => void;
 
-  // POS & Menu Items (Manager Scope)
-  addPosItem: (item: Omit<PosItem, 'id'>) => Result & { item?: PosItem };
+  // POS & Menu Items & Stock Inventory
+  addPosItem: (
+    item: Omit<PosItem, 'id'>,
+    options?: { openingStock?: number; branchId?: string }
+  ) => Result & { item?: PosItem };
   updatePosItem: (id: string, item: Partial<Omit<PosItem, 'id'>>) => Result;
   togglePosItemActive: (id: string, active?: boolean) => Result;
   deletePosItem: (id: string) => Result;
+  recordStockMovement: (
+    itemId: string,
+    type: StockMovementType,
+    quantity: number,
+    reason?: string,
+    branchId?: string
+  ) => Result & { movement?: StockMovement };
+  processPosOrder: (payload: ProcessPosOrderPayload) => Result;
 }
 
 const HMSContext = createContext<HMSContextType | undefined>(undefined);
@@ -476,6 +504,23 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : (isDemoMode ? INITIAL_POS_ITEMS : []);
   });
 
+  const posItemsRef = useRef<PosItem[]>(posItems);
+  posItemsRef.current = posItems;
+
+  const [allStockMovements, setAllStockMovements] = useState<StockMovement[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}_stock_movements`);
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const stockMovementsRef = useRef<StockMovement[]>(allStockMovements);
+  stockMovementsRef.current = allStockMovements;
+
   // Master Night Audit Reports (Safe migration for missing branchId)
   const [allNightAuditReports, setAllNightAuditReports] = useState<NightAuditReport[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_audits`);
@@ -486,9 +531,15 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currency, setCurrency] = useState<'FCFA' | 'USD'>(hotelConfig.defaultCurrency);
   const [activeTab, setActiveTab] = useState<NavTab>('matrix');
+  const [inventoryFilterLowOut, setInventoryFilterLowOut] = useState<boolean>(false);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [notification, setNotification] = useState<NotificationPayload | null>(null);
+
+  const openInventoryLowStock = () => {
+    setInventoryFilterLowOut(true);
+    setActiveTab('inventory');
+  };
 
   // Derived Branch Status
   const activeBranches = branches.filter((b) => b.isActive);
@@ -521,6 +572,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ? allNightAuditReports
     : allNightAuditReports.filter((a) => a.branchId === activeBranchId);
 
+  const stockMovements = activeBranchId === 'all'
+    ? allStockMovements
+    : allStockMovements.filter((m) => m.branchId === activeBranchId);
+
   // Document title sync
   useEffect(() => {
     document.title = `${hotelConfig.name} — Hotel Management System`;
@@ -542,6 +597,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}_pos_items`, JSON.stringify(posItems));
   }, [posItems]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}_stock_movements`, JSON.stringify(allStockMovements));
+  }, [allStockMovements]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}_config`, JSON.stringify(hotelConfig));
@@ -601,7 +660,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   let allowedTabs: NavTab[] = [];
   if (role === 'front_desk') {
-    allowedTabs = ['matrix', 'reservations', 'folios', 'pos', 'guests'];
+    allowedTabs = ['matrix', 'reservations', 'folios', 'pos', 'inventory', 'guests'];
   } else if (role === 'housekeeping') {
     allowedTabs = ['housekeeping', 'maintenance'];
   } else if (role === 'manager') {
@@ -610,6 +669,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'reservations',
       'folios',
       'pos',
+      'inventory',
       'housekeeping',
       'maintenance',
       'audit',
@@ -619,7 +679,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'settings'
     ];
   } else if (role === 'owner') {
-    allowedTabs = ['analytics', 'reports', 'matrix', 'settings'];
+    allowedTabs = ['analytics', 'reports', 'matrix', 'inventory', 'settings'];
   }
 
   const canEditRates = role === 'manager';
@@ -3345,6 +3405,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(`${STORAGE_PREFIX}_maintenance`);
     localStorage.removeItem(`${STORAGE_PREFIX}_audits`);
     localStorage.removeItem(`${STORAGE_PREFIX}_pos_items`);
+    localStorage.removeItem(`${STORAGE_PREFIX}_stock_movements`);
     localStorage.removeItem(`${STORAGE_PREFIX}_business_date`);
     localStorage.removeItem(`${STORAGE_PREFIX}_staff_users`);
     localStorage.removeItem(`${STORAGE_PREFIX}_staff_activity_log`);
@@ -3370,7 +3431,10 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAllReservations(isDemoMode ? INITIAL_RESERVATIONS.map((res) => ({ ...res, branchId: 'branch-1' })) : []);
     setAllTransactions(isDemoMode ? INITIAL_TRANSACTIONS.map((t) => ({ ...t, branchId: 'branch-1' })) : []);
     setAllMaintenanceTickets(isDemoMode ? INITIAL_MAINTENANCE_TICKETS.map((m) => ({ ...m, branchId: 'branch-1' })) : []);
-    setPosItems(isDemoMode ? INITIAL_POS_ITEMS : []);
+    posItemsRef.current = isDemoMode ? INITIAL_POS_ITEMS : [];
+    setPosItems(posItemsRef.current);
+    stockMovementsRef.current = [];
+    setAllStockMovements([]);
     setAllNightAuditReports(isDemoMode ? INITIAL_NIGHT_AUDIT_HISTORY.map((a) => ({ ...a, branchId: 'branch-1' })) : []);
     setStaffUsers(isDemoMode ? STAFF_USERS : []);
     setStaffActivityLogs([]);
@@ -3630,11 +3694,12 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notify(active ? 'msg.room.activated' : 'msg.room.deactivated', undefined, 'info');
   };
 
-  // POS & Menu Items Management (Manager and Owner Scope)
+  // POS & Menu Items Management & Stock Inventory
   const addPosItem = (
-    item: Omit<PosItem, 'id'>
+    item: Omit<PosItem, 'id'>,
+    options?: { openingStock?: number; branchId?: string }
   ): Result & { item?: PosItem } => {
-    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+    if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
       notify('err.menu.unauthorizedAdd', undefined, 'warning');
       return fail('err.menu.unauthorizedAdd');
     }
@@ -3649,19 +3714,64 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (typeof item.price !== 'number' || isNaN(item.price) || !Number.isInteger(item.price) || item.price <= 0) {
       return fail('err.menu.priceWhole');
     }
-    if (posItems.some((i) => i.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+    if (posItemsRef.current.some((i) => i.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
       return fail('err.menu.duplicateName', { name: trimmedName });
+    }
+
+    const isTracked = Boolean(item.trackStock);
+    let threshold = 5;
+    if (item.lowStockThreshold !== undefined) {
+      if (typeof item.lowStockThreshold !== 'number' || isNaN(item.lowStockThreshold) || !Number.isInteger(item.lowStockThreshold) || item.lowStockThreshold < 0) {
+        return fail('err.menu.thresholdInvalid');
+      }
+      threshold = item.lowStockThreshold;
+    }
+
+    let openingQty: number | undefined;
+    let openingBranchId: string | undefined;
+    if (isTracked && options?.openingStock !== undefined) {
+      if (typeof options.openingStock !== 'number' || isNaN(options.openingStock) || !Number.isInteger(options.openingStock) || options.openingStock < 0) {
+        return fail('err.stock.openingNonNegative');
+      }
+      openingQty = options.openingStock;
+      if (openingQty > 0) {
+        const targetB = options.branchId || activeBranchId;
+        if (!targetB || targetB === 'all') {
+          return fail('err.stock.selectBranch');
+        }
+        openingBranchId = targetB;
+      }
     }
 
     const newItem: PosItem = {
       ...item,
       id: `pos-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
       name: trimmedName,
-      isActive: true,
-      available: item.available !== false
+      isActive: item.isActive !== false,
+      available: item.available !== false,
+      trackStock: isTracked,
+      lowStockThreshold: threshold,
+      unit: item.unit?.trim() || undefined
     };
 
-    setPosItems((prev) => [newItem, ...prev]);
+    posItemsRef.current = [newItem, ...posItemsRef.current];
+    setPosItems(posItemsRef.current);
+
+    if (isTracked && openingQty && openingQty > 0 && openingBranchId) {
+      const now = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
+      const openingMove: StockMovement = {
+        id: `sm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+        branchId: openingBranchId,
+        itemId: newItem.id,
+        type: 'opening',
+        quantity: openingQty,
+        reason: 'Opening stock',
+        createdAt: `${now.date} ${now.time}`,
+        recordedBy: currentUser.name
+      };
+      stockMovementsRef.current = [openingMove, ...stockMovementsRef.current];
+      setAllStockMovements(stockMovementsRef.current);
+    }
 
     logStaffActivity(
       'Add Menu Item',
@@ -3676,20 +3786,32 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     id: string,
     updates: Partial<Omit<PosItem, 'id'>>
   ): Result => {
-    if (!currentUser || !['manager', 'owner'].includes(currentUser.role)) {
+    if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
       notify('err.menu.unauthorizedUpdate', undefined, 'warning');
       return fail('err.menu.unauthorizedUpdate');
     }
 
-    const existing = posItems.find((i) => i.id === id);
+    const existing = posItemsRef.current.find((i) => i.id === id);
     if (!existing) {
       return fail('err.menu.notFound');
+    }
+
+    if (currentUser.role === 'front_desk') {
+      if (updates.price !== undefined && updates.price !== existing.price) {
+        notify('err.menu.frontDeskPriceForbidden', undefined, 'warning');
+        return fail('err.menu.frontDeskPriceForbidden');
+      }
+      if (updates.isActive !== undefined && updates.isActive !== existing.isActive) {
+        notify('err.menu.unauthorizedStatus', undefined, 'warning');
+        return fail('err.menu.unauthorizedStatus');
+      }
     }
 
     const merged = {
       name: updates.name !== undefined ? updates.name : existing.name,
       category: updates.category !== undefined ? updates.category : existing.category,
-      price: updates.price !== undefined ? updates.price : existing.price
+      price: updates.price !== undefined ? updates.price : existing.price,
+      lowStockThreshold: updates.lowStockThreshold !== undefined ? updates.lowStockThreshold : (existing.lowStockThreshold ?? 5)
     };
 
     const trimmedName = typeof merged.name === 'string' ? merged.name.trim() : '';
@@ -3702,30 +3824,40 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (typeof merged.price !== 'number' || isNaN(merged.price) || !Number.isInteger(merged.price) || merged.price <= 0) {
       return fail('err.menu.priceWhole');
     }
-    if (posItems.some((i) => i.id !== id && i.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+    if (
+      updates.lowStockThreshold !== undefined &&
+      (typeof updates.lowStockThreshold !== 'number' ||
+        isNaN(updates.lowStockThreshold) ||
+        !Number.isInteger(updates.lowStockThreshold) ||
+        updates.lowStockThreshold < 0)
+    ) {
+      return fail('err.menu.thresholdInvalid');
+    }
+    if (posItemsRef.current.some((i) => i.id !== id && i.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
       return fail('err.menu.duplicateName', { name: trimmedName });
     }
 
-    setPosItems((prev) =>
-      prev.map((i) =>
-        i.id === id
-          ? {
-              ...i,
-              ...updates,
-              name: trimmedName,
-              category: merged.category as PosItem['category'],
-              price: merged.price
-            }
-          : i
-      )
+    posItemsRef.current = posItemsRef.current.map((i) =>
+      i.id === id
+        ? {
+            ...i,
+            ...updates,
+            name: trimmedName,
+            category: merged.category as PosItem['category'],
+            price: merged.price,
+            lowStockThreshold: merged.lowStockThreshold,
+            unit: updates.unit !== undefined ? (updates.unit.trim() || undefined) : i.unit
+          }
+        : i
     );
+    setPosItems(posItemsRef.current);
 
     logStaffActivity(
       'Update Menu Item',
-      `Updated "${merged.name}" (${merged.category}, ${formatMoney(merged.price)}) in POS menu.`
+      `Updated "${trimmedName}" (${merged.category}, ${formatMoney(merged.price)}) in POS menu.`
     );
 
-    notify('msg.menu.updated', { name: merged.name }, 'success');
+    notify('msg.menu.updated', { name: trimmedName }, 'success');
     return { success: true };
   };
 
@@ -3738,16 +3870,17 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.menu.unauthorizedStatus');
     }
 
-    const existing = posItems.find((i) => i.id === id);
+    const existing = posItemsRef.current.find((i) => i.id === id);
     if (!existing) {
       return fail('err.menu.notFound');
     }
 
     const newActive = active !== undefined ? active : (existing.isActive === false ? true : false);
 
-    setPosItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, isActive: newActive } : i))
+    posItemsRef.current = posItemsRef.current.map((i) =>
+      i.id === id ? { ...i, isActive: newActive } : i
     );
+    setPosItems(posItemsRef.current);
 
     logStaffActivity(
       newActive ? 'Activate Menu Item' : 'Deactivate Menu Item',
@@ -3770,12 +3903,13 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fail('err.menu.unauthorizedDelete');
     }
 
-    const existing = posItems.find((i) => i.id === id);
+    const existing = posItemsRef.current.find((i) => i.id === id);
     if (!existing) {
       return fail('err.menu.notFound');
     }
 
-    setPosItems((prev) => prev.filter((i) => i.id !== id));
+    posItemsRef.current = posItemsRef.current.filter((i) => i.id !== id);
+    setPosItems(posItemsRef.current);
 
     logStaffActivity(
       'Delete Menu Item',
@@ -3783,6 +3917,220 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     notify('msg.menu.deleted', { name: existing.name }, 'info');
+    return { success: true };
+  };
+
+  const recordStockMovement = (
+    itemId: string,
+    type: StockMovementType,
+    quantity: number,
+    reason?: string,
+    branchId?: string
+  ): Result & { movement?: StockMovement } => {
+    if (!currentUser || !['front_desk', 'manager', 'owner'].includes(currentUser.role)) {
+      notify('err.stock.unauthorized', undefined, 'warning');
+      return fail('err.stock.unauthorized');
+    }
+
+    const targetBranchId = branchId || activeBranchId;
+    if (!targetBranchId || targetBranchId === 'all') {
+      notify('err.stock.selectBranch', undefined, 'warning');
+      return fail('err.stock.selectBranch');
+    }
+
+    const item = posItemsRef.current.find((i) => i.id === itemId);
+    if (!item) {
+      return fail('err.menu.notFound');
+    }
+
+    const hasExisting = stockMovementsRef.current.some(
+      (m) => m.itemId === itemId && m.branchId === targetBranchId
+    );
+    const currentLevel = getStockLevel(stockMovementsRef.current, itemId, targetBranchId);
+    const validation = validateStockMovement({ type, quantity, reason }, currentLevel, hasExisting);
+    if (!validation.valid) {
+      const key = validation.errorKey || 'err.stock.invalidMovement';
+      notify(key, validation.errorVars, 'warning');
+      return fail(key, validation.errorVars);
+    }
+
+    const signedQty = type === 'waste' ? -Math.abs(quantity) : quantity;
+    const now = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
+    const movement: StockMovement = {
+      id: `sm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      branchId: targetBranchId,
+      itemId,
+      type,
+      quantity: signedQty,
+      reason: reason?.trim() || undefined,
+      createdAt: `${now.date} ${now.time}`,
+      recordedBy: currentUser.name
+    };
+
+    stockMovementsRef.current = [movement, ...stockMovementsRef.current];
+    setAllStockMovements(stockMovementsRef.current);
+
+    logStaffActivity(
+      'Stock Movement',
+      `Recorded ${type} (${signedQty >= 0 ? '+' : ''}${signedQty}) for "${item.name}" in ${targetBranchId}${movement.reason ? `: ${movement.reason}` : ''}`
+    );
+
+    notify(
+      'msg.stock.recorded',
+      { name: item.name, qty: `${signedQty >= 0 ? '+' : ''}${signedQty}` },
+      'success'
+    );
+    return { success: true, movement };
+  };
+
+  const processPosOrder = (payload: ProcessPosOrderPayload): Result => {
+    if (isReadOnly) {
+      notify('err.folio.ownerNoCharges', undefined, 'warning');
+      return fail('err.folio.ownerNoCharges');
+    }
+    if (!currentUser || !['front_desk', 'manager'].includes(currentUser.role)) {
+      notify('err.stock.unauthorized', undefined, 'warning');
+      return fail('err.stock.unauthorized');
+    }
+
+    const targetBranchId = payload.branchId || activeBranchId;
+    if (!targetBranchId || targetBranchId === 'all') {
+      notify('err.stock.selectBranch', undefined, 'warning');
+      return fail('err.stock.selectBranch');
+    }
+
+    if (!Array.isArray(payload.lines) || payload.lines.length === 0) {
+      return fail('err.pos.emptyOrder');
+    }
+
+    const itemById = new Map(posItemsRef.current.map((p) => [p.id, p]));
+    let subtotal = 0;
+    const qtyByItem = new Map<string, number>();
+    const descParts: string[] = [];
+
+    for (const line of payload.lines) {
+      const qty = Number(line.qty) || 0;
+      if (qty <= 0) continue;
+      const item = itemById.get(line.itemId);
+      if (!item) {
+        return fail('err.menu.notFound');
+      }
+      if (item.available === false) {
+        notify('err.pos.itemOutOfStock', { name: item.name }, 'warning');
+        return fail('err.pos.itemOutOfStock', { name: item.name });
+      }
+      subtotal += item.price * qty;
+      qtyByItem.set(item.id, (qtyByItem.get(item.id) || 0) + qty);
+      descParts.push(`${qty}x ${item.name}`);
+    }
+
+    if (qtyByItem.size === 0) {
+      return fail('err.pos.emptyOrder');
+    }
+
+    let targetRes: Reservation | undefined;
+    if (payload.mode === 'room') {
+      targetRes = reservationsRef.current.find((r) => r.id === payload.reservationId);
+      if (!targetRes || targetRes.bookingStatus !== 'checked_in') {
+        notify('err.pos.selectOccupiedRoom', undefined, 'warning');
+        return fail('err.pos.selectOccupiedRoom');
+      }
+    }
+
+    const linesSig = Array.from(qtyByItem.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([id, q]) => `${id}:${q}`)
+      .join(',');
+    const guardKey = `posOrder|${targetBranchId}|${payload.mode}|${payload.reservationId || ''}|${payload.paymentMethod || ''}|${linesSig}`;
+    if (postingGuardRef.current.has(guardKey)) {
+      return { success: true };
+    }
+
+    const sellCheck = canSell(posItemsRef.current, stockMovementsRef.current, targetBranchId, payload.lines);
+    if (!sellCheck.ok) {
+      const shortageSummary = sellCheck.shortages
+        .map((s) => `${itemById.get(s.itemId)?.name || s.itemId} (${s.available})`)
+        .join(', ');
+      notify('err.stock.insufficient', { items: shortageSummary }, 'warning');
+      return fail('err.stock.insufficient', { items: shortageSummary });
+    }
+
+    postingGuardRef.current.add(guardKey);
+    setTimeout(() => postingGuardRef.current.delete(guardKey), 0);
+
+    const now = getHotelNow(hotelConfig.timeZone || 'Africa/Douala');
+    const createdAt = `${now.date} ${now.time}`;
+    const saleMovements: StockMovement[] = [];
+    for (const [itemId, totalQty] of qtyByItem.entries()) {
+      const item = itemById.get(itemId);
+      if (item?.trackStock) {
+        saleMovements.push({
+          id: `sm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}-${saleMovements.length}`,
+          branchId: targetBranchId,
+          itemId,
+          type: 'sale',
+          quantity: -totalQty,
+          reservationId: targetRes?.id,
+          createdAt,
+          recordedBy: currentUser.name
+        });
+      }
+    }
+
+    if (saleMovements.length > 0) {
+      stockMovementsRef.current = [...saleMovements, ...stockMovementsRef.current];
+      setAllStockMovements(stockMovementsRef.current);
+    }
+
+    const orderDescription = descParts.join(', ');
+
+    if (payload.mode === 'room' && targetRes) {
+      const langCode = hotelConfig.defaultLanguage || 'en';
+      const chargeDesc = translate(langCode, 'pos.roomServiceDesc', { items: orderDescription });
+      const recordedByLabel = translate(langCode, 'pos.recordedBy');
+      const tx: FolioTransaction = {
+        id: `tx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+        branchId: targetBranchId,
+        reservationId: targetRes.id,
+        guestId: targetRes.guestId,
+        roomNumber: targetRes.roomNumber,
+        category: 'restaurant',
+        description: chargeDesc,
+        amount: subtotal,
+        type: 'charge',
+        timestamp: `${businessDate} ${now.time}`,
+        recordedBy: recordedByLabel
+      };
+
+      transactionsRef.current = [tx, ...transactionsRef.current];
+      setAllTransactions(transactionsRef.current);
+
+      reservationsRef.current = reservationsRef.current.map((r) => {
+        if (r.id !== targetRes!.id) return r;
+        const newTotal = r.totalAmount + subtotal;
+        return {
+          ...r,
+          totalAmount: newTotal,
+          paymentStatus: r.amountPaid >= newTotal ? 'paid' : 'partial'
+        };
+      });
+      setAllReservations(reservationsRef.current);
+
+      logStaffActivity(
+        'POS Room Charge',
+        `Posted POS order (${orderDescription}, ${formatMoney(subtotal)}) to Room #${targetRes.roomNumber} (${targetRes.bookingCode}).`
+      );
+      notify('pos.orderPostedRoom', { amount: formatMoney(subtotal), room: targetRes.roomNumber }, 'success');
+    } else {
+      const method = payload.paymentMethod || 'cash';
+      const methodLabel = translate(hotelConfig.defaultLanguage || 'en', `payment.method.${method}`);
+      logStaffActivity(
+        'POS Direct Sale',
+        `Processed direct POS sale (${orderDescription}, ${formatMoney(subtotal)}) via ${methodLabel}.`
+      );
+      notify('pos.directSaleSuccess', { amount: formatMoney(subtotal), method: methodLabel }, 'success');
+    }
+
     return { success: true };
   };
 
@@ -3797,11 +4145,16 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         transactions,
         maintenanceTickets,
         posItems,
+        stockMovements,
+        allStockMovements,
         nightAuditReports,
         currentUser,
         currency,
         businessDate,
         activeTab,
+        inventoryFilterLowOut,
+        setInventoryFilterLowOut,
+        openInventoryLowStock,
         selectedRoom,
         selectedReservation,
         notification,
@@ -3888,7 +4241,9 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addPosItem,
         updatePosItem,
         togglePosItemActive,
-        deletePosItem
+        deletePosItem,
+        recordStockMovement,
+        processPosOrder
       }}
     >
       {children}
