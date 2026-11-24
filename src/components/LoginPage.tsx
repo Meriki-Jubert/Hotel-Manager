@@ -161,16 +161,14 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden p-4 sm:p-6 lg:p-8">
-      {/* 4K Architectural Hotel Backdrop - clearly visible with soft atmospheric overlay */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        <img
-          src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=2000&auto=format&fit=crop&q=85"
-          alt="Hotel Exterior"
-          className="w-full h-full object-cover opacity-60 filter brightness-95 scale-100"
-        />
-        {/* Soft subtle vignette overlay so text and cards stay crisp while image is beautifully visible */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-slate-950/60" />
-      </div>
+      {/* Dark-green architectural gradient backdrop (offline-first, no external assets) */}
+      <div
+        className="absolute inset-0 z-0 overflow-hidden"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.22), transparent 50%), radial-gradient(circle at 80% 15%, rgba(197, 160, 89, 0.14), transparent 45%), linear-gradient(145deg, #022c22 0%, #064e3b 32%, #0f172a 78%, #090d16 100%)'
+        }}
+      />
 
       <div className="relative z-10 flex flex-col justify-between min-h-[calc(100vh-4rem)] w-full">
         {/* Top Brand Bar */}
@@ -491,6 +489,10 @@ export const LoginPage: React.FC = () => {
                             <img
                               src={user.avatar}
                               alt={user.name}
+                              width={40}
+                              height={40}
+                              loading="lazy"
+                              decoding="async"
                               className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-700 group-hover:ring-champagne-gold-500/60"
                             />
                             <div>

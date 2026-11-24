@@ -7,6 +7,7 @@ import { useT } from '../i18n/LanguageContext';
 import { tRoomStatus } from '../i18n/labels';
 import { useHotelNow } from '../context/HotelClockContext';
 import { getDepartureStatus } from '../utils/hotelClock';
+import { createRoomPlaceholderSvg } from '../utils/placeholders';
 import {
   Bed,
   User,
@@ -297,11 +298,15 @@ export const RoomMatrix: React.FC<RoomMatrixProps> = ({
               className={`bg-white rounded-xl border-2 transition-all duration-200 shadow-xs hover:shadow-md flex flex-col justify-between overflow-hidden group cursor-pointer ${cfg.border}`}
               onClick={() => onSelectRoom(room)}
             >
-              {/* 4K Architectural Photo Thumbnail Banner */}
-              <div className="relative h-28 w-full overflow-hidden bg-slate-900">
+              {/* Room Category Thumbnail Banner */}
+              <div className="relative h-28 aspect-[16/7] w-full overflow-hidden bg-slate-900">
                 <img
-                  src={type?.image || 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&auto=format&fit=crop&q=80'}
+                  src={type?.image || createRoomPlaceholderSvg(type?.code || room.roomNumber, type?.name)}
                   alt={type?.name || 'Room'}
+                  width={400}
+                  height={112}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />

@@ -1314,7 +1314,7 @@ export const en = {
   'roomType.fieldBedConfig': 'Bed Configuration *',
   'roomType.placeholderBed': 'e.g. King Bed, 2x Twin Beds',
   'roomType.fieldPhotoUrl': 'Optional Photo URL',
-  'roomType.placeholderPhoto': 'https://images.unsplash.com/...',
+  'roomType.placeholderPhoto': 'https://example.com/room-photo.jpg',
   'roomType.fieldAmenities': 'Amenities (Comma separated)',
   'roomType.placeholderAmenities': 'Free Wi-Fi, Hot Shower, Smart TV, AC',
   'roomType.fieldDescription': 'Description *',
@@ -1372,7 +1372,7 @@ export const en = {
   'rooms.categoryHint': 'Selecting a category automatically sets the nightly rate default below.',
   'rooms.fieldPrice': 'Nightly Price (FCFA) *',
   'rooms.fieldPhotoUrl': 'Optional Photo URL',
-  'rooms.placeholderPhoto': 'https://images.unsplash.com/...',
+  'rooms.placeholderPhoto': 'https://example.com/room-photo.jpg',
   'rooms.saveChanges': 'Save Changes',
   'rooms.createRoom': 'Create Room',
   'rooms.bulkModalTitle': 'Bulk Add Hotel Rooms',
@@ -1638,7 +1638,7 @@ export const en = {
   'menu.formCategory': 'Category *',
   'menu.formPrice': 'Price ({currency}) *',
   'menu.formImage': 'Image URL (Optional)',
-  'menu.formImagePlaceholder': 'https://images.unsplash.com/...',
+  'menu.formImagePlaceholder': 'https://example.com/menu-photo.jpg',
   'menu.formOnMenuDesc': '(Active catalog item)',
   'menu.formInStockDesc': '(Available for ordering on POS)',
   'menu.createItem': 'Create Item',
@@ -2123,7 +2123,12 @@ export const en = {
   'reports.col.wasted': 'Wasted',
   'reports.col.adjusted': 'Adjusted',
   'reports.col.closingLevel': 'Closing Level',
-  'reports.stockTotalsLabel': 'Period Totals'
+  'reports.stockTotalsLabel': 'Period Totals',
+
+  'common.retry': 'Retry',
+  'lazy.loadError': 'This screen could not be loaded. Check your connection and try again.',
+  'reports.preparingPdf': 'Preparing PDF...',
+  'reports.pdfLoadError': 'Could not load the PDF generator. Check your connection and try again.'
 } as const;
 
 export type TranslationKey = keyof typeof en;

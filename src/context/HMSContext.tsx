@@ -36,6 +36,7 @@ import {
   INITIAL_NIGHT_AUDIT_HISTORY
 } from '../data/mockData';
 import { isDemoMode } from '../config/appConfig';
+import { createAvatarPlaceholderSvg } from '../utils/placeholders';
 import {
   getLocalDateString,
   getNextLocalDateString,
@@ -802,7 +803,7 @@ export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isActive: true,
       passwordSalt: salt,
       passwordHash: hash,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      avatar: createAvatarPlaceholderSvg(name, '#c5a059'),
       description: 'Property Owner: Full executive analytics, staff access, and hotel management.'
     };
 

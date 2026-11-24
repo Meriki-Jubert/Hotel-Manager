@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useHMS } from '../context/HMSContext';
+import { createMenuPlaceholderSvg } from '../utils/placeholders';
 import { useT } from '../i18n/LanguageContext';
 import { tPaymentMethod } from '../i18n/labels';
 import { PosItem, PaymentMethod } from '../types/hms';
@@ -292,10 +293,14 @@ export const RestaurantPOS: React.FC = () => {
                       : 'border-slate-200 bg-slate-50 opacity-60 grayscale-[40%] cursor-not-allowed'
                   }`}
                 >
-                  <div className="relative h-24 w-full bg-slate-900 overflow-hidden">
+                  <div className="relative h-24 aspect-[16/7] w-full bg-slate-900 overflow-hidden">
                     <img
-                      src={item.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80'}
+                      src={item.image || createMenuPlaceholderSvg(item.category, item.name)}
                       alt={item.name}
+                      width={400}
+                      height={96}
+                      loading="lazy"
+                      decoding="async"
                       className={`w-full h-full object-cover transition-transform duration-500 ${isAvailable ? 'group-hover:scale-105' : ''}`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />

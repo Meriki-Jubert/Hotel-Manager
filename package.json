@@ -11,10 +11,13 @@
     "check:time": "tsx scripts/check-timed-events.ts",
     "check:noshow": "tsx scripts/check-noshow.ts",
     "check:stock": "tsx scripts/check-stock.ts",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "test": "vitest run",
     "preview": "vite preview --port 3000"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "clsx": "^2.1.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",

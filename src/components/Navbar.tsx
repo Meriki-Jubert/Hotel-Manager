@@ -725,6 +725,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <img
                     src={currentUser.avatar}
                     alt={currentUser.name}
+                    width={28}
+                    height={28}
+                    loading="lazy"
+                    decoding="async"
                     className="w-7 h-7 rounded-full object-cover ring-2 ring-emerald-500/40"
                   />
                   <div className="hidden xl:block text-xs leading-tight">
@@ -761,7 +765,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                               currentUser.id === user.id ? 'bg-slate-700 text-emerald-400' : 'text-slate-200'
                             }`}
                           >
-                            <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full object-cover" />
+                            <img
+                              src={user.avatar}
+                              alt={user.name}
+                              width={28}
+                              height={28}
+                              loading="lazy"
+                              decoding="async"
+                              className="w-7 h-7 rounded-full object-cover"
+                            />
                             <div className="text-xs">
                               <div className="font-semibold">{user.name}</div>
                               <div className="text-[10px] text-slate-400 capitalize">{user.role.replace('_', ' ')}</div>

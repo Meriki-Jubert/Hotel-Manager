@@ -1,21 +1,12 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { HMSProvider, useHMS } from './context/HMSContext';
-import { LanguageProvider } from './i18n/LanguageContext';
+import { LanguageProvider, useT } from './i18n/LanguageContext';
 import { HotelClockProvider } from './context/HotelClockContext';
 import { LoginPage } from './components/LoginPage';
 import { Navbar } from './components/Navbar';
 import { NavigationTabs } from './components/NavigationTabs';
 import { RoomMatrix } from './components/RoomMatrix';
 import { FrontDeskView } from './components/FrontDeskView';
-import { FoliosListView } from './components/FoliosListView';
-import { RestaurantPOS } from './components/RestaurantPOS';
-import { InventoryView } from './components/InventoryView';
-import { HousekeepingView } from './components/HousekeepingView';
-import { MaintenanceView } from './components/MaintenanceView';
-import { OwnerAnalytics } from './components/OwnerAnalytics';
-import { ReportsView } from './components/ReportsView';
-import { GuestsCRM } from './components/GuestsCRM';
-import { HotelSettingsView } from './components/HotelSettingsView';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { GuestFolioModal } from './components/GuestFolioModal';
@@ -25,8 +16,89 @@ import { NewMaintenanceModal } from './components/NewMaintenanceModal';
 import { SelectBranchNotice } from './components/SelectBranchNotice';
 import { Room, Reservation } from './types/hms';
 
+const FoliosListView = lazy(() =>
+  import('./components/FoliosListView').then((m) => ({ default: m.FoliosListView }))
+);
+const RestaurantPOS = lazy(() =>
+  import('./components/RestaurantPOS').then((m) => ({ default: m.RestaurantPOS }))
+);
+const InventoryView = lazy(() =>
+  import('./components/InventoryView').then((m) => ({ default: m.InventoryView }))
+);
+const HousekeepingView = lazy(() =>
+  import('./components/HousekeepingView').then((m) => ({ default: m.HousekeepingView }))
+);
+const MaintenanceView = lazy(() =>
+  import('./components/MaintenanceView').then((m) => ({ default: m.MaintenanceView }))
+);
+const OwnerAnalytics = lazy(() =>
+  import('./components/OwnerAnalytics').then((m) => ({ default: m.OwnerAnalytics }))
+);
+const ReportsView = lazy(() =>
+  import('./components/ReportsView').then((m) => ({ default: m.ReportsView }))
+);
+const GuestsCRM = lazy(() =>
+  import('./components/GuestsCRM').then((m) => ({ default: m.GuestsCRM }))
+);
+const HotelSettingsView = lazy(() =>
+  import('./components/HotelSettingsView').then((m) => ({ default: m.HotelSettingsView }))
+);
+
+interface LazyErrorBoundaryProps {
+  resetKey: string;
+  errorMessage: string;
+  retryLabel: string;
+  children: React.ReactNode;
+}
+
+interface LazyErrorBoundaryState {
+  hasError: boolean;
+  retryNonce: number;
+}
+
+class LazyScreenErrorBoundary extends React.Component<
+  LazyErrorBoundaryProps,
+  LazyErrorBoundaryState
+> {
+  state: LazyErrorBoundaryState = { hasError: false, retryNonce: 0 };
+
+  static getDerivedStateFromError(): Partial<LazyErrorBoundaryState> {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(prevProps: LazyErrorBoundaryProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  handleRetry = () => {
+    this.setState((prev) => ({ hasError: false, retryNonce: prev.retryNonce + 1 }));
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-white text-slate-900 rounded-2xl border border-rose-200 p-6 text-center space-y-3 shadow-xs">
+          <p className="text-sm font-medium text-rose-700">{this.props.errorMessage}</p>
+          <button
+            type="button"
+            onClick={this.handleRetry}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+          >
+            {this.props.retryLabel}
+          </button>
+        </div>
+      );
+    }
+
+    return <React.Fragment key={this.state.retryNonce}>{this.props.children}</React.Fragment>;
+  }
+}
+
 const AuthenticatedDashboard: React.FC = () => {
   const { activeTab, hotelConfig, canRunAudit, reservations, activeBranchId } = useHMS();
+  const { t } = useT();
 
   // Modals state - always executed in stable order
   const [showCheckInModal, setShowCheckInModal] = useState(false);
@@ -64,13 +136,18 @@ const AuthenticatedDashboard: React.FC = () => {
     setShowMaintenanceModal(true);
   };
 
+  const loadingFallback = (
+    <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 text-center text-xs font-medium text-slate-300">
+      {t('common.loading')}
+    </div>
+  );
+
   return (
-    <div 
+    <div
       className="min-h-screen flex flex-col text-slate-100"
-      style={{ 
-        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.5)), url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=2500&auto=format&fit=crop&q=85')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at top right, rgba(6, 78, 59, 0.42), transparent 52%), radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.14), transparent 48%), linear-gradient(155deg, #090d16 0%, #0f172a 55%, #022c22 100%)',
         backgroundAttachment: 'fixed'
       }}
     >
@@ -108,58 +185,66 @@ const AuthenticatedDashboard: React.FC = () => {
           />
         )}
 
-        {activeTab === 'folios' && (
-          <FoliosListView
-            onOpenFolio={handleOpenFolioForRes}
-            onOpenCheckOut={handleOpenCheckOutForRes}
-          />
-        )}
+        <LazyScreenErrorBoundary
+          resetKey={activeTab}
+          errorMessage={t('lazy.loadError')}
+          retryLabel={t('common.retry')}
+        >
+          <Suspense fallback={loadingFallback}>
+            {activeTab === 'folios' && (
+              <FoliosListView
+                onOpenFolio={handleOpenFolioForRes}
+                onOpenCheckOut={handleOpenCheckOutForRes}
+              />
+            )}
 
-        {activeTab === 'pos' && <RestaurantPOS />}
+            {activeTab === 'pos' && <RestaurantPOS />}
 
-        {activeTab === 'inventory' && <InventoryView />}
+            {activeTab === 'inventory' && <InventoryView />}
 
-        {activeTab === 'housekeeping' && (
-          <HousekeepingView onReportMaintenance={handleOpenReportMaintenance} />
-        )}
+            {activeTab === 'housekeeping' && (
+              <HousekeepingView onReportMaintenance={handleOpenReportMaintenance} />
+            )}
 
-        {activeTab === 'maintenance' && (
-          <MaintenanceView onOpenNewTicket={handleOpenReportMaintenance} />
-        )}
+            {activeTab === 'maintenance' && (
+              <MaintenanceView onOpenNewTicket={handleOpenReportMaintenance} />
+            )}
 
-        {activeTab === 'audit' && (
-          activeBranchId === 'all' ? (
-            <SelectBranchNotice screenName="Night Audit" />
-          ) : (
-            <div className="space-y-6">
-              <div className="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
-                <div className="space-y-1">
-                  <h3 className="text-lg sm:text-xl font-bold">End-of-Day Night Audit Hub</h3>
-                  <p className="text-xs text-slate-400">
-                    Execute batch folio room charges, balance shift cash drawers, and roll over business date.
-                  </p>
+            {activeTab === 'audit' && (
+              activeBranchId === 'all' ? (
+                <SelectBranchNotice screenName="Night Audit" />
+              ) : (
+                <div className="space-y-6">
+                  <div className="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+                    <div className="space-y-1">
+                      <h3 className="text-lg sm:text-xl font-bold">End-of-Day Night Audit Hub</h3>
+                      <p className="text-xs text-slate-400">
+                        Execute batch folio room charges, balance shift cash drawers, and roll over business date.
+                      </p>
+                    </div>
+                    {canRunAudit && (
+                      <button
+                        onClick={() => setShowNightAuditModal(true)}
+                        className="w-full md:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap"
+                      >
+                        Launch Night Audit Wizard
+                      </button>
+                    )}
+                  </div>
+                  <OwnerAnalytics />
                 </div>
-                {canRunAudit && (
-                  <button
-                    onClick={() => setShowNightAuditModal(true)}
-                    className="w-full md:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap"
-                  >
-                    Launch Night Audit Wizard
-                  </button>
-                )}
-              </div>
-              <OwnerAnalytics />
-            </div>
-          )
-        )}
+              )
+            )}
 
-        {activeTab === 'analytics' && <OwnerAnalytics />}
+            {activeTab === 'analytics' && <OwnerAnalytics />}
 
-        {activeTab === 'reports' && <ReportsView />}
+            {activeTab === 'reports' && <ReportsView />}
 
-        {activeTab === 'guests' && <GuestsCRM />}
+            {activeTab === 'guests' && <GuestsCRM />}
 
-        {activeTab === 'settings' && <HotelSettingsView />}
+            {activeTab === 'settings' && <HotelSettingsView />}
+          </Suspense>
+        </LazyScreenErrorBoundary>
       </main>
 
       {/* Footer */}

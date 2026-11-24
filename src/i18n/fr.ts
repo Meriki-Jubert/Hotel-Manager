@@ -1316,7 +1316,7 @@ export const fr: Record<keyof typeof en, string> = {
   'roomType.fieldBedConfig': 'Configuration des lits *',
   'roomType.placeholderBed': 'ex. Grand lit (King), 2 lits simples (Twin)',
   'roomType.fieldPhotoUrl': 'URL de photo optionnelle',
-  'roomType.placeholderPhoto': 'https://images.unsplash.com/...',
+  'roomType.placeholderPhoto': 'https://example.com/photo-chambre.jpg',
   'roomType.fieldAmenities': 'Équipements (séparés par des virgules)',
   'roomType.placeholderAmenities': 'Wi-Fi gratuit, Douche chaude, Smart TV, Climatisation',
   'roomType.fieldDescription': 'Description *',
@@ -1374,7 +1374,7 @@ export const fr: Record<keyof typeof en, string> = {
   'rooms.categoryHint': 'La sélection d’une catégorie applique automatiquement le tarif de nuit par défaut ci-dessous.',
   'rooms.fieldPrice': 'Prix par nuit (FCFA) *',
   'rooms.fieldPhotoUrl': 'URL de photo optionnelle',
-  'rooms.placeholderPhoto': 'https://images.unsplash.com/...',
+  'rooms.placeholderPhoto': 'https://example.com/photo-chambre.jpg',
   'rooms.saveChanges': 'Enregistrer les modifications',
   'rooms.createRoom': 'Créer la chambre',
   'rooms.bulkModalTitle': 'Ajout groupé de chambres d’hôtel',
@@ -1640,7 +1640,7 @@ export const fr: Record<keyof typeof en, string> = {
   'menu.formCategory': 'Catégorie *',
   'menu.formPrice': 'Prix ({currency}) *',
   'menu.formImage': 'URL de l\'image (Optionnel)',
-  'menu.formImagePlaceholder': 'https://images.unsplash.com/...',
+  'menu.formImagePlaceholder': 'https://example.com/photo-plat.jpg',
   'menu.formOnMenuDesc': '(Article actif du catalogue)',
   'menu.formInStockDesc': '(Disponible à la commande sur le point de vente)',
   'menu.createItem': 'Créer l\'article',
@@ -2125,6 +2125,11 @@ export const fr: Record<keyof typeof en, string> = {
   'reports.col.wasted': 'Perdu',
   'reports.col.adjusted': 'Ajusté',
   'reports.col.closingLevel': 'Stock final',
-  'reports.stockTotalsLabel': 'Totaux de la période'
+  'reports.stockTotalsLabel': 'Totaux de la période',
+
+  'common.retry': 'Réessayer',
+  'lazy.loadError': 'Impossible de charger cet écran. Vérifiez votre connexion et réessayez.',
+  'reports.preparingPdf': 'Préparation du PDF...',
+  'reports.pdfLoadError': 'Impossible de charger le générateur PDF. Vérifiez votre connexion et réessayez.'
 };
 

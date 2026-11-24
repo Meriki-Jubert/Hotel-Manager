@@ -13,12 +13,7 @@ import {
   downloadCsv,
   ReportRange
 } from '../utils/reports';
-import {
-  buildReportPdf,
-  downloadReportPdf,
-  formatPdfMoney,
-  ReportPdfSection
-} from '../utils/reportPdf';
+import type { BuildReportPdfOptions, ReportPdfSection } from '../utils/reportPdf';
 import {
   Printer,
   Download,
@@ -115,6 +110,10 @@ export const ReportsView: React.FC = () => {
     return branches.find((b) => b.id === selectedBranchId)?.name || 'Selected Branch';
   }, [selectedBranchId, branches, t]);
 
+  type PdfExportKey = 'full' | 'revenue' | 'payments' | 'occupancy' | 'outstanding' | 'cancellations' | 'stock';
+  const [loadingPdfKey, setLoadingPdfKey] = useState<PdfExportKey | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   // CSV download handlers
   const handleDownloadRevenueCsv = () => {
     const csv = toCsv(revenueReport.rows, [
@@ -187,7 +186,7 @@ export const ReportsView: React.FC = () => {
   };
 
   // PDF Section definitions for single & full export
-  const getRevenueSection = (): ReportPdfSection => ({
+  const getRevenueSection = (formatPdfMoneyFn: (amount: number) => string): ReportPdfSection => ({
     title: t('reports.revenueByCategory'),
     note: t('reports.revenueNote'),
     columns: [
@@ -201,16 +200,16 @@ export const ReportsView: React.FC = () => {
         row.amount < 0 || row.category === 'discount' || row.category === 'room_charge_void'
           ? t('reports.type.credit')
           : t('reports.type.charge'),
-      amount: formatPdfMoney(row.amount)
+      amount: formatPdfMoneyFn(row.amount)
     })),
     totalRow: {
       category: t('reports.totalNetRevenueLabel'),
       type: '',
-      amount: formatPdfMoney(revenueReport.total)
+      amount: formatPdfMoneyFn(revenueReport.total)
     }
   });
 
-  const getPaymentsSection = (): ReportPdfSection => ({
+  const getPaymentsSection = (formatPdfMoneyFn: (amount: number) => string): ReportPdfSection => ({
     title: t('reports.paymentsByMethod'),
     note: t('reports.paymentsNote'),
     columns: [
@@ -219,15 +218,15 @@ export const ReportsView: React.FC = () => {
     ],
     rows: paymentsReport.rows.map((row) => ({
       method: tPaymentMethod(t, String(row.method)),
-      amount: formatPdfMoney(row.amount)
+      amount: formatPdfMoneyFn(row.amount)
     })),
     totalRow: {
       method: t('reports.totalCollectionsLabel'),
-      amount: formatPdfMoney(paymentsReport.total)
+      amount: formatPdfMoneyFn(paymentsReport.total)
     }
   });
 
-  const getOccupancySection = (): ReportPdfSection => ({
+  const getOccupancySection = (formatPdfMoneyFn: (amount: number) => string): ReportPdfSection => ({
     title: t('reports.occupancyAndAdr'),
     note: t('reports.occupancyNote'),
     columns: [
@@ -246,11 +245,11 @@ export const ReportsView: React.FC = () => {
       date: t('reports.periodSummary'),
       occupied: `${occupancyReport.totalOccupiedNights}`,
       total: `${occupancyReport.totalRooms}`,
-      percent: `${t('reports.avgOccupancy', { pct: occupancyReport.averageOccupancyPercent })} | ${t('reports.periodAdr', { amount: formatPdfMoney(occupancyReport.adr) })}`
+      percent: `${t('reports.avgOccupancy', { pct: occupancyReport.averageOccupancyPercent })} | ${t('reports.periodAdr', { amount: formatPdfMoneyFn(occupancyReport.adr) })}`
     }
   });
 
-  const getOutstandingSection = (): ReportPdfSection => ({
+  const getOutstandingSection = (formatPdfMoneyFn: (amount: number) => string): ReportPdfSection => ({
     title: t('reports.outstandingBalances'),
     note: t('reports.outstandingNote'),
     columns: [
@@ -267,22 +266,22 @@ export const ReportsView: React.FC = () => {
       guest: row.guestName,
       room: `#${row.roomNumber}`,
       stay: `${row.checkInDate} -> ${row.checkOutDate}`,
-      charges: formatPdfMoney(row.totalCharges),
-      paid: formatPdfMoney(row.totalPaid),
-      balance: formatPdfMoney(row.balance)
+      charges: formatPdfMoneyFn(row.totalCharges),
+      paid: formatPdfMoneyFn(row.totalPaid),
+      balance: formatPdfMoneyFn(row.balance)
     })),
     totalRow: {
-      booking: t('reports.totalOutstanding', { amount: formatPdfMoney(outstandingReport.total) }),
+      booking: t('reports.totalOutstanding', { amount: formatPdfMoneyFn(outstandingReport.total) }),
       guest: '',
       room: '',
       stay: '',
       charges: '',
       paid: '',
-      balance: formatPdfMoney(outstandingReport.total)
+      balance: formatPdfMoneyFn(outstandingReport.total)
     }
   });
 
-  const getCancellationsSection = (): ReportPdfSection => ({
+  const getCancellationsSection = (formatPdfMoneyFn: (amount: number) => string): ReportPdfSection => ({
     title: t('reports.cancellationsAndNoShows'),
     note: t('reports.cancellationsNote'),
     columns: [
@@ -303,18 +302,18 @@ export const ReportsView: React.FC = () => {
         ? `${row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled')} (${t('reports.autoNoShowLabel')})`
         : row.isNoShow ? t('reports.statusNoShow') : t('reports.statusCancelled'),
       date: row.cancelledAt ? row.cancelledAt.slice(0, 10) : row.checkInDate,
-      fee: formatPdfMoney(row.feeKept),
-      refund: formatPdfMoney(row.refund),
+      fee: formatPdfMoneyFn(row.feeKept),
+      refund: formatPdfMoneyFn(row.refund),
       reason: [row.reason, row.feeOverrideReason ? `[${t('reports.override')}: ${row.feeOverrideReason}]` : ''].filter(Boolean).join(' ')
     })),
     totalRow: {
-      booking: t('reports.totalFeesRetained', { amount: formatPdfMoney(cancellationsReport.totalFeeKept) }),
+      booking: t('reports.totalFeesRetained', { amount: formatPdfMoneyFn(cancellationsReport.totalFeeKept) }),
       guest: '',
       room: '',
       status: '',
       date: '',
-      fee: formatPdfMoney(cancellationsReport.totalFeeKept),
-      refund: formatPdfMoney(cancellationsReport.totalRefunded),
+      fee: formatPdfMoneyFn(cancellationsReport.totalFeeKept),
+      refund: formatPdfMoneyFn(cancellationsReport.totalRefunded),
       reason: ''
     }
   });
@@ -362,68 +361,97 @@ export const ReportsView: React.FC = () => {
     tOrLang: t
   });
 
-  const handleDownloadFullPdf = () => {
-    const doc = buildReportPdf({
-      ...getPdfMeta(t('reports.title')),
-      sections: [
-        getRevenueSection(),
-        getPaymentsSection(),
-        getOccupancySection(),
-        getOutstandingSection(),
-        getCancellationsSection(),
-        getStockMovementsSection()
-      ]
-    });
-    downloadReportPdf(`full-report-${fromDate}-to-${toDate}.pdf`, doc);
+  const runPdfExport = async (
+    key: PdfExportKey,
+    build: (formatPdfMoneyFn: (amount: number) => string) => {
+      filename: string;
+      options: BuildReportPdfOptions;
+    }
+  ) => {
+    if (loadingPdfKey) return;
+    setLoadingPdfKey(key);
+    setPdfError(null);
+    try {
+      const { buildReportPdf, downloadReportPdf, formatPdfMoney } = await import('../utils/reportPdf');
+      const { filename, options } = build(formatPdfMoney);
+      const doc = buildReportPdf(options);
+      downloadReportPdf(filename, doc);
+    } catch {
+      setPdfError(t('reports.pdfLoadError'));
+    } finally {
+      setLoadingPdfKey(null);
+    }
   };
 
-  const handleDownloadRevenuePdf = () => {
-    const doc = buildReportPdf({
-      ...getPdfMeta(t('reports.revenueByCategory')),
-      sections: [getRevenueSection()]
-    });
-    downloadReportPdf(`revenue-by-category-${fromDate}-to-${toDate}.pdf`, doc);
-  };
+  const handleDownloadFullPdf = () =>
+    runPdfExport('full', (formatPdfMoneyFn) => ({
+      filename: `full-report-${fromDate}-to-${toDate}.pdf`,
+      options: {
+        ...getPdfMeta(t('reports.title')),
+        sections: [
+          getRevenueSection(formatPdfMoneyFn),
+          getPaymentsSection(formatPdfMoneyFn),
+          getOccupancySection(formatPdfMoneyFn),
+          getOutstandingSection(formatPdfMoneyFn),
+          getCancellationsSection(formatPdfMoneyFn),
+          getStockMovementsSection()
+        ]
+      }
+    }));
 
-  const handleDownloadPaymentsPdf = () => {
-    const doc = buildReportPdf({
-      ...getPdfMeta(t('reports.paymentsByMethod')),
-      sections: [getPaymentsSection()]
-    });
-    downloadReportPdf(`payments-by-method-${fromDate}-to-${toDate}.pdf`, doc);
-  };
+  const handleDownloadRevenuePdf = () =>
+    runPdfExport('revenue', (formatPdfMoneyFn) => ({
+      filename: `revenue-by-category-${fromDate}-to-${toDate}.pdf`,
+      options: {
+        ...getPdfMeta(t('reports.revenueByCategory')),
+        sections: [getRevenueSection(formatPdfMoneyFn)]
+      }
+    }));
 
-  const handleDownloadOccupancyPdf = () => {
-    const doc = buildReportPdf({
-      ...getPdfMeta(t('reports.occupancyAndAdr')),
-      sections: [getOccupancySection()]
-    });
-    downloadReportPdf(`occupancy-and-adr-${fromDate}-to-${toDate}.pdf`, doc);
-  };
+  const handleDownloadPaymentsPdf = () =>
+    runPdfExport('payments', (formatPdfMoneyFn) => ({
+      filename: `payments-by-method-${fromDate}-to-${toDate}.pdf`,
+      options: {
+        ...getPdfMeta(t('reports.paymentsByMethod')),
+        sections: [getPaymentsSection(formatPdfMoneyFn)]
+      }
+    }));
 
-  const handleDownloadOutstandingPdf = () => {
-    const doc = buildReportPdf({
-      ...getPdfMeta(t('reports.outstandingBalances')),
-      sections: [getOutstandingSection()]
-    });
-    downloadReportPdf(`outstanding-balances-${fromDate}-to-${toDate}.pdf`, doc);
-  };
+  const handleDownloadOccupancyPdf = () =>
+    runPdfExport('occupancy', (formatPdfMoneyFn) => ({
+      filename: `occupancy-and-adr-${fromDate}-to-${toDate}.pdf`,
+      options: {
+        ...getPdfMeta(t('reports.occupancyAndAdr')),
+        sections: [getOccupancySection(formatPdfMoneyFn)]
+      }
+    }));
 
-  const handleDownloadCancellationsPdf = () => {
-    const doc = buildReportPdf({
-      ...getPdfMeta(t('reports.cancellationsAndNoShows')),
-      sections: [getCancellationsSection()]
-    });
-    downloadReportPdf(`cancellations-and-noshows-${fromDate}-to-${toDate}.pdf`, doc);
-  };
+  const handleDownloadOutstandingPdf = () =>
+    runPdfExport('outstanding', (formatPdfMoneyFn) => ({
+      filename: `outstanding-balances-${fromDate}-to-${toDate}.pdf`,
+      options: {
+        ...getPdfMeta(t('reports.outstandingBalances')),
+        sections: [getOutstandingSection(formatPdfMoneyFn)]
+      }
+    }));
 
-  const handleDownloadStockMovementsPdf = () => {
-    const doc = buildReportPdf({
-      ...getPdfMeta(t('reports.stockMovements')),
-      sections: [getStockMovementsSection()]
-    });
-    downloadReportPdf(`stock-movements-${fromDate}-to-${toDate}.pdf`, doc);
-  };
+  const handleDownloadCancellationsPdf = () =>
+    runPdfExport('cancellations', (formatPdfMoneyFn) => ({
+      filename: `cancellations-and-noshows-${fromDate}-to-${toDate}.pdf`,
+      options: {
+        ...getPdfMeta(t('reports.cancellationsAndNoShows')),
+        sections: [getCancellationsSection(formatPdfMoneyFn)]
+      }
+    }));
+
+  const handleDownloadStockMovementsPdf = () =>
+    runPdfExport('stock', () => ({
+      filename: `stock-movements-${fromDate}-to-${toDate}.pdf`,
+      options: {
+        ...getPdfMeta(t('reports.stockMovements')),
+        sections: [getStockMovementsSection()]
+      }
+    }));
 
   const setMonthPreset = (offsetMonths: number = 0) => {
     const now = new Date();
@@ -475,11 +503,12 @@ export const ReportsView: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleDownloadFullPdf}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              disabled={loadingPdfKey !== null}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               title={t('reports.exportFullPdf')}
             >
               <FileText className="w-4 h-4" />
-              <span>{t('reports.exportFullPdf')}</span>
+              <span>{loadingPdfKey === 'full' ? t('reports.preparingPdf') : t('reports.exportFullPdf')}</span>
             </button>
             <button
               onClick={() => window.print()}
@@ -491,6 +520,13 @@ export const ReportsView: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {pdfError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{pdfError}</span>
+          </div>
+        )}
 
         {/* Filter Controls */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end text-xs">
@@ -619,11 +655,12 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2 no-print">
             <button
               onClick={handleDownloadRevenuePdf}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              disabled={loadingPdfKey !== null}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>{t('reports.exportPdf')}</span>
+              <span>{loadingPdfKey === 'revenue' ? t('reports.preparingPdf') : t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadRevenueCsv}
@@ -713,11 +750,12 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2 no-print">
             <button
               onClick={handleDownloadPaymentsPdf}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              disabled={loadingPdfKey !== null}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>{t('reports.exportPdf')}</span>
+              <span>{loadingPdfKey === 'payments' ? t('reports.preparingPdf') : t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadPaymentsCsv}
@@ -788,11 +826,12 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2 no-print">
             <button
               onClick={handleDownloadOccupancyPdf}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              disabled={loadingPdfKey !== null}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>{t('reports.exportPdf')}</span>
+              <span>{loadingPdfKey === 'occupancy' ? t('reports.preparingPdf') : t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadOccupancyCsv}
@@ -880,11 +919,12 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2 no-print">
             <button
               onClick={handleDownloadOutstandingPdf}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              disabled={loadingPdfKey !== null}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>{t('reports.exportPdf')}</span>
+              <span>{loadingPdfKey === 'outstanding' ? t('reports.preparingPdf') : t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadOutstandingCsv}
@@ -975,11 +1015,12 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2 no-print">
             <button
               onClick={handleDownloadCancellationsPdf}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              disabled={loadingPdfKey !== null}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>{t('reports.exportPdf')}</span>
+              <span>{loadingPdfKey === 'cancellations' ? t('reports.preparingPdf') : t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadCancellationsCsv}
@@ -1093,11 +1134,12 @@ export const ReportsView: React.FC = () => {
           <div className="flex items-center gap-2 no-print">
             <button
               onClick={handleDownloadStockMovementsPdf}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              disabled={loadingPdfKey !== null}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               title={t('reports.exportPdf')}
             >
               <FileText className="w-3.5 h-3.5 text-rose-600" />
-              <span>{t('reports.exportPdf')}</span>
+              <span>{loadingPdfKey === 'stock' ? t('reports.preparingPdf') : t('reports.exportPdf')}</span>
             </button>
             <button
               onClick={handleDownloadStockMovementsCsv}
