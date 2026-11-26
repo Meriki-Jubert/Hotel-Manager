@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validatePosItem } from '../../src/utils/posItems';
+import { validatePosItem } from '../src/utils/posItems';
 
 const items: any[] = [{ id: '1', name: 'Grilled Fish', category: 'Meals', price: 5000 }, { id: '2', name: 'Club Beer', category: 'Beverages', price: 1000 }];
 const v = (i: any, e?: string) => validatePosItem(i, items, e);

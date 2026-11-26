@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { calculateExtension, calculateShortening, calculateRoomMoveAdjustment } from '../../src/utils/stayChanges';
-import { calculateDiscount, validateSplitPayment } from '../../src/utils/folioAdjustments';
-import { calculateTaxBreakdown } from '../../src/utils/tax';
-import { parseMoneyInput, formatMoneyInput } from '../../src/utils/money';
+import { calculateExtension, calculateShortening, calculateRoomMoveAdjustment } from '../src/utils/stayChanges';
+import { calculateDiscount, validateSplitPayment } from '../src/utils/folioAdjustments';
+import { calculateTaxBreakdown } from '../src/utils/tax';
+import { parseMoneyInput, formatMoneyInput } from '../src/utils/money';
 
 describe('stay changes', () => {
   it('extends: 2 nights at 25,000 = 50,000, across a month end too', () => {

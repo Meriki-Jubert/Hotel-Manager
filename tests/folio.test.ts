@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getFolioTotals, sumPaymentsByMethod } from '../../src/utils/folio';
-import { getGuestStats } from '../../src/utils/guestStats';
+import { getFolioTotals, sumPaymentsByMethod } from '../src/utils/folio';
+import { getGuestStats } from '../src/utils/guestStats';
 
 const R = 'R1';
 const tx = (o: any) => ({ reservationId: R, ...o }) as any;

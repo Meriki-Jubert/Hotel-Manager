@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { listNights, addDaysToLocalDate, doDateRangesOverlap, calculateStayNights, isValidDateString, getNextLocalDateString } from '../../src/utils/dateUtils';
-import { getHotelNow, parseHHMM, getDepartureStatus, isValidTimeZone } from '../../src/utils/hotelClock';
+import { listNights, addDaysToLocalDate, doDateRangesOverlap, calculateStayNights, isValidDateString, getNextLocalDateString } from '../src/utils/dateUtils';
+import { getHotelNow, parseHHMM, getDepartureStatus, isValidTimeZone } from '../src/utils/hotelClock';
 
 describe('date helpers', () => {
   it('listNights excludes the check-out day and crosses month ends', () => {

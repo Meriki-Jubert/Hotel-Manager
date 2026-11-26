@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReportPdf, sanitizePdfText, formatPdfMoney } from '../../src/utils/reportPdf';
+import { buildReportPdf, sanitizePdfText, formatPdfMoney } from '../src/utils/reportPdf';
 
 describe('PDF helpers', () => {
   it('formats money with thousands separators and a minus sign', () => {

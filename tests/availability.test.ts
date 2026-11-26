@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkAvailability, getAvailableRoomCount, reservationCoversNight } from '../../src/utils/availability';
+import { checkAvailability, getAvailableRoomCount, reservationCoversNight } from '../src/utils/availability';
 
 const B = 'b1', T = 'std';
 const room = (id: string, active = true, branch = B, type = T) => ({ id, branchId: branch, roomTypeId: type, isActive: active }) as any;

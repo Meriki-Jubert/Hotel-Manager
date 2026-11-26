@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { calculateCancellationFee, getCancellationPolicySummary } from '../../src/utils/cancellationPolicy';
-import { translate } from '../../src/i18n/translate';
+import { calculateCancellationFee, getCancellationPolicySummary } from '../src/utils/cancellationPolicy';
+import { translate } from '../src/i18n/translate';
 
 const policy = (tiers: any[], extra: any = {}) => ({ tiers, noShow: { feeType: 'nights', value: 1 }, allowNonRefundable: true, ...extra }) as any;
 const booking = (o: any = {}) => ({ checkInDate: '2026-11-10', totalAmount: 75000, nightlyRate: 25000, totalNights: 3, rateType: 'flexible', ...o }) as any;

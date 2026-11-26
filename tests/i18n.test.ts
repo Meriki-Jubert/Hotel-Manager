@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { en } from '../../src/i18n/en';
-import { fr } from '../../src/i18n/fr';
-import { translate } from '../../src/i18n/translate';
-import { tRoomStatus, tBookingStatus, tPaymentMethod, tBookingSource, tFolioCategory, tRoomMoveReason } from '../../src/i18n/labels';
+import { en } from '../src/i18n/en';
+import { fr } from '../src/i18n/fr';
+import { translate } from '../src/i18n/translate';
+import { tRoomStatus, tBookingStatus, tPaymentMethod, tBookingSource, tFolioCategory, tRoomMoveReason } from '../src/i18n/labels';
 
 const E: Record<string, string> = en as any;
 const F: Record<string, string> = fr as any;
